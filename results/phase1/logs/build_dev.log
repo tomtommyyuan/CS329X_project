@@ -1,0 +1,4 @@
+150 families in split 'dev' -> 1500 prompts -> data/prompts/dev_prompts_v2.jsonl
+variants: {'T0': 300, 'T1': 300, 'T3': 300, 'T5': 300, 'T6': 300}
+flags: {'t3_auto': 150, 'vp_single_word': 2}
+T3 review sheet -> /Users/yuansir/workspace/CS329X_Project/data/annotation/v2/t3_review_dev.csv

@@ -1,0 +1,20 @@
+INFO vcd.teacher.query: gpt4o/profile: 600 prompts, 4 jobs to run (2996 already done)
+QueryPlan(teacher='gpt4o', model='gpt-4o-2024-08-06', mode='profile', temperature=1.0, max_tokens=8, logprobs=True, top_logprobs=20, k=1, passes=1, extra_body=None)
+gpt4o:profile:   0%|          | 0/4 [00:00<?, ?it/s]gpt4o:profile:  25%|██▌       | 1/4 [00:01<00:03,  1.06s/it]gpt4o:profile:  50%|█████     | 2/4 [00:01<00:00,  2.01it/s]gpt4o:profile: 100%|██████████| 4/4 [00:01<00:00,  3.79it/s]gpt4o:profile: 100%|██████████| 4/4 [00:01<00:00,  2.83it/s]
+{
+  "usage": {
+    "input_tokens": 556,
+    "output_tokens": 32,
+    "cached": 0,
+    "calls": 4
+  },
+  "est_cost_usd": 0.0017,
+  "file": {
+    "rows": 3000,
+    "categories": {
+      "answer": 2971,
+      "refusal": 27,
+      "malformed": 2
+    }
+  }
+}

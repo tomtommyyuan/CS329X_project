@@ -25,11 +25,22 @@ async def generate(cfg, spec, model_key, fams, out_path, temperature: float) -> 
     todo = [f for f in fams if f.family_id not in done]
     print(f"{len(todo)} families to rephrase ({len(done)} done)")
 
+    # The reasoning judge occasionally returns an empty text (its thoughts exhaust the budget) and the cache would
+    # replay that empty answer forever, so empties are retried with the cache bypassed and a larger budget.
+    uncached = build_client(model_key, spec, cfg, use_cache=False)
+
     async def one(f: Family):
-        req = LLMRequest(model=spec["model"], system="You rewrite text faithfully.", user=T0_REPHRASE_INSTRUCTION.format(text=t1_text(f)), temperature=temperature, max_tokens=1200)
-        resp = await client.complete(req)
-        text = resp.text.strip().strip('"')
-        write_jsonl(out_path, [{"family_id": f.family_id, "text": text, "model": resp.model, "timestamp": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")}], append=True)
+        user = T0_REPHRASE_INSTRUCTION.format(text=t1_text(f))
+        text, model = "", spec["model"]
+        for cl, max_tokens in ((client, 1200), (uncached, 3000), (uncached, 6000)):
+            resp = await cl.complete(LLMRequest(model=spec["model"], system="You rewrite text faithfully.", user=user, temperature=temperature, max_tokens=max_tokens))
+            text, model = resp.text.strip().strip('"'), resp.model
+            if len(text) >= 20:
+                break
+        if len(text) < 20:
+            print(f"T0 still empty for {f.family_id}; not written (re-run or use --model-key with another judge)")
+            return
+        write_jsonl(out_path, [{"family_id": f.family_id, "text": text, "model": model, "timestamp": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")}], append=True)
 
     await asyncio.gather(*(one(f) for f in todo))
 

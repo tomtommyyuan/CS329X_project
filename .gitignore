@@ -10,3 +10,5 @@ data/teacher/
 data/rewrites/
 results/**/*.parquet
 .DS_Store
+runs/
+data/sft/

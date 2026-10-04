@@ -1,0 +1,328 @@
+# 训练与评估栈（Phase 1 契约）
+
+> 其余文档：[02 模型与数据](02_models_and_datasets.md)、[03 实验](03_experiments.md)（§2 E1、§3 E2、§8 固定协议）、[04 指标](04_eval_metrics.md)。本文是 DATA / TRAIN / EVAL 三个实现者之间的接口契约；改接口先改这里。代码、注释、docstring 用英文。
+
+## 0. 文件归属与依赖
+
+| 模块 | 文件 | 依赖 |
+|---|---|---|
+| DATA | `src/vcd/train/data.py`、`scripts/10_build_sft_data.py`、`tests/test_train_data.py` | `vcd.schemas`、`vcd.io`、`vcd.teacher.parse` |
+| TRAIN | `src/vcd/train/sft.py`、`scripts/11_train_student.py`、`slurm/train.sbatch`、`slurm/README.md`、`tests/test_sft_smoke.py` | `vcd.train.data`（template、SFT 行读取） |
+| EVAL | `src/vcd/student/readout.py`、`scripts/12_eval_student.py`、`src/vcd/analysis/e1_metrics.py`、`scripts/13_e1_analysis.py`、`slurm/eval.sbatch`、`tests/test_readout.py`、`tests/test_e1_metrics.py` | `vcd.train.data`（template）、`vcd.teacher.profile`、`vcd.teacher.parse`、`vcd.stats` |
+| 契约 | 本文、`pyproject.toml`（extras `train` / `eval`）、`configs/train.yaml`、两个空 `__init__.py` | |
+
+环境：`.venv` 由 uv 管理，**没有 pip**；安装用 `uv pip install -e ".[train]" --python .venv/bin/python`。已装 torch 2.14.1（CPU）、transformers **5.18.0**、datasets 5.0.1、accelerate 1.15.0。transformers 是 5.x：`Trainer` 参数名用 `eval_strategy`、`processing_class`；`AutoTokenizer` 默认 `use_fast`。HF 缓存里已有 `HuggingFaceTB/SmolLM2-135M`（权重 + tokenizer）和 `Qwen/Qwen3-4B-Base` 的 **tokenizer**（11 MB，无权重）。本机无 GPU：所有组件必须有 CPU 路径，用 tiny 模型跑测试；vLLM 是可选 import，缺了回落到 transformers。
+
+现成数据（只读）：
+
+| 文件 | 内容 | 现状 |
+|---|---|---|
+| `data/prompts/{train,dev,test}_prompts_v2.jsonl` | `Prompt` 行；train 11,944 = 1,493 family × {T1,T3,T5,T6} × 2 order；dev 1,500 = 150 × {T0,T1,T3,T5,T6} × 2；test 2,400 = 300 × {T1,T3,T5,T6} × 2（T0 待生成）；`system` 全部为 `You are a helpful assistant.` | 完整 |
+| `data/teacher_phase1/{teacher}_train_demo.jsonl` | `TeacherResponse`，mode demo，T = 0，两种 order 都有 | 采集中，**别等它**；测试用 `data/teacher_v2/{teacher}_demo.jsonl` + `data/prompts/pilot_prompts_v2.jsonl` |
+| `data/teacher_phase1/{teacher}_{dev,test}_profile.jsonl` | mode profile；GPT / DeepSeek 带 `p_letters`、`p_x`，1 pass；Claude 10 sample × 2 pass，`p_x` 为 None | 采集中 |
+| `data/rewrites_v9/{teacher}/rewrites.jsonl` | 行：`prompt_id, teacher, version(F/C), rewriter, attempt, text, judged, checks, kept`；每 (prompt_id, version) 最多 3 attempt、最多 1 条 kept；`text` 一律以 `Answer: X\nRationale: ` 开头 | 目前只覆盖 pilot 的 300 条；train 集改写后用同格式放到 `--rewrites-dir` 指定目录 |
+
+## 1. Template 与 SFT 样例格式
+
+### 1.1 Template（`src/vcd/train/data.py` 拥有；EVAL 只 import，不复制字串）
+
+```python
+ASSISTANT_PREFIX = "Answer:"          # no trailing space, see §1.3
+
+def render_prompt(system: str, user: str) -> str:
+    """system line, blank line, user text, blank line, assistant prefix. Used verbatim in training and readout."""
+    return f"{system}\n\n{user}\n\n{ASSISTANT_PREFIX}"
+
+def render_target(letter: str, rationale: str) -> str:
+    """Canonical assistant completion AFTER the prefix: ' A\\nRationale: ...' (leading space, no trailing whitespace)."""
+    return f" {letter}\nRationale: {rationale.strip()}"
+
+def canonical_target(raw: str) -> str | None:
+    """Teacher demo / rewrite text -> render_target(letter, rationale). None if no letter or no 'Rationale:' line."""
+```
+
+`canonical_target` 用 `vcd.teacher.parse.parse_answer` 取字母；rationale = 第一个 `Rationale:`（大小写不敏感）之后到文末的文本 `.strip()`；去掉 teacher 原文里 `Answer: B  \n` 的两个尾随空格这类噪声。O / F / C 都经过它，三版本只有 rationale 文本不同。
+
+### 1.2 SFT 文件：`data/sft/{teacher}_{version}_s{seed}.jsonl`，一行一个训练样例
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `prompt_id` | str | 与 prompts 文件一致 |
+| `family_id`, `variant`, `order` | str, str, int | 直接复制自 `Prompt` |
+| `teacher` | str | `gpt4o` / `claude46` / `deepseek_v4`；R 版本写 `random` |
+| `version` | `"O"|"F"|"C"|"R"` | |
+| `text_prompt` | str | `render_prompt(system, user)`，**以 `Answer:` 结尾** |
+| `text_target` | str | `render_target(...)`，**以空格 + 字母开头**，无尾随空白，不含 EOS |
+| `letter` | str | 目标字母，方便检查 R 的均衡与 O 的 choice |
+| `n_target_tokens` | int, 可选 | 训练器填（含 EOS），DATA 不填 |
+
+边界：`text_prompt + text_target` 即完整训练文本；`Answer:` 属于 prompt，` A` 属于 target，所以 **target 的第一个 token 就是 readout 读的字母 token**。训练器分别 tokenize 两段再拼接 id（§3.1），readout 对 `text_prompt` 取下一 token 分布（§5），两者的 token 边界由此强制一致。
+
+同一行的 worked example（`dd_9120.T5.o1`，gpt4o 原文 `"Answer: B  \nRationale: It is safer to cancel..."`）：
+
+```json
+{"prompt_id": "dd_9120.T5.o1", "family_id": "dd_9120", "variant": "T5", "order": 1, "teacher": "gpt4o", "version": "O",
+ "text_prompt": "You are a helpful assistant.\n\nYou're ... \n\nOptions:\nA. ...\nB. ...\n\nShould you ...?\n\nAnswer with the letter of your choice, then give a brief rationale (1 to 3 sentences). Use exactly this format:\nAnswer: <A or B>\nRationale: <your rationale>\n\nAnswer:",
+ "text_target": " B\nRationale: It is safer to cancel the vet appointment and reschedule rather than risk the journey without properly securing your pet, as this could endanger both your pet and yourself in the event of an accident or sudden stop.",
+ "letter": "B"}
+```
+
+### 1.3 为什么 `Answer:` 后不留空格（2026-10-04 用两个 tokenizer 实测）
+
+| | SmolLM2-135M (GPT2Tokenizer) | Qwen3-4B-Base (Qwen2Tokenizer, 151,669 tokens) |
+|---|---|---|
+| `"Answer:"` | `[Answer][:]` | `[Answer][:]` |
+| `" A"` / `"A"` / `" B"` / `"B"` | 单 token：330 / 49 / 389 / 50 | 单 token：362 / 32 / 425 / 33 |
+| `tok(prompt + " B\nRationale...") == tok(prompt) + tok(" B\nRationale...")` | **True** | **True** |
+| prompt 以 `"Answer: "` 结尾、target 以 `"B"` 开头 | **False**：分开 tokenize 得 `[Ġ][B]`，合并得 `[ĠB]` | **False**，同样 |
+| 自动加 BOS | 否 | 否（`bos_token` 为 None；`eos`=`pad`=`<|endoftext|>` 151643） |
+
+结论：prefix 以 `Answer:` 结尾、target 以 ` X` 开头是唯一 train / readout 边界一致的切法；teacher 原文 `Answer: B` 的首 token 本来就是 `ĠB`，和 teacher logprobs 读法同构。全程 `add_special_tokens=False`，不加 BOS；训练时在 target 末尾追加 1 个 EOS（Qwen3 用 `<|endoftext|>`，SmolLM2 用 `<|endoftext|>` id 0）。
+
+## 2. 训练文件的构造（`scripts/10_build_sft_data.py`）
+
+```
+10_build_sft_data.py --teacher gpt4o --versions O[,F,C] --seeds 1,2,3,4,5 [--config configs/train.yaml]
+                     [--prompts PATH] [--demos PATH] [--rewrites-dir DIR] [--out-dir data/sft]
+                     [--order-policy stable_one|both] [--order-seed 20261002] [--no-paired]
+                     [--random-label --ref-teacher gpt4o --seeds 1,2,3]
+                     [--list-prompt-ids]        # 只写 data/sft/{teacher}_O_prompt_ids.txt，给改写预算用
+```
+
+过滤与排序，按顺序执行：
+
+| 步 | 规则 | 计数写入 meta |
+|---|---|---|
+| 1 过滤 variant | 只用 `data.variants`（T1,T3,T5,T6）；pilot 文件里的 T0 / VC 丢掉 | `n_prompts_in` |
+| 2 过滤类别 | demo `category == "answer"`，且 `canonical_target(raw)` 非 None | `n_dropped_category`, `n_dropped_format` |
+| 3 order policy | `stable_one`（默认，docs/02 §4.2）：(family, variant) 两个 order 都 answer 且 `choice_action` 相同才保留，然后**只留一个 order**；`both`：两个 order 都留。被留的 order 由 `--order-seed`（固定 20261002，**与 run seed 无关**）决定：`rng = np.random.default_rng([order_seed, zlib.crc32(f"{family_id}.{variant}".encode())])`，`order = 1 + int(rng.integers(2))`。这样 5 个 seed 共用同一批 prompt_id，F / C 只需改写这一半 | `n_dropped_order_unstable`, `order_stable_rate` |
+| 4 F / C 可用性 | 版本 F / C 只取 `kept == true` 的最后一条 attempt；`text` 经 `canonical_target`，且其字母必须等于 O 的字母（不等则丢并计数） | `n_dropped_no_rewrite`, `n_dropped_choice_mismatch` |
+| 5 paired（默认开） | 本次 `--versions` 里所有版本取 prompt_id **交集**，一个 teacher 的 O / F / C 文件行数相同、prompt_id 集相同；`--no-paired` 关闭。只建 O 时交集就是 O 自己 | `paired`, `n_examples` |
+| 6 family 顺序 | `families = sorted(set(family_id))`；`perm = np.random.default_rng(seed).permutation(len(families))`；每个 seed 一次置换，**与 teacher、版本无关**（被过滤掉的 family 直接跳过，相对顺序不变）；family 内按 variant 顺序 T1, T3, T5, T6，再 order 1, 2 | `seed`, `n_families` |
+
+输出：`data/sft/{teacher}_{version}_s{seed}.jsonl` 与 sidecar `data/sft/{teacher}_{version}_s{seed}.meta.json`（上表计数 + `sha256` + `prompts_path` + `demos_path` + `rewrites_dir` + `built_at`）。O 的内容在 5 个 seed 间只差行序。
+
+随机标签控制 R（`--random-label`）：prompt_id 集 = `--ref-teacher` 在同一 seed 下 O 文件的 prompt_id 集（保证 n_examples 相同），family 顺序同上。字母：每个 family 的 k 条样例里 ⌊k/2⌋ 个 A、⌊k/2⌋ 个 B，k 为奇数时多出的那个由 `np.random.default_rng([seed, crc32(family_id)])` 定，再用同一 rng 打乱分配到该 family 的 prompt 上。rationale 固定为 `RANDOM_RATIONALE = "This option is the more reasonable choice in this situation."`（不提情境任何内容）。`teacher = "random"`，`version = "R"`，文件 `data/sft/random_R_s{seed}.jsonl`，默认 seeds 1,2,3。
+
+DATA 还提供给 TRAIN 的读接口：`load_sft_rows(path) -> list[dict]`（校验上表字段存在、`text_prompt.endswith(ASSISTANT_PREFIX)`、`text_target[0] == " "`）。
+
+## 3. 训练（`src/vcd/train/sft.py`、`scripts/11_train_student.py`）
+
+```
+11_train_student.py --data data/sft/gpt4o_O_s1.jsonl --run-dir runs/qwen3-4b/gpt4o_O_s1 --seed 1
+                    [--config configs/train.yaml] [--profile tiny] [--max-steps N] [--overwrite]
+```
+
+没有 `--resume`：只存最终 checkpoint，中断的 run 整个重跑；已有 `train_manifest.json` 的目录默认跳过，`--overwrite` 才重训。
+
+```
+```
+
+### 3.1 Tokenize 与 loss
+
+| 项 | 规则 |
+|---|---|
+| ids | `ids = tok(text_prompt, add_special_tokens=False) + tok(text_target, add_special_tokens=False) + [eos_id]` |
+| labels | prompt 段全部 `-100`；target 段与 EOS 为自身 id；pad 为 `-100` |
+| pad | `pad_token = eos_token`（两个 tokenizer 都如此）；右 pad，按 batch 动态 pad |
+| 超长 | `len(ids) > max_seq_len` 的样例**整条丢弃并计数**（manifest `n_dropped_too_long`），不截断 target；预期 0 条（prompt ≈ 100 token，target ≈ 60 token） |
+| 顺序 | **不 shuffle**：文件顺序即训练顺序，每个 epoch 相同（文件已是 seed 置换；sampler 必须是 sequential，不用 `group_by_length`） |
+| 梯度累积 | 每个 micro-batch 的 loss 除以**该 step 实际的 micro-batch 数**（epoch 末的不满组按其大小），不是固定除以 accum；manifest `accumulation_group_sizes` 记录出现过的组大小 |
+| 随机性 | `torch.manual_seed(seed)`、`numpy`、`random` 同 seed；dropout 为 0（Qwen3 默认） |
+| token 数 | `n_target_tokens` = 所有样例 target + EOS 的 token 总数（1 epoch）；`n_total_tokens` 含 prompt；都进 manifest |
+
+### 3.2 超参（`configs/train.yaml`，所有条件共用，只换 `--data` / `--seed` / `--run-dir`）
+
+| 键 | 值 | 备注 |
+|---|---|---|
+| `student_model` | `Qwen/Qwen3-4B-Base` | `student_model_short: qwen3-4b` 作 runs 路径首段 |
+| precision | bf16 | tiny 用 fp32 |
+| learning_rate / scheduler / warmup | 1e-5 / cosine / 3% | 全参 |
+| epochs | 3 | |
+| effective batch | 32 序列 = `per_device 4 × grad_accum 8`（`configs/train.yaml` 与此一致） | 单卡 H100；≈ 5,620 样例 → 176 step/epoch，528 step |
+| max_seq_len | 1024 | |
+| gradient_checkpointing | true | |
+| optimizer | `adamw_torch`，CUDA 上用 **fused** kernel（原地更新，无参数大小的临时张量）；备选 `adamw_8bit`（bitsandbytes，Linux + CUDA，不在 `train` extra 里，需单独 `uv pip install bitsandbytes`） | 显存算术（4.02B 参数）：fp32 权重 15 GiB + fp32 梯度 15 GiB + Adam m,v 30 GiB = **60 GiB 常驻**，再加 autocast 的 bf16 权重缓存 7.5 GiB、logits 与激活；默认 foreach AdamW 在 step 时还要 15 GiB 临时，所以必须 fused。gate run 的 manifest `peak_memory_gib` > 70 就切 8bit |
+| weight_decay / max_grad_norm | 0.0 / 1.0 | |
+| save | 只存最终 checkpoint，训练中不 eval；**bf16 训练的 checkpoint 存 bf16**（≈ 8 GB/run；manifest `checkpoint_dtype`），tiny / fp32 存 fp32 | vLLM 与 readout 本来就按 bf16 加载；dev、test 两个 readout 都有了就删 `checkpoint/` |
+| tiny profile | `HuggingFaceTB/SmolLM2-135M`、8 样例、`max_steps 2`、fp32、`per_device 4 × accum 1`、`max_seq_len 256`、eager attention、不开 checkpointing | `--profile tiny` 把 `tiny:` 下的键覆盖到顶层 |
+
+实现用 HF `Trainer` 或 ≤ 150 行的手写循环都可，但 shuffle 关闭、loss mask、EOS、manifest 字段必须按本文。
+
+### 3.3 输出布局
+
+```
+runs/{student_model_short}/{teacher}_{version}_s{seed}/
+  checkpoint/                 save_pretrained (safetensors) + tokenizer，vLLM 可直接 LLM(model=该目录)
+  train_manifest.json
+  train_log.jsonl             每 logging_steps 一行 {step, loss, lr, epoch}
+  eval/
+    {split}_responses.jsonl   TeacherResponse 行（§5），split ∈ {dev, test}
+    {split}_readout_summary.json
+```
+
+run id = `"{student_model_short}.{teacher}_{version}_s{seed}"`，例 `qwen3-4b.gpt4o_O_s1`、`qwen3-4b.random_R_s2`、未训练基座 `qwen3-4b.base_B_s0`；正则（唯一定义在 `vcd.train.data.RUN_ID_RE`，trainer / 12 / 13 都 import 它）`^(?P<student>[^.]+)\.(?P<teacher>[a-z][a-z0-9_]*)_(?P<version>[OFCRB])_s(?P<seed>\d+)$`。teacher 段必须以字母开头，所以 `_smoke_gpt4o_O_s1` 这类试跑目录不算协议 run，13 会打警告并跳过；试跑统一放 `runs/_smoke/`。它是 responses 行的 `teacher` 字段。
+
+`train_manifest.json` 必含：`run_id, student_model, student_model_short, teacher, version, seed, data_path, data_sha256, n_examples, n_dropped_too_long, n_target_tokens, n_total_tokens, epochs, steps, effective_batch, learning_rate, lr_scheduler, warmup_ratio, max_seq_len, precision, checkpoint_dtype, peak_memory_gib, optimizer, optimizer_fused, gradient_checkpointing, accumulation_group_sizes, wall_time_sec, git_commit`（`git rev-parse HEAD`，失败则 null）, `torch_version, transformers_version, hostname, started_at, finished_at, final_loss`。
+
+## 4. 评估入口（`scripts/12_eval_student.py`）
+
+```
+12_eval_student.py --run-dir runs/qwen3-4b/gpt4o_O_s1 --split dev|test|pilot [--prompts PATH]
+                   [--backend auto|vllm|transformers] [--batch-size 32] [--limit N] [--config configs/train.yaml] [--profile tiny]
+                   [--model PATH]      # 不经 run-dir，直接评一个模型（S_0 基线：Qwen3-4B-Base 不训练）
+```
+
+读 `--prompts`（默认按 split 取 `paths.prompts_{split}`），**所有 variant、两个 order 都评**（dev 含 T0），写 `eval/{split}_responses.jsonl` 与 `eval/{split}_readout_summary.json`（n、各 category 占比、`mean_mass_AB`、top1 token 直方图前 10、backend、耗时）。`--model` 模式的 run id 用 `"{student_model_short}.base_B_s0"`。
+
+## 5. Readout 规范（`src/vcd/student/readout.py`）
+
+```python
+LETTERS = ("A", "B")
+
+def letter_token_ids(tokenizer) -> dict[str, list[int]]:
+    """{'A': [id(' A'), id('A')], 'B': [id(' B'), id('B')]}; asserts each spelling is exactly one token."""
+
+def readout_rows(prompts: list[Prompt], next_token_probs: np.ndarray, token_ids: dict, tokenizer, run_id: str,
+                 model_name: str, backend: str, answer_mass_min: float = 0.9) -> list[TeacherResponse]:
+    """Pure function from the unrestricted next-token distribution (n_prompts x vocab, or top-k dict per prompt) to rows."""
+
+class TransformersBackend:  # forward pass, full softmax; CPU ok
+class VllmBackend:          # optional import; SamplingParams(max_tokens=1, temperature=0, logprobs=top_logprobs), raw string prompts
+
+def run_readout(model_path, prompts, run_id, backend="auto", batch_size=32, dtype="bfloat16", top_logprobs=20) -> list[TeacherResponse]
+```
+
+| 项 | 规则 |
+|---|---|
+| 输入串 | `render_prompt(p.system, p.user)`，与训练 `text_prompt` 逐字节相同；`add_special_tokens=False`，不加 BOS，不用 chat template |
+| 读什么 | 下一 token 的**无限制** softmax 分布 `q`（vLLM：top-k logprobs 的 exp，缺失 token 记 0；transformers：全词表） |
+| 字母质量 | `m_A = q[id(" A")] + q[id("A")]`，`m_B` 同理；只用这两种拼法（`(A`、`**A` 等不算，它们在训练目标里不存在） |
+| `p_letters` | `{"A": m_A/(m_A+m_B), "B": m_B/(m_A+m_B)}`；`m_A + m_B == 0` 时 `p_letters = None`、category `malformed` |
+| `letter` | argmax of `p_letters` |
+| `choice_action` | `p.letter_to_action[letter]` |
+| `p_x` | `vcd.teacher.parse.p_x_from_letters(p_letters, p.letter_to_action)` |
+| `category` | `"answer"` iff `m_A + m_B >= answer_mass_min`（0.9），否则 `"malformed"`；学生 readout 不产生 refusal / insufficient |
+| `usage` | `{"top1": tokenizer.decode([argmax q]), "top1_id": int, "top1_p": float, "mass_AB": m_A + m_B, "backend": "vllm"|"transformers", "n_prompt_tokens": int}` |
+| 其它字段 | `teacher = run_id`，`model = checkpoint 路径或 HF 名`，`mode = "profile"`，`temperature = 0.0`，`pass_idx = 0`，`sample_idx = 0`，`raw = "Answer:" + usage["top1"]`，`cached = False`，`timestamp` ISO |
+| 两个 order 平均 | 不在 readout 做；`profile.symmetrize` 负责（每行一个 order） |
+
+vLLM：`LLM(model=ckpt, dtype="bfloat16", max_model_len=1024, gpu_memory_utilization=0.85, seed=0, max_logprobs=max(top_logprobs, 20))`（引擎默认上限 20，不抬高则 `readout.top_logprobs` 调大会被拒）；prompt 在本地 `add_special_tokens=False` tokenize 后以 `prompt_token_ids` 送入；`SamplingParams(max_tokens=1, temperature=0.0, logprobs=top_logprobs)`；取 `out.outputs[0].logprobs[0]`（`token_id -> Logprob`），字母 token 不在 top-k 时质量记 0（上界 = 第 k 名的概率；训练过的学生字母是 top-1，未训练基座的 `mass_AB` 相对 transformers 会偏低，gate run 在 dev 上比对两后端）。transformers：`model(input_ids, attention_mask)` 取最后一个非 pad 位置的 logits（右 pad 要用 `attention_mask.sum(1) - 1` 索引），`softmax` 后按上表。两后端在 tiny 模型上 `p_letters` 差 < 1e-3 由 `tests/test_readout.py` 检查（vLLM 缺席时跳过）。
+
+E0.7 校验（HAIC 上做一次，Qwen3-4B-Base 原模型 + dev 前 1,000 条 prompt）：同一 prompt 的 first-token `p_letters["A"]` 与 k = 10、T = 1 采样的字母频率，`mean_abs_diff > 0.05` 则学生评估也改用采样（复用 `vcd.readout.logit_vs_sample.summarize`）。
+
+## 6. E1 / E2 指标（`src/vcd/analysis/e1_metrics.py`、`scripts/13_e1_analysis.py`）
+
+全部从 `TeacherResponse` 行出发，先经既有管线：`responses_to_frame → align_to_focus(focus_by_family) → cell_estimates → symmetrize → framing_shifts(variants)`。学生行 `mode == "profile"`，`cell_estimates` 直接用 `p_x`；teacher 行同样处理（Claude 用采样频率）。所有 `sym` 表的 `teacher` 列可以是 run id 或 teacher 名，函数不区分。记号见 docs/04 §0。
+
+```python
+RunKey = NamedTuple("RunKey", student=str, teacher=str, version=str, seed=int)
+def parse_run_id(run_id: str) -> RunKey
+def binary_jsd(p: np.ndarray, q: np.ndarray) -> np.ndarray          # base-2, 与 profile._jsd 相同；对称化 p 指 p_sym
+def load_run_responses(runs_dir: Path, split: str, student_short: str | None = None) -> list[TeacherResponse]   # 读全部 runs/*/*/eval/{split}_responses.jsonl
+def sym_table(responses, prompts: dict[str, Prompt], focus_by_family: dict[str, str]) -> pd.DataFrame   # 封装上面四步
+def category_rates(frame: pd.DataFrame, by=("teacher", "variant")) -> pd.DataFrame      # answer / malformed 占比；profile.answer_rates 只看 demo 行所以另写
+def order_gap(sym: pd.DataFrame) -> pd.DataFrame                    # per teacher: mean |p_o1 - p_o2|, share (p_o1>0.5)==(p_o2>0.5)  (docs/04 组 A)
+def teacher_agreement(sym_s: pd.DataFrame, sym_t: pd.DataFrame, variants, by_variant=False) -> pd.DataFrame
+    # 行 = (run_id, teacher)；agreement = mean_{(i,j)} [ (p_s>0.5) == (p_t>0.5) ]，只用两边都有 p_sym 的 cell；
+    # 任一边恰好 p_sym == 0.5 的 cell 不进分母（majority 未定义），数量记在 n_ties；by_variant 加 variant 列  (组 C)
+def student_teacher_jsd(sym_s, sym_t, variants, by_variant=False) -> pd.DataFrame        # mean_{(i,j)} binary_jsd(p_s, p_t)  (组 C)
+def consistency(sym: pd.DataFrame, variants) -> pd.DataFrame        # = profile.teacher_consistency + pairwise_flip_rates 合表：flip_rate, mean_jsd, family_flip_share, share_uncertain  (组 B)
+def seen_vs_unseen(sym, seen=("T1","T3","T5","T6"), unseen="T0") -> pd.DataFrame        # flip / JSD 在 seen 内部 vs (unseen, T1)；test 无 T0 时返回空表
+def inheritance(shifts_s: pd.DataFrame, shifts_t: pd.DataFrame, own: dict[str, str], n_perm=10_000, n_boot=10_000, seed=0, by_variant=False) -> pd.DataFrame
+    # 每个 run：rho_own, rho_other (每个 other teacher 一列或长表), rho_other_max, other_argmax, delta_rho = rho_own - rho_other_max,
+    # rho 用 Pearson（另给 spearman 列），对齐在 (family, variant) 交集上；r 已是 family 内去均值（framing_shifts 保证）
+    # p_perm：打乱该 run 的 family 标签（整 family 置换，variant 结构保留）n_perm 次重算 delta_rho，p = share(perm >= observed)
+    # ci：family bootstrap n_boot 次的 2.5 / 97.5 分位
+def pooled_shifts(shifts_s, runs: list[str], name: str) -> pd.DataFrame                 # 同 (student, teacher, version) 的各 seed 的 r 取平均 -> 一张 shifts 表
+def pooled_inheritance(shifts_s, shifts_t, own, variants, n_perm, n_boot, seed) -> pd.DataFrame
+    # 每个 (teacher, version) 一行：seed-mean profile 的 rho_own / delta_rho / p_perm / CI，加 Holm 校正的 p_holm（同一 version 内跨 teacher）；E2 的判定表
+def holm(pvals) -> np.ndarray                                                             # Holm step-down 校正 p
+def grid_permutation(table: pd.DataFrame, n_perm=10_000, seed=0) -> dict                # 打乱 15 个 run 的 teacher 归属，mean delta_rho 的 null 与 p  (docs/03 §3)
+def seed_noise_null(metric_table: pd.DataFrame, value: str) -> pd.DataFrame
+    # 输入列 run_id, teacher, version, seed, <value>；输出每 (teacher, version) 的 seed 两两 |差| 的 n_pairs, mean, sd, q95，以及 pooled 一行 (teacher="all")
+def effect_in_null_sd(diff: float, null_row: pd.Series) -> float   # 效应量 = diff / null sd
+def shared_component_r2(shifts_s, shifts_t, own: str, others: list[str]) -> float      # r_s 对 [r_own, r_other...] 的 OLS R²  (组 D)
+```
+
+`13_e1_analysis.py --runs-dir runs --student qwen3-4b --split test [--teacher-dir data/teacher_phase1 | --teacher-files gpt4o=path,...] [--prompts ...] [--out results/e1]` 输出：`category_rates.csv`、`order_gap.csv`、`agreement.csv`（含 by_variant）、`jsd.csv`、`consistency.csv`、`inheritance.csv`、`inheritance_pooled.csv`、`seed_null.csv`、`grid_permutation.json`、`summary.md`（markdown 表，不画图）。summary 区分"没有 run"和"有 run 但全部 malformed"（后者列出每个 run 的 answer rate）。
+
+**决策规则（test 评估前冻结，docs/03 §8）**：
+- E1（docs/03 §0）：每个 teacher 的每个 O seed 都要 `agree_own > agree_other_max`，否则先修训练。
+- E2：每个 teacher 用 **5 个 seed 的 seed-mean profile**（`pooled_inheritance`）算一个 Δρ 和一个 family-permutation p，跨 3 个 teacher 做 Holm 校正；Δρ > 0 且 `p_holm` < 0.05 的 teacher ≥ 2/3 则过。per-seed 的 Δρ / p 只作透明度展示，不是判定。
+
+随机标签学生 R 的 agreement / JSD 与 O 学生同表列出，一致性永不单独报。
+
+## 7. SLURM（HAIC）
+
+`slurm/train.sbatch`、`slurm/eval.sbatch` 用下表占位；**用户提交前确认 partition / account / QoS**（来自 2026-08 实测的 HAIC 手册，可能已变）。
+
+| 项 | 值 | 备注 |
+|---|---|---|
+| `--account` | `ingrai` | 必带 |
+| `--partition` | `hai`（批处理）；调试 `hai-interactive`；备胎 `hai-lo`（可抢占，别放长任务） | QoS 名未知：`sacctmgr show user $USER withassoc format=user,account%20,qos%30` 查，被拒再加 `--qos` |
+| `--gres` | `gpu:h100:1`；`-c 8 --mem 64G` | 8B（E8）用 `gpu:h100:2` |
+| `--time` | train `02:00:00`（预估 25–40 min × 1.15 + 保存）；eval `00:30:00` | |
+| `--exclude` | `haic-hgx-2` | NFS 黑洞节点 |
+| 环境 | **无 module、无 conda**：`cd /hai/scratch/$USER/CS329X_Project && source .venv/bin/activate`；venv 用 uv 装，torch 必须是 **cu128** wheel（`uv pip install torch --index-url https://download.pytorch.org/whl/cu128`），裸 PyPI 的 cu130 在 570 驱动上看不到 GPU | 验证只在计算节点 `python -c "import torch;print(torch.cuda.is_available())"` |
+| 缓存 | `export HF_HOME=/hai/scratch/$USER/hf HF_HUB_OFFLINE=1`；Qwen3-4B-Base 在登录节点先 `huggingface-cli download` | 家目录 50 GB，全放 scratch |
+| 日志 | `logs/%x-%j.out`（array task 也用 %j，每个 task 的 job id 唯一）；**logs/ 必须在提交前存在、从仓库根提交**：SLURM 在脚本运行前就打开日志文件 | |
+| 显存 | `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`（sbatch 里导出）；gate run 看 manifest `peak_memory_gib` ≤ 70 再放网格 | |
+| train 参数 | `sbatch slurm/train.sbatch <teacher> <version> <seed>` → 调 `11_train_student.py --data data/sft/{teacher}_{version}_s{seed}.jsonl --run-dir runs/qwen3-4b/{teacher}_{version}_s{seed} --seed {seed}`；已存在 `train_manifest.json` 则跳过 | 48 个 run 用 `--array=0-47%8` 映射到 (teacher, version, seed) 网格也可 |
+| eval 参数 | `sbatch slurm/eval.sbatch <run-dir> <split>` → `12_eval_student.py --backend vllm`；vLLM 只装在集群 venv（`uv pip install -e ".[eval]"`） | 依赖链：`sbatch --dependency=afterok:$TRAIN slurm/eval.sbatch ...` |
+| 头节点 | 禁一切计算，包括 pytest 与 `10_build_sft_data.py`（后者在本机 Mac 跑完 rsync 上去即可） | |
+
+`slurm/README.md`（TRAIN 写）：以上命令 + 守门员模式（先 1 个 tiny / 1 个真实 run 过 `pytest -q` 再放网格）+ 同一 run-dir 禁止重复提交。
+
+## 8. 测试契约
+
+| 测试 | 覆盖 | 数据 |
+|---|---|---|
+| `tests/test_train_data.py` | template 字串、`canonical_target` 去尾随空格、边界（`text_target[0]==" "`）、order policy 的确定性、paired 交集、同 seed 下 O / F / C family 顺序相同、R 字母均衡 | `data/prompts/pilot_prompts_v2.jsonl` + `data/teacher_v2/{gpt4o,claude46}_demo.jsonl` + `data/rewrites_v9/*`；写到 `tmp_path` |
+| `tests/test_sft_smoke.py`（`@pytest.mark.slow`，默认仍跑） | tiny profile 2 步：label mask 正确（prompt 位置 -100、target 与 EOS 非 -100）、manifest 字段齐、checkpoint 可被 `AutoModelForCausalLM` 重新加载 | 从 pilot 建 8 条 |
+| `tests/test_readout.py` | `letter_token_ids` 在 SmolLM2 上得 `{A:[330,49], B:[389,50]}`；`readout_rows` 对手造分布给出正确 `p_letters` / `category` / `usage.top1`；transformers 后端在 tiny 模型上产出可被 `responses_to_frame → symmetrize` 消费的行 | SmolLM2 |
+| `tests/test_e1_metrics.py` | 用手造 `sym` 表：agreement / JSD 已知值、`inheritance` 在学生 = teacher 时 Δρ > 0 且 p 小、`seed_noise_null` 的对数、`parse_run_id` | 无文件 |
+
+新测试必须在 CPU 上 < 60 s；既有 39 个测试不改。另有 scripts/12 与 13 的 subprocess 测试（tiny 基座在 pilot 上全 malformed；合成 runs/ 树出完整 summary、`_smoke_*` 目录被跳过）、训练首个 target token ∈ readout 字母 id 的跨模块断言、空版本 / 静默覆盖的拒绝、`load_train_yaml` 不碰 .env。
+
+## 9. 如何跑
+
+本机（Mac，CPU；约 1 分钟）：
+
+```bash
+.venv/bin/python -m pytest -q                                   # 全部测试，含 slow smoke
+S=/tmp/vcd_smoke
+.venv/bin/python scripts/10_build_sft_data.py --teacher gpt4o --versions O --seeds 1 \
+    --prompts data/prompts/pilot_prompts_v2.jsonl --demos data/teacher_v2/gpt4o_demo.jsonl --out-dir $S/sft
+head -8 $S/sft/gpt4o_O_s1.jsonl > $S/sft/pilot8.jsonl
+HF_HUB_OFFLINE=1 .venv/bin/python scripts/11_train_student.py --data $S/sft/pilot8.jsonl \
+    --out $S/runs/smollm2-135m/gpt4o_O_s1 --seed 1 --profile tiny --max-steps 2
+HF_HUB_OFFLINE=1 .venv/bin/python scripts/12_eval_student.py --run-dir $S/runs/smollm2-135m/gpt4o_O_s1 \
+    --split pilot --limit 8 --backend transformers --profile tiny          # 期望：tiny 模型全 malformed
+.venv/bin/python scripts/13_e1_analysis.py --runs-dir $S/runs --student smollm2-135m --split pilot \
+    --teacher-files gpt4o=data/teacher_v2/gpt4o_profile.jsonl,deepseek_v4=data/teacher_v2/deepseek_v4_profile.jsonl \
+    --n-perm 200 --n-boot 200 --out $S/e1                                   # summary 说明全 malformed，不是"没有 run"
+```
+
+HAIC 核心网格（48 run）。前置：Phase 1 的 `data/teacher_phase1/*_train_demo.jsonl` 齐、F / C 的 train 集改写在 `data/rewrites_v9/{teacher}/rewrites.jsonl`；`slurm/README.md` §0 装好 venv（cu128 torch）并下载 Qwen3-4B-Base；提交前确认 account / partition / QoS。
+
+```bash
+# 1. Mac：建 SFT 文件（O 先建；F / C 与 O 同 teacher 一次建齐才 paired）
+for t in gpt4o claude46 deepseek_v4; do
+  .venv/bin/python scripts/10_build_sft_data.py --teacher $t --versions O,F,C --seeds 1,2,3,4,5 --tokenizer Qwen/Qwen3-4B-Base
+done
+.venv/bin/python scripts/10_build_sft_data.py --random-label --ref-teacher gpt4o --seeds 1,2,3
+rsync -a data/sft/ haic:/hai/scratch/$USER/CS329X_Project/data/sft/
+# 改写还没齐时只建 O：--versions O；之后 --versions O,F,C --overwrite 重建（O 文件内容不变，只是 prompt 集按交集收缩）
+
+# 2. HAIC：gate run（slurm/README.md §1：pytest + 30 步真模型 + vLLM/transformers 一致性 + peak_memory_gib ≤ 70），然后网格
+cd /hai/scratch/$USER/CS329X_Project && mkdir -p logs runs
+sbatch --array=0-47%8 slurm/train.sbatch                        # 48 run；只建了 O+R 时 --array=0-4,15-19,30-34,45-47%8
+MODEL=Qwen/Qwen3-4B-Base sbatch slurm/eval.sbatch - dev; MODEL=Qwen/Qwen3-4B-Base sbatch slurm/eval.sbatch - test   # S_0 基座
+for d in runs/qwen3-4b/*_s[1-5]; do for s in dev test; do sbatch slurm/eval.sbatch $d $s; done; done   # 训练完成后（已有 responses 的会跳过）
+
+# 3. Mac：拉回 eval 结果（不拉 checkpoint），出表
+rsync -a --include='*/' --include='eval/**' --include='train_manifest.json' --include='train_log.jsonl' --exclude='*' haic:/hai/scratch/$USER/CS329X_Project/runs/ runs/
+.venv/bin/python scripts/13_e1_analysis.py --runs-dir runs --student qwen3-4b --split dev  --out results/e1_dev
+.venv/bin/python scripts/13_e1_analysis.py --runs-dir runs --student qwen3-4b --split test --out results/e1   # 只在 dev 规则冻结后跑一次
+```

@@ -1,0 +1,4 @@
+teacher_a,teacher_b,n_flip_a,n_flip_b,shared,jaccard
+claude46,deepseek_v4,20,28,9,0.23076923076923078
+claude46,gpt4o,20,14,7,0.25925925925925924
+deepseek_v4,gpt4o,28,14,7,0.2

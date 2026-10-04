@@ -25,7 +25,8 @@ def main() -> None:
 
     fams = [f for f in load_models(cfg["paths"]["families"], Family) if f.split == args.split]
     t0_path: Path = cfg["paths"]["t0_texts"]
-    t0 = {r["family_id"]: r["text"] for r in read_jsonl(t0_path)} if t0_path.exists() else {}
+    # an empty T0 text (judge returned nothing) counts as missing: the family is built without T0 instead of crashing
+    t0 = {r["family_id"]: r["text"] for r in read_jsonl(t0_path) if len(str(r.get("text", "")).strip()) >= 20} if t0_path.exists() else {}
     variants = list(cfg["variants_all"])
     if not t0:
         variants = [v for v in variants if v != "T0"]

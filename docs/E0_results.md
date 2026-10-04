@@ -323,6 +323,18 @@ Gemini 整段：judge 无 JSON 0，格式失败 0，每条平均 1.2 到 1.35 �
 
 原决定点（已由 plan B 解决，留档）：F 可以进主实验；C 有三条路：(a) 接受 C 在严格标准下约 75% 到 80% 并写进 limitation，用双审计都通过的子集训练；(b) 给 C 换改写器——Google 家族与所有角色都不重叠（Gemini 2.5 Flash / Pro，需要有效的 `GEMINI_API_KEY`），或在 HAIC 上自托管 Llama 4 Scout / Gemma 3 27B，预计 C 通过率能到 F 的水平；(c) 把 C 做成纯规则变换（代码做缩写、连接词和封闭词表替换），内容零风险但风格差异只剩表层标记。推荐 (b)，其次 (a)。
 
+## 13. Phase 1：dev 集上的 teacher profile 复现了 pilot（2026-10-04）
+
+Phase 1 采集中（`data/teacher_phase1/`，配置 `configs/phase1_dev.yaml` / `phase1_test.yaml`，`05_e0_analysis.py` 直接复用）。dev 150 个 family、T1 / T3 / T5 / T6 × 2 顺序，Claude 10 × 2 pass 采样（写到此处时完成 1,482 / 1,500 条）：
+
+| teacher | δ(T5) | δ(T6) | suggestibility | 可靠度（顺序 split-half） | 跨 pass 重测 | 中间概率 cell | 位置偏置 P(A) |
+|---|---|---|---|---|---|---|---|
+| GPT-4o | 0.029 | −0.048 | 0.077 | 0.675 | — | 12.5% | 0.483 |
+| Claude 4.6 | 0.019 | −0.037 | 0.056 | 0.383 | 0.993 | 8.0% | 0.507 |
+| DeepSeek V4 | 0.060 | −0.081 | 0.140 | 0.515 | — | 42.4% | 0.440 |
+
+与 pilot 一致：T6 对三个 teacher 都是同向负偏移（CI 不含 0），suggestibility 梯度 DeepSeek > GPT-4o > Claude（pilot 0.158 / 0.065 / 0.030），Claude 的翻转依赖选项顺序（顺序 split-half 低、跨 pass 重测 0.99），残差 profile 相关 0.17 到 0.34。P2 在未见过的 family 上成立，可以用作 E2 的 test 侧度量。GPT-4o 在 dev 上有 25 条拒答 + 21 条格式错误（3%），对应 10 个 family 进不了 profile。
+
 ## 12. 过程记录
 
 - DeepSeek API 已不提供 V3；`deepseek-chat` 别名指向 `deepseek-flash`；改用 `deepseek-v4-pro`，它默认 thinking，200 token 全花在 reasoning 上导致空回答，已用 `thinking: disabled` 关闭。

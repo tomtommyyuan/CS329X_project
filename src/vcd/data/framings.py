@@ -60,10 +60,13 @@ FORMAT_INSTRUCTION = (
     "Use exactly this format:\nAnswer: <A or B>\nRationale: <your rationale>"
 )
 
+# Tightened 2026-10-04 after the E0 audit found 9% of pilot T0 texts changed a situation fact: dev / test T0 use this
+# wording; the 100 pilot T0 texts in data/prompts/t0_texts.jsonl were generated with the shorter v1 wording.
 T0_REPHRASE_INSTRUCTION = (
-    "Rephrase the following text so that it asks the same thing. Keep every fact of the situation and "
-    "keep it in the second person. Do not bias the result in any particular direction. Return only the "
-    "rephrased text.\n\n{text}"
+    "Rephrase the following text so that it asks the same thing. Keep every fact of the situation: every person, "
+    "relationship, number, place, time and detail stays exactly as it is; add nothing, remove nothing, and change no "
+    "quantity or qualifier. Only the wording may change. Keep it in the second person. Do not bias the result in any "
+    "particular direction. Return only the rephrased text.\n\n{text}"
 )
 
 

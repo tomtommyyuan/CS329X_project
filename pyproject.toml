@@ -18,6 +18,10 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest"]
+# Student SFT stack (Phase 1). Install with: uv pip install -e ".[train]" --python .venv/bin/python
+train = ["torch", "transformers>=4.45", "datasets", "accelerate", "safetensors", "sentencepiece", "protobuf"]
+# Student readout on HAIC only (vLLM is Linux + CUDA); the transformers fallback needs only "train".
+eval = ["vllm"]
 
 [build-system]
 requires = ["setuptools>=68"]

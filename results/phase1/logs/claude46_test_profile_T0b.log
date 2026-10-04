@@ -1,0 +1,20 @@
+INFO vcd.teacher.query: claude46/profile: 600 prompts, 80 jobs to run (35538 already done)
+QueryPlan(teacher='claude46', model='claude-sonnet-4-6', mode='profile', temperature=1.0, max_tokens=8, logprobs=False, top_logprobs=20, k=10, passes=2, extra_body=None)
+claude46:profile:   0%|          | 0/80 [00:00<?, ?it/s]claude46:profile:   1%|▏         | 1/80 [00:00<01:00,  1.30it/s]claude46:profile:   6%|▋         | 5/80 [00:00<00:10,  6.90it/s]claude46:profile:  11%|█▏        | 9/80 [00:01<00:10,  6.90it/s]claude46:profile:  16%|█▋        | 13/80 [00:01<00:06, 10.11it/s]claude46:profile:  20%|██        | 16/80 [00:01<00:05, 11.43it/s]claude46:profile:  22%|██▎       | 18/80 [00:02<00:07,  8.61it/s]claude46:profile:  26%|██▋       | 21/80 [00:02<00:05, 11.02it/s]claude46:profile:  29%|██▉       | 23/80 [00:02<00:04, 12.30it/s]claude46:profile:  31%|███▏      | 25/80 [00:02<00:06,  8.03it/s]claude46:profile:  36%|███▋      | 29/80 [00:03<00:04, 11.39it/s]claude46:profile:  39%|███▉      | 31/80 [00:03<00:04, 11.02it/s]claude46:profile:  41%|████▏     | 33/80 [00:03<00:05,  8.69it/s]claude46:profile:  45%|████▌     | 36/80 [00:03<00:04, 10.34it/s]claude46:profile:  48%|████▊     | 38/80 [00:04<00:03, 11.10it/s]claude46:profile:  50%|█████     | 40/80 [00:04<00:03, 10.30it/s]claude46:profile:  52%|█████▎    | 42/80 [00:04<00:03, 10.57it/s]claude46:profile:  55%|█████▌    | 44/80 [00:04<00:03, 10.37it/s]claude46:profile:  57%|█████▊    | 46/80 [00:04<00:02, 11.38it/s]claude46:profile:  60%|██████    | 48/80 [00:05<00:03,  8.57it/s]claude46:profile:  62%|██████▎   | 50/80 [00:05<00:03,  9.16it/s]claude46:profile:  65%|██████▌   | 52/80 [00:05<00:02, 10.19it/s]claude46:profile:  68%|██████▊   | 54/80 [00:05<00:02,  9.21it/s]claude46:profile:  70%|███████   | 56/80 [00:05<00:02,  9.21it/s]claude46:profile:  72%|███████▎  | 58/80 [00:06<00:02, 10.32it/s]claude46:profile:  75%|███████▌  | 60/80 [00:06<00:01, 11.74it/s]claude46:profile:  78%|███████▊  | 62/80 [00:06<00:02,  8.60it/s]claude46:profile:  80%|████████  | 64/80 [00:06<00:01,  8.57it/s]claude46:profile:  84%|████████▍ | 67/80 [00:06<00:01, 11.18it/s]claude46:profile:  86%|████████▋ | 69/80 [00:07<00:01,  9.56it/s]claude46:profile:  89%|████████▉ | 71/80 [00:07<00:01,  8.73it/s]claude46:profile:  91%|█████████▏| 73/80 [00:07<00:00, 10.06it/s]claude46:profile:  95%|█████████▌| 76/80 [00:07<00:00, 11.01it/s]claude46:profile:  98%|█████████▊| 78/80 [00:08<00:00, 10.34it/s]claude46:profile: 100%|██████████| 80/80 [00:08<00:00,  9.80it/s]claude46:profile: 100%|██████████| 80/80 [00:08<00:00,  9.57it/s]
+{
+  "usage": {
+    "input_tokens": 12400,
+    "output_tokens": 640,
+    "cached": 0,
+    "calls": 80
+  },
+  "est_cost_usd": 0.0468,
+  "file": {
+    "rows": 35705,
+    "categories": {
+      "answer": 35552,
+      "malformed": 54,
+      "insufficient": 99
+    }
+  }
+}

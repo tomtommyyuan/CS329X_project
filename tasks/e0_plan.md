@@ -121,3 +121,9 @@ v1 的 T2 / T4 零效应，换成围绕"正向行动"的极性问法：T5 "Shoul
 - Plan B 定稿（2026-10-03）：B = `gemini38_flash`（06 默认），两种风格整段改写，C 用口语指令（`--c-instruction conv` 默认；`plain` + `--sentence-mode-styles C` 为 Llama 备选）。同批 40 条：口语指令保留率与平实配方相同（38 / 34），4-gram 重合 0.32 / 0.23，GLM 判 conversational 100% / 94%。v9 全量（`--tag v9`）已启动 → 盲审表 v9 → Claude + GPT-5.5 审计 → κ → 交 Codex。
 - v9 全量 + 双审计（2026-10-04）：过滤 F 5% 到 8%、C 5% 到 15%，judge 无 JSON 0；Claude 审 F 97.3% / C 97.3%，GPT-5.5 审 F 93.3% / C 74.7%。同批 72 条 C 的 GPT-5.5 严格审计：平实配方 98.6%（但只有 75% 被认出是口语）vs 口语指令 79.2%（100% 认出）。正在试 `--c-instruction convlex`（口语句法、保留实词）。盲审表 `rewrite_audit_blind_v9.csv` 待 Codex。
 - convlex 结果（2026-10-04）：GPT-5.5 严格审计 92%，但 GLM 判 conversational 只有 36% 到 49%，重合 0.74 到 0.82。三种 C 定义对比表在 `docs/E0_results.md` §11 末。待用户决定 C 定义；默认仍是口语指令（conv）。之后：Codex 复审 v9 盲审表算 κ → Phase 1。
+
+## Phase 1 启动（2026-10-04，用户 go）
+
+- teacher 数据采集（`data/teacher_phase1/`，日志 `results/phase1/logs/`）：三个 teacher 的 train demo（11,944 条，T = 0）、dev / test profile（T1 / T3 / T5 / T6，k 10 × 2 pass）；T0 用收紧后的 rephrase 指令（不得增删任何事实）为 dev / test 的 450 个 family 生成，重建 dev / test prompt 文件后补查 T0 profile。预算估约 $100（Claude 的 dev / test 采样占大半），高于早先 $72 的估计，因为 dev 也用了 20 个样本。
+- 训练栈：Workflow `training-stack`（contract → DATA / TRAIN / EVAL 三个实现者 → 三个对抗审查 → 修复），产出 `src/vcd/train/`、`src/vcd/student/`、`src/vcd/analysis/e1_metrics.py`、`scripts/10-13`、`slurm/`、`docs/05_training_stack.md`、`configs/train.yaml`，CPU 上用 SmolLM2-135M 做端到端冒烟；GPU 部分在 HAIC 验证。
+- T0 for dev / test（2026-10-04）：dev 150 / test 300 个 family 全部有 T0（收紧后的指令）；dev prompt 1,500、test prompt 3,000。踩坑：GLM-5.3-Flash 对 2 个 test family 返回空串，而 LLM 缓存会把空答案原样重放，03b 重跑三次都没用；03b 现在对空输出绕过缓存、加预算重试（3000 / 6000），03 对空 T0 文本按缺失处理不再崩。

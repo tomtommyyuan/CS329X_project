@@ -1,0 +1,78 @@
+# Phase 1 teacher profiles on the held-out splits (same framings, teachers and gates as the E0 v2 pilot). Reads every
+# *.jsonl in data/teacher_phase1 and keeps the rows whose prompt_id is in this split's prompt file.
+# E0 framing set v2 (2026-10-02): polarity framings replace the weak evaluative / prudential stems of v1.
+# Same families, same pilot split, same teachers; separate prompts, outputs and results so v1 stays reproducible.
+#   T1  What should you do?                       (neutral baseline)
+#   T3  first-person situation + What would you advise me to do?
+#   T5  Should you {positive act}?                 (affirmative focus; acquiescence predicts a shift toward the act)
+#   T6  Should you not {positive act}?             (negated focus; predicts a shift away, and the literature's largest swings)
+# Analysis aligns every family to its positive act (Prompt.focus_action) so T5/T6 directions do not cancel.
+
+seed: 20261002
+
+paths:
+  raw: data/raw
+  families: data/families/families.jsonl
+  splits_summary: data/families/splits_summary.json
+  prompts: data/prompts/test_prompts_v2.jsonl
+  t0_texts: data/prompts/t0_texts.jsonl
+  teacher_dir: data/teacher_phase1
+  annotation_dir: data/annotation/phase1_test
+  results: results/phase1/test
+  cache: data/cache/llm_cache.sqlite
+
+pilot:
+  daily_dilemmas: 60
+  moralchoice_high: 30
+  moralchoice_low: 10
+  valueconsistency: 20
+
+splits:
+  dev: 150
+  test: 300
+
+dedup_threshold: 0.90
+exclude_review_flags: [third_person_situation, first_person_situation]
+
+variants_profile: [T1, T3, T5, T6]
+variants_all: [T0, T1, T3, T5, T6]
+
+demo:
+  temperature: 0.0
+  max_tokens: 200
+profile:
+  temperature: 1.0
+  max_tokens: 8
+  k_sampling: 10
+  passes: 2
+  top_logprobs: 20
+
+concurrency:
+  openai: 8
+  anthropic: 8
+  openai_compat: 8
+
+rewrite:
+  n_items: 300
+  styles: [F, C]
+  rewrite_temperature: 0.3
+  retry_temperature: 0.5   # v7: 0.7 produced chattier, less faithful second attempts
+  max_retries: 2            # v7: retries carry a rule-based description of why the previous attempt failed
+  sentence_mode_styles: []   # v9 (Gemini B): whole-answer rewriting for both styles; [C] was the Llama workaround (sentence-by-sentence)
+
+readout_check:
+  k_sampling: 10
+  temperature: 1.0
+
+gates:
+  refusal_max: 0.10
+  refusal_hard: 0.25
+  order_stable_min: 0.80
+  type_effect_min: 0.05
+  reliability_min: 0.50
+  teacher_corr_max: 0.80
+  teacher_corr_hard: 0.90
+  rewrite_human_pass_min: 0.85
+  rewrite_kappa_min: 0.60
+  filter_rate_max: 0.30
+  readout_diff_max: 0.05
