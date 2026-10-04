@@ -1,0 +1,6 @@
+WARNING:vcd.llm.base:llama33_70b_together retry 1/6 after 1.7s: Error code: 503 - {'id': 'p3pGdhm-fdNmn-a4504da1eac7ced7', 'error': {'message': 'Service unavailable', 'type': 'service_unavailable', 'param': None, 'code': None}}
+300 answered items sampled from 1040 demo rows
+items: 300, record extraction failed: 1
+[C] kept 250/299 (filter rate 0.16); per attempt: choice 1.00, reasons 0.90, conditions 0.99, strength 0.86, style 0.86; judge JSON failures 4
+-> /Users/yuansir/workspace/CS329X_Project/data/rewrites_v6/gpt4o
+exit=0

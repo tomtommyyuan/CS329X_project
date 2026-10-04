@@ -1,0 +1,5 @@
+20 answered items sampled from 1040 demo rows
+items: 20, record extraction failed: 0
+[F] kept 18/20 (filter rate 0.10); per attempt: choice 1.00, reasons 0.96, conditions 1.00, strength 0.83, style 1.00, format 1.00; judge JSON failures 0
+[C] kept 1/20 (filter rate 0.95); per attempt: choice 1.00, reasons 0.30, conditions 0.70, strength 0.15, style 0.88, format 0.88; judge JSON failures 5
+-> /Users/yuansir/workspace/CS329X_Project/data/rewrites_v7smoke2/gpt4o

@@ -1,0 +1,4 @@
+40 answered items sampled from 1040 demo rows
+items: 40, record extraction failed: 0
+[C] kept 36/40 (filter rate 0.10); per attempt: choice 1.00, reasons 0.84, conditions 0.96, strength 0.92, style 0.96, format 1.00; judge JSON failures 0
+-> /Users/yuansir/workspace/CS329X_Project/data/rewrites_v9smoke_convlex/claude46

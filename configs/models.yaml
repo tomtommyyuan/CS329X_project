@@ -1,0 +1,175 @@
+# Model registry. Prices are USD per 1M tokens, checked 2026-10-02; re-verify before large runs.
+# provider: openai | anthropic | openai_compat (DeepSeek, vLLM)
+# readout:  logprobs (first-token top_logprobs) | sampling (k samples, frequency)
+
+# Teachers for the main study (decided 2026-10-02 after the E0 v2 pilot): a suggestibility gradient
+# DeepSeek V4 Pro (high) > GPT-4o (medium) > Claude Sonnet 4.6 (low). GPT-4o replaced GPT-4.1 because its
+# family-level profile is more reliable (order split-half 0.726 vs 0.579) at similar suggestibility.
+main_teachers: [gpt4o, claude46, deepseek_v4]
+
+teachers:
+  gpt41:
+    role: gpt_alternate   # piloted in E0 v1/v2; replaced by gpt4o for the main study
+    provider: openai
+    model: gpt-4.1-2025-04-14
+    readout: logprobs
+    env_key: OPENAI_API_KEY
+    price_in_per_m: 2.0
+    price_out_per_m: 8.0
+  claude46:
+    role: A_prime
+    provider: anthropic
+    model: claude-sonnet-4-6
+    readout: sampling
+    env_key: ANTHROPIC_API_KEY
+    price_in_per_m: 3.0
+    price_out_per_m: 15.0
+  deepseek_v4:
+    # 2026-10-02: the API lists only deepseek-flash and deepseek-v4-pro; DeepSeek-V3 is no longer served
+    # and the `deepseek-chat` alias resolves to deepseek-flash. We pin the frontier model explicitly.
+    role: A_double_prime
+    provider: openai_compat
+    model: deepseek-v4-pro
+    base_url: https://api.deepseek.com
+    readout: logprobs
+    env_key: DEEPSEEK_API_KEY
+    # V4 Pro thinks by default (reasoning_content eats the token budget, content stays empty).
+    # Thinking is turned off so all three teachers answer without extended reasoning.
+    extra_body: {thinking: {type: disabled}}
+    price_in_per_m: 0.27    # placeholder, verify on the DeepSeek pricing page
+    price_out_per_m: 1.10
+
+  # ---- weaker / older teachers for the "are frontier teachers just too strong?" check (2026-10-02) ----
+  gpt4o:
+    role: A
+    provider: openai
+    model: gpt-4o-2024-08-06
+    readout: logprobs
+    env_key: OPENAI_API_KEY
+    price_in_per_m: 2.5
+    price_out_per_m: 10.0
+  gpt4o_mini:
+    role: weak_gpt_small
+    provider: openai
+    model: gpt-4o-mini-2024-07-18
+    readout: logprobs
+    env_key: OPENAI_API_KEY
+    price_in_per_m: 0.15
+    price_out_per_m: 0.60
+  gpt4_0613:
+    role: weak_gpt_2023
+    provider: openai
+    model: gpt-4-0613
+    readout: logprobs
+    env_key: OPENAI_API_KEY
+    price_in_per_m: 30.0
+    price_out_per_m: 60.0
+  claude_haiku45:
+    role: weak_claude_small
+    provider: anthropic
+    model: claude-haiku-4-5-20251001
+    readout: sampling
+    env_key: ANTHROPIC_API_KEY
+    price_in_per_m: 1.0
+    price_out_per_m: 5.0
+
+rewriter:
+  # Default B since 2026-10-03: Google family (disjoint from teachers OpenAI / Anthropic / DeepSeek, judge Zhipu, student Qwen).
+  # On the same 40-item smokes it kept F 38 / 37 and C 38 / 34 of 40 (GPT-4o / Claude answers) where Llama 3.3 70B kept C 31 / 23.
+  gemini38_flash:
+    provider: openai_compat
+    model: gemini-3.8-flash
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai/
+    readout: sampling
+    env_key: GEMINI_API_KEY
+    # Google's OpenAI-compatible endpoint wants the vendor block nested under a literal "extra_body" key in the JSON body.
+    extra_body: {extra_body: {google: {thinking_config: {thinking_budget: 0}}}}
+    # On the real 1,000-token rewrite prompt it still thinks (~300 hidden tokens; budget 0 / reasoning_effort none / low make no
+    # difference and 'minimal' is rejected) and the thoughts count against max_tokens, so rewrites get a 2,500-token floor.
+    max_tokens: 2500
+    price_in_per_m: 0.5           # placeholder, verify on the Gemini pricing page
+    price_out_per_m: 3.0
+  llama33_70b_together:           # B until 2026-10-03 (open weights); adds obligation filler in the conversational register
+    provider: openai_compat
+    model: meta-llama/Llama-3.3-70B-Instruct-Turbo
+    base_url: https://api.together.xyz/v1
+    readout: sampling             # no logprobs needed for rewriting
+    env_key: TOGETHER_API_KEY
+    price_in_per_m: 0.88          # verify at checkout
+    price_out_per_m: 0.88
+  llama33_70b:                    # self-hosted alternative (vLLM on HAIC)
+    provider: openai_compat
+    model: meta-llama/Llama-3.3-70B-Instruct
+    base_url_env: VLLM_B_URL        # e.g. http://haic-node:8000/v1
+    env_key: VLLM_API_KEY           # vLLM accepts any string unless --api-key is set
+
+judge:
+  glm53_flash_together:           # default J (2026-10-02): Zhipu / Z.ai family, disjoint from every other role;
+    provider: openai_compat       # the only strong serverless non-Google/Meta/Qwen/OpenAI/Anthropic/DeepSeek model on Together.
+    model: zai-org/GLM-5.3-Flash  # Always reasons (~250 hidden tokens per call; no toggle works through Together), so judge
+    base_url: https://api.together.xyz/v1   # calls use max_tokens 1200. Gemma models on Together are dedicated-only.
+    readout: sampling
+    env_key: TOGETHER_API_KEY
+    price_in_per_m: 0.15
+    price_out_per_m: 0.50
+  gemini_flash:                   # alternative J once a valid GEMINI_API_KEY is available
+    provider: openai_compat
+    model: gemini-2.5-flash       # confirm against /models once GEMINI_API_KEY is set; newer Flash ids may exist
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai/
+    readout: sampling
+    env_key: GEMINI_API_KEY
+    extra_body: {reasoning_effort: low}   # keep thinking tokens from eating the output budget
+    price_in_per_m: 0.75
+    price_out_per_m: 3.75
+  gemma3_27b:                     # self-hosted alternative (vLLM on HAIC)
+    provider: openai_compat
+    model: google/gemma-3-27b-it
+    base_url_env: VLLM_J_URL
+    env_key: VLLM_API_KEY
+
+# Independent auditors for the blind rewrite-audit sheet (scripts/08b_ai_audit.py). The gate standard is the
+# stricter OpenAI-family reading (Codex, run by hand, failed F 20.7% / C 28.7% of the final v5/v6 sheet while
+# Claude failed 7%); gpt55 approximates it automatically so kappa can be computed without waiting for a hand run.
+auditor:
+  gpt55:
+    provider: openai
+    model: gpt-5.5
+    readout: sampling
+    env_key: OPENAI_API_KEY
+    supports_temperature: false     # reasoning model: temperature is rejected
+    extra_body: {reasoning_effort: low}
+    price_in_per_m: 5.0             # placeholder, verify on the OpenAI pricing page
+    price_out_per_m: 30.0
+
+# ---- v7 candidates (2026-10-03): stronger instruction followers in the rewriter's (Meta) family, considered because
+# Llama 3.3 70B adds conversational filler ("that's what you've got to do") that fails the strict content checks.
+# Both are DEDICATED-ONLY on Together (400 model_not_available on 2026-10-03); Llama 3.3 70B Turbo is the only serverless Meta model. ----
+rewriter_candidates:
+  llama4_scout_together:
+    provider: openai_compat
+    model: meta-llama/Llama-4-Scout-17B-16E-Instruct
+    base_url: https://api.together.xyz/v1
+    readout: sampling
+    env_key: TOGETHER_API_KEY
+    price_in_per_m: 0.18
+    price_out_per_m: 0.59
+  llama31_405b_together:
+    provider: openai_compat
+    model: meta-llama/Llama-3.1-405B-Instruct
+    base_url: https://api.together.xyz/v1
+    readout: sampling
+    env_key: TOGETHER_API_KEY
+    price_in_per_m: 3.5
+    price_out_per_m: 3.5
+
+
+# Fallback judge (same Zhipu family) for the ~5% of candidates on which GLM-5.3-Flash reasons past its budget.
+judge_fallback:
+  glm53_together:                 # GLM-5.3 (full size); GLM-4.7 / 5 / 5.1 / 4.6 / 4.5-Air are dedicated-only on Together (probed 2026-10-03)
+    provider: openai_compat
+    model: zai-org/GLM-5.3
+    base_url: https://api.together.xyz/v1
+    readout: sampling
+    env_key: TOGETHER_API_KEY
+    price_in_per_m: 1.4
+    price_out_per_m: 4.4

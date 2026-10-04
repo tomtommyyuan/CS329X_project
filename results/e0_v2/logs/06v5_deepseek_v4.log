@@ -1,0 +1,6 @@
+300 answered items sampled from 1040 demo rows
+items: 300, record extraction failed: 16
+[F] kept 264/284 (filter rate 0.07); per attempt: choice 1.00, reasons 0.97, conditions 0.96, strength 0.95, style 0.96; judge JSON failures 2
+[C] kept 231/284 (filter rate 0.19); per attempt: choice 1.00, reasons 0.79, conditions 0.92, strength 0.85, style 0.96; judge JSON failures 10
+-> /Users/yuansir/workspace/CS329X_Project/data/rewrites_v5/deepseek_v4
+exit=0

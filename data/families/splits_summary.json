@@ -1,0 +1,38 @@
+{
+  "n_total": 2936,
+  "dropped_near_duplicates": [
+    [
+      "mc_C_486",
+      "mc_C_023"
+    ]
+  ],
+  "splits": {
+    "train": {
+      "daily_dilemmas": 516,
+      "moralchoice": 482
+    },
+    "pilot": {
+      "daily_dilemmas": 60,
+      "moralchoice": 40,
+      "valueconsistency": 20
+    },
+    "excluded": {
+      "daily_dilemmas": 501,
+      "moralchoice": 1
+    },
+    "test": {
+      "daily_dilemmas": 189,
+      "moralchoice": 111
+    },
+    "dev": {
+      "daily_dilemmas": 94,
+      "moralchoice": 56
+    },
+    "sanity": {
+      "moralchoice": 676
+    },
+    "pool": {
+      "valueconsistency": 190
+    }
+  }
+}

@@ -1,0 +1,5 @@
+20 answered items sampled from 1040 demo rows
+items: 20, record extraction failed: 0
+[F] kept 19/20 (filter rate 0.05); per attempt: choice 1.00, reasons 0.91, conditions 1.00, strength 0.95, style 1.00, format 1.00; judge JSON failures 0
+[C] kept 10/20 (filter rate 0.50); per attempt: choice 1.00, reasons 0.59, conditions 0.98, strength 0.43, style 0.96, format 0.89; judge JSON failures 3
+-> /Users/yuansir/workspace/CS329X_Project/data/rewrites_v8smoke/claude46

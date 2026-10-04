@@ -1,0 +1,6 @@
+300 answered items sampled from 840 demo rows
+items: 300, record extraction failed: 5
+[F] kept 267/295 (filter rate 0.09); per attempt: choice 1.00, reasons 0.77, conditions 1.00, strength 0.98, style 0.98
+[C] kept 289/295 (filter rate 0.02); per attempt: choice 1.00, reasons 0.94, conditions 0.99, strength 0.98, style 0.99
+-> /Users/yuansir/workspace/CS329X_Project/data/rewrites/deepseek_v4
+exit=0

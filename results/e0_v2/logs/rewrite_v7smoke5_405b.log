@@ -1,0 +1,39 @@
+20 answered items sampled from 1040 demo rows
+Traceback (most recent call last):
+  File "/Users/yuansir/workspace/CS329X_Project/scripts/06_rewrite_pilot.py", line 60, in <module>
+    main()
+  File "/Users/yuansir/workspace/CS329X_Project/scripts/06_rewrite_pilot.py", line 54, in main
+    stats = asyncio.run(run_rewrite_pilot(prompts, items, styles, rewriter, rw_spec["model"], args.rewriter, judge, j_spec["model"], out_dir, rw_cfg, judge_fallback=fallback))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/yuansir/workspace/CS329X_Project/src/vcd/rewrite/pipeline.py", line 410, in run_rewrite_pilot
+    await asyncio.gather(*(one(it) for it in items))
+  File "/Users/yuansir/workspace/CS329X_Project/src/vcd/rewrite/pipeline.py", line 392, in one
+    text, truncated = await rewrite_once(rewriter, rewriter_model, p, rec, style, temp, feedback=feedback)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yuansir/workspace/CS329X_Project/src/vcd/rewrite/pipeline.py", line 323, in rewrite_once
+    resp = await rewriter.complete(LLMRequest(model=rewriter_model, system=RP.REWRITE_SYSTEM, user=user, temperature=temperature, max_tokens=max_tokens))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yuansir/workspace/CS329X_Project/src/vcd/llm/base.py", line 105, in complete
+    resp = await self.raw.complete(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yuansir/workspace/CS329X_Project/src/vcd/llm/openai_compat.py", line 48, in complete
+    resp = await self.client.chat.completions.create(**kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yuansir/workspace/CS329X_Project/.venv/lib/python3.12/site-packages/openai/resources/chat/completions/completions.py", line 2585, in create
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+  File "/Users/yuansir/workspace/CS329X_Project/.venv/lib/python3.12/site-packages/openai/_base_client.py", line 1794, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yuansir/workspace/CS329X_Project/.venv/lib/python3.12/site-packages/openai/_base_client.py", line 1594, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.BadRequestError: Error code: 400 - {'id': 'p3pkHC3-2kFHot-a450d1530e266c4d', 'error': {'message': 'Unable to access non-serverless model meta-llama/Llama-3.1-405B-Instruct. Please visit https://api.together.ai/models/meta-llama/Llama-3.1-405B-Instruct to create and start a new dedicated endpoint for the model.', 'type': 'invalid_request_error', 'param': None, 'code': 'model_not_available'}}

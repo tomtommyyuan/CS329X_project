@@ -1,0 +1,6 @@
+300 answered items sampled from 840 demo rows
+items: 300, record extraction failed: 5
+[F] kept 274/295 (filter rate 0.07); per attempt: choice 1.00, reasons 0.83, conditions 0.94, strength 0.93, style 0.93
+[C] kept 269/295 (filter rate 0.09); per attempt: choice 1.00, reasons 0.78, conditions 0.91, strength 0.90, style 0.90
+-> /Users/yuansir/workspace/CS329X_Project/data/rewrites/claude46
+exit=0

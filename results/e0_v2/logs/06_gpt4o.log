@@ -1,0 +1,6 @@
+300 answered items sampled from 840 demo rows
+items: 300, record extraction failed: 1
+[F] kept 274/299 (filter rate 0.08); per attempt: choice 1.00, reasons 0.79, conditions 0.99, strength 0.99, style 0.99
+[C] kept 296/299 (filter rate 0.01); per attempt: choice 1.00, reasons 0.93, conditions 1.00, strength 0.97, style 0.98
+-> /Users/yuansir/workspace/CS329X_Project/data/rewrites/gpt4o
+exit=0

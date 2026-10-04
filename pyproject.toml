@@ -1,0 +1,30 @@
+[project]
+name = "vcd"
+version = "0.1.0"
+description = "Value-consistency distillation experiments: E0 pilot tooling"
+requires-python = ">=3.12"
+dependencies = [
+  "numpy",
+  "pandas",
+  "scipy",
+  "pyyaml",
+  "pydantic>=2",
+  "openai>=1.60,<2",
+  "anthropic>=1,<2",
+  "httpx",
+  "tqdm",
+  "scikit-learn",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

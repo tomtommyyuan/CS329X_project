@@ -1,0 +1,5 @@
+300 answered items sampled from 1040 demo rows
+items: 300, record extraction failed: 1
+[C] kept 235/299 (filter rate 0.21); per attempt: choice 1.00, reasons 0.87, conditions 0.95, strength 0.75, style 0.91; judge JSON failures 9
+-> /Users/yuansir/workspace/CS329X_Project/data/rewrites_v6/claude46
+exit=0

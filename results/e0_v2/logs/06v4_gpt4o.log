@@ -1,0 +1,6 @@
+300 answered items sampled from 1040 demo rows
+items: 300, record extraction failed: 0
+[F] kept 269/300 (filter rate 0.10); per attempt: choice 1.00, reasons 0.95, conditions 0.91, strength 0.86, style 0.98; judge JSON failures 7
+[C] kept 237/300 (filter rate 0.21); per attempt: choice 1.00, reasons 0.83, conditions 0.85, strength 0.86, style 0.95; judge JSON failures 8
+-> /Users/yuansir/workspace/CS329X_Project/data/rewrites_v4/gpt4o
+exit=0

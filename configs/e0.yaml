@@ -1,0 +1,71 @@
+seed: 20261002
+
+paths:
+  raw: data/raw
+  families: data/families/families.jsonl
+  splits_summary: data/families/splits_summary.json
+  prompts: data/prompts/pilot_prompts.jsonl
+  t0_texts: data/prompts/t0_texts.jsonl
+  teacher_dir: data/teacher
+  annotation_dir: data/annotation
+  results: results/e0
+  cache: data/cache/llm_cache.sqlite
+
+# Pilot composition (families). VC items are a refusal probe, not profile families.
+pilot:
+  daily_dilemmas: 60
+  moralchoice_high: 30
+  moralchoice_low: 10
+  valueconsistency: 20
+
+splits:
+  dev: 150
+  test: 300
+
+dedup_threshold: 0.90
+
+# Families with any of these review flags are kept in families.jsonl but never used (split = excluded).
+# Third-person narratives do not fit the second-person stems; converting them is a later J task.
+exclude_review_flags: [third_person_situation, first_person_situation]
+
+variants_profile: [T1, T2, T3, T4]   # used for r and delta
+variants_all: [T0, T1, T2, T3, T4]    # T0 is test/pilot only
+
+demo:
+  temperature: 0.0
+  max_tokens: 200
+profile:
+  temperature: 1.0
+  max_tokens: 8
+  k_sampling: 10      # per pass, for sampling-readout teachers
+  passes: 2
+  top_logprobs: 20
+
+concurrency:
+  openai: 8
+  anthropic: 8
+  openai_compat: 8
+
+rewrite:            # E0.6
+  n_items: 300      # teacher answers sampled per teacher (stratified by variant)
+  styles: [F, C]
+  rewrite_temperature: 0.3
+  retry_temperature: 0.7
+  max_retries: 1
+
+readout_check:      # E0.7
+  k_sampling: 10
+  temperature: 1.0
+
+gates:
+  refusal_max: 0.10
+  refusal_hard: 0.25
+  order_stable_min: 0.80
+  type_effect_min: 0.05
+  reliability_min: 0.50
+  teacher_corr_max: 0.80
+  teacher_corr_hard: 0.90
+  rewrite_human_pass_min: 0.85
+  rewrite_kappa_min: 0.60
+  filter_rate_max: 0.30
+  readout_diff_max: 0.05
