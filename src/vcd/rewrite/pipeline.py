@@ -465,9 +465,18 @@ async def run_rewrite_pilot(
     records_path, rewrites_path = out_dir / "records.jsonl", out_dir / "rewrites.jsonl"
     stats: dict = defaultdict(int)
     lock = asyncio.Lock()
-    # resume: items that already have a record were fully processed in an earlier run
-    if records_path.exists():
-        done = {r["prompt_id"] for r in read_jsonl(records_path)}
+    # resume: an item is done only when every requested style has a kept rewrite or has used all its attempts
+    # (a record alone is not enough: a run killed between extraction and rewriting must redo that item; the
+    # extraction itself is served from the cache).
+    if rewrites_path.exists():
+        max_attempts = int(cfg_rw["max_retries"]) + 1
+        kept: dict[tuple[str, str], bool] = {}
+        attempts: dict[tuple[str, str], int] = defaultdict(int)
+        for r in read_jsonl(rewrites_path):
+            key = (r["prompt_id"], r["version"])
+            attempts[key] += 1
+            kept[key] = kept.get(key, False) or bool(r.get("kept"))
+        done = {pid for pid in {k[0] for k in attempts} if all(kept.get((pid, s), False) or attempts[(pid, s)] >= max_attempts for s in styles)}
         before = len(items)
         items = [it for it in items if it.prompt_id not in done]
         stats["skipped_done"] = before - len(items)
