@@ -10,5 +10,10 @@ data/teacher/
 data/rewrites/
 results/**/*.parquet
 .DS_Store
-runs/
+# student runs: keep manifests, logs and eval outputs in git, never weights
+runs/**/checkpoint/
+runs/**/*.safetensors
+runs/**/*.bin
+runs/**/*.pt
+logs/
 data/sft/
