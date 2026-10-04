@@ -335,6 +335,18 @@ Phase 1 采集中（`data/teacher_phase1/`，配置 `configs/phase1_dev.yaml` / 
 
 与 pilot 一致：T6 对三个 teacher 都是同向负偏移（CI 不含 0），suggestibility 梯度 DeepSeek > GPT-4o > Claude（pilot 0.158 / 0.065 / 0.030），Claude 的翻转依赖选项顺序（顺序 split-half 低、跨 pass 重测 0.99），残差 profile 相关 0.17 到 0.34。P2 在未见过的 family 上成立，可以用作 E2 的 test 侧度量。GPT-4o 在 dev 上有 25 条拒答 + 21 条格式错误（3%），对应 10 个 family 进不了 profile。
 
+**采集完成后的 test 集（300 family，T0 / T1 / T3 / T5 / T6 × 2 顺序 = 3,000 条 prompt；Claude 20 个采样 / 条）**：
+
+| teacher | δ(T5) | δ(T6) | suggestibility | 可靠度（顺序 split-half） | 跨 pass 重测 | 中间概率 cell | 翻过的 family |
+|---|---|---|---|---|---|---|---|
+| GPT-4o | 0.028 | −0.034 | 0.062 | 0.691 | — | 10.6% | 8.6% |
+| Claude 4.6 | 0.023 | −0.024 | 0.048 | 0.329 | 0.990 | 8.4% | 11.1% |
+| DeepSeek V4 | 0.044 | −0.070 | 0.114 | 0.466 | — | 37.1% | 12.3% |
+
+梯度和方向与 pilot、dev 一致（三次独立样本：DeepSeek 0.158 / 0.140 / 0.114，GPT-4o 0.065 / 0.077 / 0.062，Claude 0.030 / 0.056 / 0.048）。teacher 两两残差相关 0.20 到 0.28，多数行动一致率 0.90 到 0.92。可靠度按顺序 split-half：GPT-4o 0.69 过门槛，DeepSeek 0.47 略低于 0.5，Claude 0.33（但跨 pass 重测 0.99：Claude 的 profile 极稳定但依赖选项顺序，这一点在 pilot 就有）。对 E2 的含义：student–teacher 的 ρ 要用两种顺序平均后的 symmetrized profile 算，并把每个 teacher 的 split-half 可靠度作为 ρ 的上界一起报。
+
+train demo：三个 teacher 各 11,944 条；答题率 GPT-4o 99.1%（73 拒答 + 38 格式错）、Claude 99.7%、DeepSeek 100%。order-stable 率约 95%，按 02 文档 §4.2 每 (family, variant) 只留一个 order 后，O 版训练文件 GPT-4o 5,619 条、Claude 5,642 条、DeepSeek 4,936 条（DeepSeek 的 T6 顺序不稳定最多），目标长度 GPT-4o 49 / Claude 78 / DeepSeek 44 个 token。
+
 ## 12. 过程记录
 
 - DeepSeek API 已不提供 V3；`deepseek-chat` 别名指向 `deepseek-flash`；改用 `deepseek-v4-pro`，它默认 thinking，200 token 全花在 reasoning 上导致空回答，已用 `thinking: disabled` 关闭。
