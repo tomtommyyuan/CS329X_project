@@ -274,3 +274,21 @@ QoS 每人最多 64 个作业，没法给每个 run 单独挂评估作业。所�
 | 剂量反应 slope（s_run 对 s_T） | 1.441（pearson 0.856，顺序保持），teacher 层面精确 p 1/6 |
 
 以上是 E1 / E2 的正式结论，此后不再改任何量。
+
+### 2026-10-05 §7 第 8 步清理 + E3（e1_plan §8 / e3_plan §4）进度与交接
+
+- **E1 清理。** 18 个 E1 run 的 train / dev / test readout 齐全，checkpoint 已删（`runs/qwen3-4b` 现在 107 MB）。
+- **paired 训练。** array 130120 的 45 个任务全部 COMPLETED、exit 0，peak 最高 69.91 GiB，没有 OOM，optimizer 统一。45 个 manifest 与 train log 已提交。
+- **paired train / dev readout。** follower 130174–130176 在跑（每个 teacher 一个）。
+- **E3 阶段 2 检查**（`results/e3_dev` 的 `content_check.csv` / `register_separation.csv`，已提交）：
+  - F / C 与 O 的字母一致率 1.0，六项 judge check 全为 1.0；claude46 C 的 `letter_matches_rewrite` 0.9998，是 e3_plan 列出的那 1 条已知项。
+  - F–C register 分离三个 teacher 都 pass：LOO 0.921 / 0.927 / 0.907，logistic 0.959 / 0.952 / 0.942，与 e3_plan 的冒烟数字一致。
+  - O–F 只有约 0.60 可分（描述项）。
+
+**交接。** 交互分配 129037 约 2026-10-05 18:30 PDT 到期，本 session 随之结束。若下面几步没做完，新 session 从这里接：
+
+1. 确认 130174–130176 都结束：每个 paired run 有 `eval/train_responses.jsonl` 和 `dev_responses.jsonl`；train 的行数 = manifest `n_examples`，dev 为 1,500 行。脚本在 `/hai/scratch/tomyyc/vcd_diag/eval_paired.sh`，跑缺的 run 时用 `sbatch slurm/eval.sbatch runs/qwen3-4b-paired/<run> {train,dev}`。
+2. e1_plan §8 第 4 步：`python scripts/13_e1_analysis.py --runs-dir runs --student qwen3-4b-paired --split dev --out results/e3_dev_e1tables`。
+3. e3_plan §4 第 2–3 步：`python scripts/15_e3_analysis.py --runs-dir runs --student qwen3-4b-paired --split dev --out results/e3_dev` → 在本文件写 13 行 verdict 和一行 `E3 规则冻结于 <HEAD>` → 加 `--frozen-commit <HEAD>` 重出一次 → 提交。
+4. e3_plan §4 第 4 步（冻结之后才做）：每个 teacher 一个作业跑 45 个 paired test readout，`sbatch ... /hai/scratch/tomyyc/vcd_diag/test_paired.sh <teacher>`。脚本没找到冻结行就拒绝运行。
+5. 第 5–7 步：`15 --split test --out results/e3 --frozen-commit <HEAD>` → 提交 → 删除 paired checkpoint。
