@@ -102,7 +102,7 @@ HPC agent 按顺序做（都在 compute 分配里）：
 | 2 | 训练 45 个 run | `ls data/sft_paired/*.jsonl > paired_runs.txt`；`STUDENT_SHORT=qwen3-4b-paired DATA_LIST=paired_runs.txt sbatch --array=0-44%8 slurm/train.sbatch` | `runs/qwen3-4b-paired/{teacher}_{O,F,C}_s{seed}/train_manifest.json` 45 个；同一 teacher 的三版本 `n_examples` 相同、`data_sha256` 不同 |
 | 3 | readout | 每个 run：`--split train`、`--split dev`（`sbatch slurm/eval.sbatch runs/qwen3-4b-paired/<run> dev`），test 只在 §7 第 5 步之后、与 E1 的 test 一起做一次 | 45 × 3 个 responses 文件 |
 | 4 | 现有分析 | `python scripts/13_e1_analysis.py --runs-dir runs --student qwen3-4b-paired --split dev --out results/e3_dev_e1tables`（13 按版本出 E1 / E2 表；F / C 版本的 P1 / P2 也在里面） | 表齐 |
-| 5 | E3 专用指标 | **等 Mac 侧的 `scripts/15_e3_analysis.py`**（跨学生分歧率、excess teacher drift、homogenization、Δρ 随 form 的配对差、seed 配对 null；docs/04 组 C / D）。不要自己写一版 | — |
+| 5 | E3 专用指标 | `scripts/15_e3_analysis.py` 已到（跨学生分歧率、excess teacher drift、homogenization、Δρ 随 form 的配对差、seed 配对 null；docs/04 组 C / D）：按 [tasks/e3_plan.md](e3_plan.md) §4 跑 dev → 冻结 → test | `results/e3_dev/summary.md` 的 Verdicts 13 行无 pending |
 | 6 | 提交 / 清理 | 同 §7 第 7、8 步，目录换成 `runs/qwen3-4b-paired` | — |
 
 注意：§2 的 `runs/qwen3-4b/*_O_*` 是 E1 / E2 的全集 O 学生，保留；paired 的 O 学生只用于 E3 的配对比较，两者的差异（全集 vs 交集，约 9% 的 item）顺带是稳健性检查。显存和 §2 一样贴边（Claude 的 F / C 版 rationale 和 O 一样长），OOM 规则见 §6。

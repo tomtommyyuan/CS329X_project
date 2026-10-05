@@ -8,7 +8,7 @@
 |---|---|---|
 | DATA | `src/vcd/train/data.py`、`scripts/10_build_sft_data.py`、`tests/test_train_data.py` | `vcd.schemas`、`vcd.io`、`vcd.teacher.parse` |
 | TRAIN | `src/vcd/train/sft.py`、`scripts/11_train_student.py`、`slurm/train.sbatch`、`slurm/README.md`、`tests/test_sft_smoke.py` | `vcd.train.data`（template、SFT 行读取） |
-| EVAL | `src/vcd/student/readout.py`、`scripts/12_eval_student.py`、`src/vcd/analysis/e1_metrics.py`、`scripts/13_e1_analysis.py`、`slurm/eval.sbatch`、`tests/test_readout.py`、`tests/test_e1_metrics.py` | `vcd.train.data`（template）、`vcd.teacher.profile`、`vcd.teacher.parse`、`vcd.stats` |
+| EVAL | `src/vcd/student/readout.py`、`scripts/12_eval_student.py`、`src/vcd/analysis/e1_metrics.py`、`scripts/13_e1_analysis.py`、`src/vcd/analysis/e3_metrics.py`、`scripts/15_e3_analysis.py`、`slurm/eval.sbatch`、`tests/test_readout.py`、`tests/test_e1_metrics.py`、`tests/test_e3_metrics.py` | `vcd.train.data`（template）、`vcd.teacher.profile`、`vcd.teacher.parse`、`vcd.stats` |
 | 契约 | 本文、`pyproject.toml`（extras `train` / `eval`）、`configs/train.yaml`、两个空 `__init__.py` | |
 
 环境：`.venv` 由 uv 管理，**没有 pip**；安装用 `uv pip install -e ".[train]" --python .venv/bin/python`。已装 torch 2.14.1（CPU）、transformers **5.18.0**、datasets 5.0.1、accelerate 1.15.0。transformers 是 5.x：`Trainer` 参数名用 `eval_strategy`、`processing_class`；`AutoTokenizer` 默认 `use_fast`。HF 缓存里已有 `HuggingFaceTB/SmolLM2-135M`（权重 + tokenizer）和 `Qwen/Qwen3-4B-Base` 的 **tokenizer**（11 MB，无权重）。本机无 GPU：所有组件必须有 CPU 路径，用 tiny 模型跑测试；vLLM 是可选 import，缺了回落到 transformers。
@@ -318,6 +318,72 @@ def shared_component_r2(shifts_s, shifts_t, own: str, others: list[str]) -> floa
 
 随机标签学生 R 的 agreement / JSD 与 O 学生同表列出，一致性永不单独报；R 与 S_0 不进 P1 / P2 统计，只在表里描述。
 
+## 6b. E3 指标（`src/vcd/analysis/e3_metrics.py`、`scripts/15_e3_analysis.py`；计划 [tasks/e3_plan.md](../tasks/e3_plan.md)）
+
+复用 §6 的管线与函数（`sym_table`、`framing_shifts`、`base_prior_shifts`、`complete_families`、`joint_partial_D`、`suggestibility_groups`、`pooled_shifts`、`holm`、`parse_run_id`）。学生按 teacher 内 **seed 配对**比较（S_{T,V,s} vs S_{T,O,s}），单位 family，噪声参照 = seed-pair null（单对量，按 √n_seeds 缩到 seed 均值，t 参照；e3_plan §3）。组 C 的量（agree_own、jsd_own、drift）是 complete family 上的 family 单位均值，与 §6 E1 表的 cell 加权值略有差异（claude46_O_s1 dev：0.8498 vs 0.8526）；flip / JSD 与 E1 完全一致。全部纯函数。
+
+```python
+VERSIONS = ("O", "F", "C"); DISAGREEMENT_PAIRS = (("F","C"), ("O","F"), ("O","C")); CHECKS = ("choice","reasons","conditions","strength","style","format")
+def run_grid(run_ids, versions=VERSIONS) -> pd.DataFrame                 # 每 (student, teacher, seed) 一行，每版本一列放 run id（缺则 None）；R / B 忽略
+def grid_inventory(grid, versions) -> pd.DataFrame                       # 每 teacher 各版本 seed 数、seed 列表、与 O 配对数（summary 的 Run inventory）
+def seed_pairs(grid, version) -> list[(teacher, run_V, run_O, seed)]
+def cell_matrices(sym, variants) -> dict[who, DataFrame]                 # 每个 profile 的 family × variant p_sym 表（只留完整 family）
+def family_consistency(piv) -> DataFrame[flip, jsd]                      # 每 family：variant 对里多数行动不同的比例、两两 JSD 均值（组 B）
+def family_compare(piv_a, piv_b, margin=0.1) -> DataFrame[disagree, agree, jsd, n_ties, disagree_conf, n_conf]   # 每公共 family：多数行动不同的 variant 比例（p = 0.5 的 cell 为 tie 不计）、JSD 均值；_conf = 两边 |p − 0.5| ≥ 0.1 的 cell 上的同一比例
+def teacher_families(mats, grid, versions) -> dict[teacher, list[family]]  # 每 teacher 所有 run（全部版本）都完整的 family 集；null 与配对统计量共用
+def run_scalars(mats_s, mats_t, families=None) -> DataFrame              # 每 run 一行：flip, jsd, agree_own, jsd_own（seed-pair null 的输入）；families 限定每 teacher 的 family 集
+def paired_delta(values: dict[run, Series], grid, versions, n_boot, seed, label, families=None) -> (per_seed, per_teacher)
+    # 每 family 量的 V − O 配对差：同 teacher 所有配对 run 的公共 family（∩ families[teacher]）；每 seed 一行；每 teacher seed 均值 + family bootstrap CI（各 seed 联动）+ direction
+def cross_student_disagreement(mats, grid, pairs=DISAGREEMENT_PAIRS, n_boot, seed, families=None) -> (per_seed, per_teacher)   # (1) 同 teacher 同 seed 两版本的分歧率、JSD、disagree_conf
+def seed_pair_disagreement(mats, grid, version="O", families=None) -> DataFrame   # (1) 的 null：O seed a vs O seed b 的分歧率，每 teacher C(5,2) 对
+def excess_disagreement(dis_t, spd, value="disagree") -> DataFrame       # (1) 的判定量：每 (teacher, pair) 的分歧率 − 该 teacher 自己 O-O 均值（oo_mean），var_oo_mean = delete-one-seed jackknife 方差，CI 同样平移
+def consistency_delta(mats, grid, versions=("F","C"), n_boot, seed, families=None) -> (per_seed, per_teacher)   # (2) metric ∈ {flip, jsd}
+def drift_delta(mats_s, mats_t, grid, versions, n_boot, seed, families=None) -> (per_seed, per_teacher)         # (3) metric ∈ {agree, jsd}（对自己 teacher）
+def seed_pair_null(run_table, value, version="O") -> DataFrame           # 每 teacher 的 O seed 两两 value 差（signed + abs），跨 teacher 合并（单对量）
+def null_summary(values) -> dict(n, mean, sd, q95)
+def e3_verdict(stats: dict[teacher, float], null, one_sided=False, n_seeds=1 | dict, cis=None, extra_var=None, null_groups=None, df=None, n_required=3, min_frac=2/3, alpha=0.05) -> dict
+    # 规则 7（e3_plan §3）：SD_stat = sqrt(sd_1² / n_seeds + extra_var)，sd_1 = sqrt(mean(d²))（单侧：null_groups 组内 sd），q95 = t(1 − α/2, df) × SD_stat（单侧 t(1 − α)）
+    # |stat| > q95 的 teacher ≥ ceil(2/3 × n_required) 且符号相同 → "effect"；否则 ≥ 同样多的 teacher 过 TOST（CI 与 stat 都在 ± 1 SD_stat 内）→ "no effect"，否则 "inconclusive"
+    # 无配对 run → "pending (no paired runs)"；teacher < n_required → "pending (n_teachers k < 3)"；null < 2 → pending
+    # 每 teacher：stat, null_sd, q95, effect_sd, exceeds_q95, exceeds_q95_single（单对 95 分位，敏感性）, sign, p_null（t 参照）, p_holm, tost, ci；顶层 q95, q95_single, null_sd_single, n_pass, n_tost, direction
+def homogenization(mats, grid, versions=VERSIONS, n_boot, seed) -> (per_cell, per_version)
+    # (4) 每版本：不同 teacher 的学生两两（同 seed）判断 JSD 与 1 − corr(r)，同一 family 集（所有 run 都完整）；每版本均值 + CI，与 O 的配对差 d_*_vs_O + CI
+    # 校准列：mean_abs_margin、share_low_margin（|p − 0.5| < 0.1）、maj_disagree、maj_disagree_conf（JSD 会随 readout 向 0.5 收缩而机械变小，1 − corr 无尺度，先看它）
+def inheritance_by_form(shifts_s, shifts_t, control, grid, variants, versions=("F","C"), n_boot, seed) -> (per_run, per_seed, per_teacher)
+    # (5) 每 run 的 Δρ（control = r_0 时为 partial，同 teacher 所有 run + 所有 teacher + r_0 完整的同一 family 集）；V − O 配对差，每 teacher seed 均值 + family bootstrap CI（各 run 联动重抽）
+def joint_D_by_version(shifts_s, shifts_t, control, grid, variants, versions, n_perm, n_boot, seed) -> (DataFrame, dict)   # 每版本 seed-pooled 学生的 joint_partial_D（D, CI, p, D_specific, D_shared, D_raw, e2_secondary_rule）
+def suggestibility_by_version(shifts_s, shifts_t, grid, versions, families=None, pos="T5", neg="T6", n_boot, seed) -> (groups, diffs)
+    # 组 students:{T}:{V} 与 teacher:{T}；diffs = s(students:T:V) − s(students:T:O)、s(students:T:V) − s(teacher:T) 及配对 CI
+def load_sft_versions(sft_dir, teacher, seed=1, versions) -> dict[version, rows]; def load_rewrites(path) -> list[dict]
+def kept_attempts(rewrites, version) -> dict[prompt_id, row]             # 最后一条 kept attempt（与 vcd.train.data.kept_rewrites 同选法）
+def rewrite_yield(rewrites) -> DataFrame[version, n_attempted, n_kept, kept_share, mean_attempts]
+def rationale_of(text_target) -> str
+def content_check(sft_by_version, rewrites, tokenizer=None, versions) -> DataFrame
+    # (6) 每版本：n_items, n_families, same_prompt_set_as_O, letter_identity_with_O（必须 1.0）, letter_matches_rewrite, kept_attempt_found, check_{六项}, mean_attempts, n_attempted / n_kept / kept_share, mean_words, mean_chars, mean_target_tokens, n_target_tokens
+def register_features(text) -> dict                                      # contraction_rate, formal_connective_rate, formal_word_rate（闭合词表）, mean_word_len, words_per_sentence, fk_grade（FK 代理）, n_words, n_sentences
+def register_table(sft_by_version, versions) -> (per_item, per_version)
+def register_separation(per_item, a="F", b="C", features=REGISTER_FEATURES, n_folds=10, seed=0) -> dict
+    # LOO 最近质心准确率（标准化与质心都只用 n − 1 条训练项，无泄漏）+ 10 折 ridge logistic（numpy IRLS）准确率，各带 Wilson 95% CI（nc_ci_*, lr_ci_*）、每特征 Cohen d；passes = 两者 ≥ 0.90（e3_plan §2 冻结的门槛）；某版本 < 2 条 → pending
+def wilson_ci(k, n) -> (lo, hi)
+```
+
+`15_e3_analysis.py --runs-dir runs --student qwen3-4b-paired --split dev|test [--base-run runs/qwen3-4b/base_B_s0] [--teacher-dir data/teacher_phase1] [--teachers ...] [--prompts ...] [--versions O,F,C] [--sft-dir data/sft_paired --sft-seed 1] [--rewrites-dir data/rewrites_train] [--tokenizer Qwen/Qwen3-4B-Base|none] [--out results/e3_{split}] [--n-boot 10000 --n-perm 10000] [--frozen-commit <hash>]` 输出（df = Σ_T (n_O,T − 1)，n_required = 配置里的 teacher 数）：
+
+| 文件 | 内容 |
+|---|---|
+| `run_inventory.csv`、`run_scalars.csv` | 每 teacher 各版本的 seed 与配对数；每 run 的 flip / jsd / agree_own / jsd_own |
+| `seed_pair_null.csv`、`seed_pair_null_summary.csv` | O seed 两两的 flip、jsd、agree_own、jsd_own、delta_rho 差与 O-vs-O 分歧率 / 学生间 JSD；每个量的 n、mean、sd、q95 |
+| `disagreement.csv`（+ `_by_seed`）、`disagreement_excess.csv` | (1) 每 teacher × {F-C, O-F, O-C} 的分歧率、disagree_conf 与 JSD 及 CI；对自己 O-O 均值的 excess 与 jackknife 方差（判定量） |
+| `consistency_delta.csv`、`drift.csv`（各 + `_by_seed`） | (2) flip / JSD 的 V − O；(3) agree / JSD（对自己 teacher）的 V − O；每 teacher CI 与 direction |
+| `homogenization.csv`（+ `homogenization_cells.csv`） | (4) 每版本的 1 − corr 与 JSD 及 CI、与 O 的配对差、|p − 0.5| 校准列 |
+| `inheritance_by_form.csv`（+ `_by_seed`、`_runs`） | (5) ΔρPartial 的 V − O 每 teacher CI；每 run 的 ρ_own / ρ_other_max / Δρ / ρ_base |
+| `joint_D_by_version.csv` / `.json`、`suggestibility_by_version.csv`、`suggestibility_version_diffs.csv` | 每版本 D（含 D_specific、D_shared、D_raw）；每 (teacher, version) 组的 s 与版本差 |
+| `content_check.csv`、`register_check.csv`、`register_separation.csv` | (6) 阶段 2 检查（summary 单独列出 letter_identity_with_O / letter_matches_rewrite / kept_attempt_found < 1 的文件）；register 特征均值；F–C（判 ≥ 0.90，Wilson CI）与 O–F、O–C（描述）的可分性 |
+| `verdicts.csv` / `.json` | 13 行规则 7 判定：metric、family、tier（primary 9 / secondary 4）、每 teacher stat [CI] (effect_sd, p, Holm, TOST)、null_q95（统计量尺度）、null_q95_single（单对）、null_sd、n_null、df、n_pass、n_pass_single、n_tost、n_teachers、n_required、direction、p_row、p_row_holm_primary、verdict ∈ {effect, no effect, inconclusive, pending (...)} |
+| `summary.md` | 头部 "pre-specified …; not yet frozen / frozen at commit <hash>"、规则原文与操作化、Run inventory、Verdicts（split ≠ test 标 descriptive）、null、(1) 到 (6) 全部表、pending 原因 |
+
+降级：缺 F / C → 对应行 `pending (no paired runs)`；只有部分 teacher 有 F / C → `pending (n_teachers k < 3)`（部分网格不出 effect）；null、O 版本的 homogenization / D / s 照出；缺 base readout → raw Δρ；缺 `data/sft_paired` → 阶段 2 行 pending 并印重建命令；`--tokenizer none` 跳过 token 计数。规则与冻结见 e3_plan §3。
+
 ## 7. SLURM（HAIC）
 
 `slurm/train.sbatch`、`slurm/eval.sbatch` 用下表占位；**用户提交前确认 partition / account / QoS**（来自 2026-08 实测的 HAIC 手册，可能已变）。
@@ -347,6 +413,7 @@ def shared_component_r2(shifts_s, shifts_t, own: str, others: list[str]) -> floa
 | `tests/test_sft_smoke.py`（`@pytest.mark.slow`，默认仍跑） | tiny profile 2 步：label mask 正确（prompt 位置 -100、target 与 EOS 非 -100）、manifest 字段齐、checkpoint 可被 `AutoModelForCausalLM` 重新加载 | 从 pilot 建 8 条 |
 | `tests/test_readout.py` | `letter_token_ids` 在 SmolLM2 上得 `{A:[330,49], B:[389,50]}`；`readout_rows` 对手造分布给出正确 `p_letters` / `category` / `usage.top1`；transformers 后端在 tiny 模型上产出可被 `responses_to_frame → symmetrize` 消费的行 | SmolLM2 |
 | `tests/test_e1_metrics.py` | 用手造 `sym` 表：agreement / JSD 已知值、`inheritance` 在学生 = teacher 时 Δρ > 0 且 p 小、`seed_noise_null` 的对数、`parse_run_id` | 无文件 |
+| `tests/test_e3_metrics.py` | 合成 3 teacher × 3 seed × O / F / C 学生（F 加大噪声改变一致性 / agreement / 继承，C 为干净复制；另一世界 C 同质化）：规则 7 的 effect / no effect / inconclusive / pending（含 teacher < 3）、null 尺度匹配（q95 = t × RMS / √n_seeds）、iid H0 下每 teacher 超阈率 ≈ 5%、excess 分歧与 jackknife、seed-pair null 对数、分歧计数与 tie 排除、homogenization 方向与校准列、`inheritance_by_form`（partial 与 raw）、每版本 D 与 s（版本顺序无关）；合成 SFT + rewrites 树上的内容 / register 检查（LOO 无泄漏对照暴力循环、Wilson CI）；`scripts/15` 的三个 subprocess 冒烟（O / F / C 全网格、只有 O → 全 pending、只有一个 teacher 有 F / C → pending (n_teachers 1 < 3)） | 无文件 |
 
 新测试必须在 CPU 上 < 60 s；既有 39 个测试不改。另有 scripts/12 与 13 的 subprocess 测试（tiny 基座在 pilot 上全 malformed；合成 runs/ 树出完整 summary、`_smoke_*` 目录被跳过）、训练首个 target token ∈ readout 字母 id 的跨模块断言、空版本 / 静默覆盖的拒绝、`load_train_yaml` 不碰 .env。
 
