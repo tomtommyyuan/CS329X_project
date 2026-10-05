@@ -9,9 +9,9 @@
 | 环境（README §0） | 完成 2026-10-04 | ingrai / hai / QoS ingrai 已核实；训练 venv 重建；83 passed 1 skipped |
 | gate run（README §1） | 完成 2026-10-04 | 显存 / 精度 / 丢弃过；一致性因 bf16 噪声未过 → 评估统一 transformers 后端；E0.7 过 |
 | SFT 文件 O + R | 完成 2026-10-04 | 18 个文件，n 与计划一致；F / C 未建 |
-| E1 18 run | 未开始 | |
-| dev 评估 + 分析 | 未开始 | 冻结点 |
-| test 评估 + 分析 | 未开始 | 只跑一次 |
+| E1 18 run | 完成 2026-10-04 | 18 / 18，0 失败；12 个在 array 129420，6 个在交互分配 |
+| dev 评估 + 分析 | 完成 2026-10-04 | `results/e1_dev`；**E1 规则未过**（gpt4o 2/5、claude46 4/5），等 Mac 侧决定 |
+| test 评估 + 分析 | 未开始，等确认 | 只跑一次 |
 | F / C 改写（Mac 侧） | 进行中 2026-10-04 | 完成后 `data/rewrites_train/` 进仓库，再建 paired O / F / C |
 
 ## 日志
@@ -101,3 +101,50 @@ S_0 在 k = 20 时的 0.070 等于二项采样噪声本身（基座的 p(A) 不�
 - 为不让交互分配的 H100 空等：取消 array 任务 45–47（R s1–3，`scancel 129420_45 129420_46 129420_47`，先取消再开跑，避免同一 run 目录两个写者），在分配 129037 里用同一脚本 `bash slurm/train.sbatch random R {1,2,3}` 顺序训练。结果与 array 等价（同代码、同数据顺序、同 seed）；manifest 的 `slurm_job_id` 是 129037。
 - S_0 dev readout（transformers）：1,500 行，answer 25% / malformed 75%，mean mass_AB 0.875；完整 family（四个 variant 两种顺序都过 0.9）只有 5 个，S_0 作为参照很薄（协议所致，不放宽阈值）。
 - 修 `scripts/13_e1_analysis.py`：只有 S_0、还没有 O run 时 `summary_md` 两处崩溃（空 pooled 表无 `teacher` 列；`core` 无 `delta_rho` 列）。加了 `test_analysis_script_cli_base_only`；pytest 88 passed 1 skipped。
+- 同样理由再取消 array 任务 32–34（deepseek_v4 O s3–5，取消时仍是 PD），在分配 129037 里训练；集群这时只给 array 约 3 张卡。交互卡上训练与 dev 评估串行，不共用 GPU。
+
+### 2026-10-04 步骤 3–4：E1 网格训练 + dev 评估与分析
+
+训练（18 / 18 完成，0 失败；array 129420 的 12 个在 haic-hgx-1/3/5，R 与 deepseek s3–5 在交互分配 haic-hgx-4）：
+
+| 条件 | run | steps | n_examples | target token / epoch（含 EOS） | peak GiB | 分钟 | final loss | dropped |
+|---|---|---|---|---|---|---|---|---|
+| gpt4o O | 5 | 528 | 5,619 | 279,029 | 69.36–69.37 | 13.8–15.1 | 0.093–0.134 | 0 |
+| claude46 O | 5 | 531 | 5,642 | 447,303 | 69.79–69.91 | 14.6–15.2 | 0.163–0.248 | 0 |
+| deepseek_v4 O | 5 | 465 | 4,936 | 221,871 | 69.33–69.41 | 12.2–15.0 | 0.136–0.241 | 0 |
+| random R | 3 | 528 | 5,619 | 95,523 | 68.99–69.01 | 15.3–16.0 | 0.039–0.040 | 0 |
+
+全部 bf16、checkpoint bfloat16（每个 7.6 GB，共 136 GB）、带 `checkpoint_legacy_compat`。R 的 loss ≈ ln2 / 16 token：固定 rationale 学会、随机字母学不会，符合预期。
+
+dev readout（transformers 后端，`eval.sbatch` 同一脚本）：19 个文件 × 1,500 行（含 T0）。学生 answer 率 99.9–100%（mass_AB ≈ 1.0）；S_0 answer 25%、malformed 75%（mass_AB 均值 0.875），四个 variant 都可用的 family 只有 5 个。
+
+`13_e1_analysis.py --split dev --out results/e1_dev`（n_perm = n_boot = 10,000，代码版本 36f5e1e）对照 e1_plan §3：
+
+| 检查 | 预期 | dev 结果 | 判定 |
+|---|---|---|---|
+| malformed | 学生 < 5% | 0–0.1%（S_0 75%） | 过 |
+| agreement own | ≥ 0.85 且高于他人 | seed 均值 gpt4o 0.855（DeepSeek 0.855）、claude46 0.846（他人最大 0.829）、deepseek_v4 0.843（0.826） | **未过**：≥ 0.85 只有 gpt4o；"高于他人"见下行 |
+| E1 规则（每个 O seed own > other_max） | 全过 | deepseek_v4 5/5；claude46 4/5（s3：0.837 vs gpt4o 0.841）；gpt4o 2/5（s1 平 0.859，s2 / s4 / s5 低 0.002–0.005，都是 DeepSeek） | **未过** |
+| R agreement | ≈ 0.5 | 0.43–0.56 | 过 |
+| JSD own 最小 | 自己最小 | 只有 deepseek_v4 学生如此；gpt4o 与 claude46 学生都是对 DeepSeek 最小 | 未过（受校准混淆，见诊断 3） |
+| seed-noise null | 两两 ∣Δagree∣ 的 SD ≤ 0.02 | SD 0.005–0.008，q95 ≤ 0.022 | 过 |
+| 一致性 | 与 teacher 同量级 | flip rate：学生 deepseek 0.08–0.12 / gpt4o 0.06–0.08 / claude 0.04–0.05，teacher 0.107 / 0.052 / 0.073；R flip 0.09–0.20、跨 framing JSD ≈ 0（处处 0.5） | 过 |
+| 训练量 | 27 万 / 44 万 / 22 万 | 见上表 | 过 |
+
+E2 在 dev 上（只作参考，判定在 test）：pooled Δρ claude46 −0.110 [−0.259, 0.035]、deepseek_v4 +0.183 [0.056, 0.308]（p_perm 0.020，p_holm 0.061）、gpt4o −0.091 [−0.232, 0.057] → 0/3，E2 FAIL。但 grid permutation（打乱 15 个 run 的 teacher 归属）：观测 mean Δρ −0.005，null 均值 −0.081、SD 0.017，p < 1e-4。也就是说，学生的 profile 比随机指派更接近自己的 teacher，只是所有学生最接近的单个 profile 都是 DeepSeek。
+
+诊断（按 e1_plan §3 "先查数据文件 teacher 字段、训练 loss 曲线"；都不是预注册规则，输出与脚本在 `results/e1_dev_diag/`）：
+
+1. 数据与训练没问题。SFT 文件的 teacher / version 字段全对；loss 正常下降。seed 1 学生在自己的训练 prompt（5,948 条）上复现自己 teacher 的标签：gpt4o 98.5%、claude46 98.5%、deepseek_v4 99.4%（R 51%）；在两 teacher 标签不同的训练项上站自己一边：gpt4o 学生对 Claude 92.4%、对 DeepSeek 89.9%，deepseek 学生对 gpt4o 96.5%、对 Claude 96.3%，claude 学生对 gpt4o 91.3%、对 DeepSeek 92.6%。
+2. teacher 特有信号很小。训练标签两两一致 93.3–95.8%（gpt4o–DeepSeek 只有 198 / 4,734 项不同；stable_one 只留顺序稳定的项，多为共识项）；dev 上 teacher 两两 majority 一致 0.83–0.89，有争议的 cell 只有 65–100 个（33–47 个 family）。seed 合并后，在争议 cell 上站自己一边的比例：deepseek 学生 0.63 / 0.63，gpt4o 学生对 Claude 0.66、对 DeepSeek 0.45，claude 学生 0.49 / 0.54，95% family-bootstrap CI 大多含 0.5。
+3. JSD 被 teacher 校准混淆：p_sym 落在 [0.1, 0.9] 外的 cell 比例 GPT-4o 0.89、Claude 0.92、DeepSeek 0.64，学生 0.79–0.83。不一致时，越极端的 teacher JSD 罚得越重，所以 "JSD 自己最小" 对所有学生都偏向 DeepSeek。
+4. **基座本身像 DeepSeek。** S_0 放宽 0.9 规则后（仅诊断）suggestibility δ(T5) − δ(T6) = 0.166，与 profile 相关：DeepSeek 0.488、GPT-4o 0.283、Claude 0.247。所有学生从一个像 DeepSeek 的先验出发，于是每个学生的 ρ_other_max 都是 DeepSeek，Δρ = ρ_own − max ρ_other 结构上偏向 DeepSeek 学生。
+5. **suggestibility 有继承，三 teacher 的顺序保持**：δ(T5) − δ(T6) teacher DeepSeek 0.140 > GPT-4o 0.077 > Claude 0.056；学生 0.168 > 0.121 > 0.051（seed SD ≤ 0.014）；R 0.001。Claude 学生把基座的 0.166 压到 teacher 的水平。
+
+需要 Mac 侧决定（我没改任何规则、阈值或 readout；test 未评估，`test_responses.jsonl` 一个也没有）：
+
+- E1 规则在 dev 未过。按 e1_plan 应"先修训练，不进 E2 / E3"，但诊断 1 说明训练本身没坏，未过来自 teacher 特有信号小 + 基座先验像 DeepSeek。可选：(a) 记为结果，照现规则跑 test；(b) 在看 test 之前、在 dev 上改 E1 / E2 的量（例如以 S_0 profile 为协变量的 partial ρ、争议 cell 上的 agreement、以 grid permutation 为主检验），改完再冻结；(c) 改训练（`order_policy both` 保留争议项、或换基座），需要重训。
+- 可选：readout 改 fp32（去掉约 0.007 的 bf16 噪声，代价很小）。
+- E2 的冻结点：dev 分析用的 13 / e1_metrics 版本是 36f5e1e。若 Mac 侧确认照现规则进 test，就以此为冻结点；若选 (b)，冻结点是改完后的 commit。
+
+BLOCKED: E1 决策规则在 dev 未过（gpt4o 2/5、claude46 4/5 seed 通过），按 e1_plan 不进 test / E2；训练已核实无误，等 Mac 侧在上面三个选项里决定。checkpoint 全部保留（136 GB）。

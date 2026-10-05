@@ -1,0 +1,29 @@
+{
+  "n": 1500,
+  "category_counts": {
+    "answer": 1499,
+    "malformed": 1
+  },
+  "category_rates": {
+    "answer": 0.9993333333333333,
+    "malformed": 0.0006666666666666666
+  },
+  "mean_mass_AB": 0.9997819012094717,
+  "top1_histogram": [
+    {
+      "token": " B",
+      "count": 752
+    },
+    {
+      "token": " A",
+      "count": 748
+    }
+  ],
+  "backend": "transformers",
+  "seconds": 45.79715919494629,
+  "run_id": "qwen3-4b.claude46_O_s2",
+  "model": "runs/qwen3-4b/claude46_O_s2/checkpoint",
+  "split": "dev",
+  "prompts_path": "/hai/scratch/tomyyc/CS329X_project/data/prompts/dev_prompts_v2.jsonl",
+  "answer_mass_min": 0.9
+}

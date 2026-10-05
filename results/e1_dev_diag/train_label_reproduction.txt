@@ -1,0 +1,8 @@
+acc__T = share of T's training items where the student's argmax letter equals T's label;
+a>b = on items where a and b's labels differ, share where the student gives a's letter
+                  acc__gpt4o  acc__claude46  acc__deepseek_v4  gpt4o>claude46 (n=357)  gpt4o>deepseek_v4 (n=198)  claude46>deepseek_v4 (n=299)
+run                                                                                                                                           
+claude46_O_s1          0.916          0.985             0.924                   0.087                      0.611                         0.926
+deepseek_v4_O_s1       0.919          0.890             0.994                   0.655                      0.035                         0.037
+gpt4o_O_s1             0.985          0.912             0.944                   0.924                      0.899                         0.468
+random_R_s1            0.518          0.509             0.517                   0.552                      0.525                         0.495

@@ -1,0 +1,29 @@
+{
+  "n": 1500,
+  "category_counts": {
+    "malformed": 1125,
+    "answer": 375
+  },
+  "category_rates": {
+    "malformed": 0.75,
+    "answer": 0.25
+  },
+  "mean_mass_AB": 0.8746008670158563,
+  "top1_histogram": [
+    {
+      "token": " A",
+      "count": 781
+    },
+    {
+      "token": " B",
+      "count": 719
+    }
+  ],
+  "backend": "transformers",
+  "seconds": 18.86978006362915,
+  "run_id": "qwen3-4b.base_B_s0",
+  "model": "Qwen/Qwen3-4B-Base",
+  "split": "dev",
+  "prompts_path": "/hai/scratch/tomyyc/CS329X_project/data/prompts/dev_prompts_v2.jsonl",
+  "answer_mass_min": 0.9
+}
