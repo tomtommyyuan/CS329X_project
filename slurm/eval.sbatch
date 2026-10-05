@@ -10,7 +10,7 @@
 #   sacctmgr show user $USER withassoc format=user,account%20,qos%30
 # Login node does no compute. Install once on the cluster:
 #   uv venv .venv && uv pip install -e ".[train,eval]" --python .venv/bin/python
-#   uv pip install torch --index-url https://download.pytorch.org/whl/cu128 --python .venv/bin/python
+#   vLLM lives in its own venv (.venv-vllm, see README §0) because its pinned torch / transformers differ from the training venv
 #   HF_HOME=/hai/scratch/$USER/hf huggingface-cli download Qwen/Qwen3-4B-Base
 #
 #SBATCH --job-name=vcd-eval
@@ -27,19 +27,21 @@ set -euo pipefail
 
 RUN_DIR="${1:?usage: sbatch slurm/eval.sbatch <run-dir|-> <split>}"
 SPLIT="${2:-test}"
-PROJECT="${PROJECT:-/hai/scratch/$USER/CS329X_Project}"
+PROJECT="${PROJECT:-${SLURM_SUBMIT_DIR:-/hai/scratch/$USER/CS329X_Project}}"   # defaults to the dir you ran sbatch from
 BACKEND="${BACKEND:-vllm}"
 BATCH="${BATCH:-64}"
 
 cd "$PROJECT"
-source .venv/bin/activate
+REPO="$PROJECT"
+VENV="${VLLM_VENV:-$REPO/.venv-vllm}"; [ -d "$VENV" ] || VENV="$REPO/.venv"
+source "$VENV/bin/activate"
 export HF_HOME="${HF_HOME:-/hai/scratch/$USER/hf}"
 export HF_HUB_OFFLINE=1
 export TOKENIZERS_PARALLELISM=false
 export VLLM_LOGGING_LEVEL="${VLLM_LOGGING_LEVEL:-WARNING}"
 
 echo "host=$(hostname) job=${SLURM_JOB_ID:-local} run_dir=$RUN_DIR split=$SPLIT backend=$BACKEND"
-python -c "import torch; assert torch.cuda.is_available(), 'no GPU visible (torch must be the cu128 wheel)'; print(torch.cuda.get_device_name(0))"
+python -c "import torch; assert torch.cuda.is_available(), 'no GPU visible: torch wheel does not match the node driver (README §0)'; print(torch.cuda.get_device_name(0))"
 
 if [[ "$RUN_DIR" == "-" ]]; then
   # untrained base model; MODEL defaults to the student in configs/train.yaml

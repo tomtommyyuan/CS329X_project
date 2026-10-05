@@ -7,23 +7,41 @@ notes and **must be re-checked before the first submission**: account `ingrai`, 
 
 ## 0. One-time setup (login node)
 
+First look at the driver: `nvidia-smi | head -4` on a compute node. On 2026-10-04 `haic-hgx-4` reported **CUDA 12.4**
+(driver 550), so the torch wheel must be a **cu124** build; the latest cu124 torch is **2.6.0**. Bare `pip install torch`
+(cu130) and the cu128 wheels fail with "The NVIDIA driver on your system is too old".
+
 ```bash
-cd /hai/scratch/$USER && git clone <repo> CS329X_Project && cd CS329X_Project
+cd /hai/scratch/$USER && git clone https://github.com/tomtommyyuan/CS329X_project CS329X_project && cd CS329X_project
 export UV_CACHE_DIR=/hai/scratch/$USER/uv-cache HF_HOME=/hai/scratch/$USER/hf
+
+# training venv: extras first, then force the cu124 torch (the extras would otherwise pull the newest torch)
 uv venv .venv --python 3.12 && source .venv/bin/activate
-uv pip install torch --index-url https://download.pytorch.org/whl/cu128      # driver is CUDA 12.8; bare PyPI (cu130) hides the GPU
-uv pip install -e ".[train]"                                                # add ".[eval]" for vLLM (eval.sbatch)
-huggingface-cli download Qwen/Qwen3-4B-Base                                 # compute nodes may be offline; HF_HUB_OFFLINE=1 in jobs
+uv pip install -e ".[train]"
+uv pip install "torch==2.6.0" --index-url https://download.pytorch.org/whl/cu124
+python -c "import torch; print(torch.__version__, torch.version.cuda)"       # 2.6.0+cu124 12.4
+deactivate
+
+# eval venv: vLLM pins its own torch / transformers, so it gets a separate venv (eval.sbatch picks .venv-vllm automatically)
+uv venv .venv-vllm --python 3.12
+uv pip install --python .venv-vllm/bin/python "vllm==0.8.5.post1"           # built against CUDA 12.4, torch 2.6.0, supports Qwen3
+uv pip install --python .venv-vllm/bin/python -e .                          # the vcd package (no extras)
+.venv-vllm/bin/python -c "import torch, vllm; print(torch.__version__, torch.version.cuda, vllm.__version__)"
+
+hf download Qwen/Qwen3-4B-Base || huggingface-cli download Qwen/Qwen3-4B-Base   # compute nodes may be offline; HF_HUB_OFFLINE=1 in jobs
+hf download HuggingFaceTB/SmolLM2-135M || huggingface-cli download HuggingFaceTB/SmolLM2-135M
 mkdir -p logs runs
 ```
 
-Everything (repo, venv, HF cache, runs) lives under `/hai/scratch/$USER`; the home directory is 50 GB.
-The head node forbids computation, including `pytest` and `scripts/10_build_sft_data.py`: build the
-`data/sft/*.jsonl` files on the Mac and `rsync -a data/sft/ haic:/hai/scratch/$USER/CS329X_Project/data/sft/`.
+If a node reports a newer driver (CUDA ≥ 12.8), the plain `uv pip install vllm` + cu128 torch route works too; the only
+rule is that `torch.version.cuda` must not exceed what `nvidia-smi` shows.
 
-`slurm/train.sbatch` reads `REPO` (default `/hai/scratch/$USER/CS329X_Project`), `HF_HOME`, `STUDENT_SHORT`
-(default `qwen3-4b`), `CONFIG` (default `configs/train.yaml`) from the environment; export them before `sbatch`
-if your layout differs.
+Everything (repo, venvs, HF cache, runs) lives under `/hai/scratch/$USER`; the home directory is 50 GB. The head node
+forbids computation, including `pytest` and `scripts/10_build_sft_data.py`: run them inside an `srun` allocation.
+
+Both sbatch scripts take the repo root from the directory you run `sbatch` in (`SLURM_SUBMIT_DIR`), so the clone can be
+named `CS329X_project` or anything else; `VENV` / `VLLM_VENV`, `HF_HOME`, `STUDENT_SHORT`, `CONFIG` can be exported to
+override the defaults.
 
 ## 1. Gatekeeper: prove the stack on the cluster before the grid
 
@@ -31,7 +49,7 @@ if your layout differs.
 # (a) unit tests + tiny CPU smoke on a compute node (never on the head node)
 srun --account=ingrai -p hai-interactive --gres=gpu:h100:1 -c 8 --mem=64G -t 01:00:00 --pty bash
 cd /hai/scratch/$USER/CS329X_Project && source .venv/bin/activate && export HF_HOME=/hai/scratch/$USER/hf
-python -c "import torch; print(torch.cuda.is_available(), torch.version.cuda)"   # must be True / 12.8
+python -c "import torch; print(torch.cuda.is_available(), torch.version.cuda)"   # must be True; cuda version <= the driver's (12.4 on haic-hgx-4)
 python -m pytest -q                                                               # 39 E0 tests + train/eval tests
 
 # (b) one REAL run with the real model but 30 steps, into a throwaway dir OUTSIDE runs/qwen3-4b/

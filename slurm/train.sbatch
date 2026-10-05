@@ -29,15 +29,17 @@
 #SBATCH --error=logs/%x-%j.out
 set -euo pipefail
 
-# ---- environment (placeholders: adjust REPO; no module / conda on HAIC, venv built with uv + cu128 torch)
-REPO="${REPO:-/hai/scratch/$USER/CS329X_Project}"
+# ---- environment: REPO defaults to the directory you ran sbatch from (the repo root); VENV overrides the venv path.
+#      No module / conda on HAIC. The torch wheel must match the node driver (haic-hgx-4 reports CUDA 12.4 -> cu124 torch 2.6.0).
+REPO="${REPO:-${SLURM_SUBMIT_DIR:-/hai/scratch/$USER/CS329X_Project}}"
+VENV="${VENV:-$REPO/.venv}"
 export HF_HOME="${HF_HOME:-/hai/scratch/$USER/hf}"
 export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"          # Qwen3-4B-Base must be downloaded on the login node first
 export TOKENIZERS_PARALLELISM=false
 export PYTHONUNBUFFERED=1
 export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"   # less fragmentation: fp32 master + Adam states ~60 GiB of 80
 cd "$REPO"
-source .venv/bin/activate
+source "$VENV/bin/activate"
 
 STUDENT_SHORT="${STUDENT_SHORT:-qwen3-4b}"
 EXTRA_ARGS="${EXTRA_ARGS:-}"                          # e.g. EXTRA_ARGS="--max-steps 30" for a gate run (word-split on purpose)
@@ -72,7 +74,7 @@ echo "[train.sbatch] job=${SLURM_JOB_ID:-} array=${SLURM_ARRAY_TASK_ID:-} node=$
 if [[ -f "$RUN_DIR/train_manifest.json" ]]; then
   echo "[train.sbatch] $RUN_DIR already finished; skipping"; exit 0
 fi
-python -c "import torch; assert torch.cuda.is_available(), 'no CUDA: wrong torch wheel (need cu128)'; print(torch.cuda.get_device_name(0))"
+python -c "import torch; assert torch.cuda.is_available(), 'no CUDA: torch wheel does not match the node driver (see slurm/README.md §0)'; print(torch.cuda.get_device_name(0))"
 
 python scripts/11_train_student.py --data "$DATA" --out "$RUN_DIR" --seed "$SEED" --config "$CONFIG" $EXTRA_ARGS
 echo "[train.sbatch] finished $RUN_DIR"

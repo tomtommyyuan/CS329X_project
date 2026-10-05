@@ -264,7 +264,7 @@ def shared_component_r2(shifts_s, shifts_t, own: str, others: list[str]) -> floa
 | `--gres` | `gpu:h100:1`；`-c 8 --mem 64G` | 8B（E8）用 `gpu:h100:2` |
 | `--time` | train `02:00:00`（预估 25–40 min × 1.15 + 保存）；eval `00:30:00` | |
 | `--exclude` | `haic-hgx-2` | NFS 黑洞节点 |
-| 环境 | **无 module、无 conda**：`cd /hai/scratch/$USER/CS329X_Project && source .venv/bin/activate`；venv 用 uv 装，torch 必须是 **cu128** wheel（`uv pip install torch --index-url https://download.pytorch.org/whl/cu128`），裸 PyPI 的 cu130 在 570 驱动上看不到 GPU | 验证只在计算节点 `python -c "import torch;print(torch.cuda.is_available())"` |
+| 环境 | **无 module、无 conda**：`cd /hai/scratch/$USER/CS329X_Project && source .venv/bin/activate`；venv 用 uv 装，torch 的 CUDA 版本不能高于节点驱动（haic-hgx-4 是 CUDA 12.4 → `torch==2.6.0` cu124 wheel）；vLLM 单独一个 `.venv-vllm`（`vllm==0.8.5.post1`）。见 `slurm/README.md` §0 | 验证只在计算节点 `python -c "import torch;print(torch.cuda.is_available())"` |
 | 缓存 | `export HF_HOME=/hai/scratch/$USER/hf HF_HUB_OFFLINE=1`；Qwen3-4B-Base 在登录节点先 `huggingface-cli download` | 家目录 50 GB，全放 scratch |
 | 日志 | `logs/%x-%j.out`（array task 也用 %j，每个 task 的 job id 唯一）；**logs/ 必须在提交前存在、从仓库根提交**：SLURM 在脚本运行前就打开日志文件 | |
 | 显存 | `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`（sbatch 里导出）；gate run 看 manifest `peak_memory_gib` ≤ 70 再放网格 | |
