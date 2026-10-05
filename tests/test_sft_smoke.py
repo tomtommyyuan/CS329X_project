@@ -180,7 +180,9 @@ def test_tiny_profile_overrides():
 
 @pytest.mark.slow
 def test_smoke_train_tiny(tmp_path, sft_rows):
-    """2 optimizer steps of SmolLM2-135M on CPU; manifest, log and reloadable checkpoint must exist."""
+    """2 optimizer steps of SmolLM2-135M (CPU, or the GPU when one is visible); manifest, log and reloadable
+    checkpoint must exist."""
+    import torch
     from transformers import AutoModelForCausalLM
 
     data_path = tmp_path / "gpt4o_O_s1.jsonl"
@@ -195,8 +197,13 @@ def test_smoke_train_tiny(tmp_path, sft_rows):
     assert on_disk["n_target_tokens"] > 0 and on_disk["n_total_tokens"] > on_disk["n_target_tokens"]
     assert on_disk["steps"] == 2 and on_disk["epochs"] == 3 and on_disk["effective_batch"] == 4
     assert on_disk["precision"] == "fp32" and on_disk["final_loss"] > 0
-    assert on_disk["checkpoint_dtype"] == "float32" and on_disk["peak_memory_gib"] is None and on_disk["accumulation_group_sizes"] == [1]
-    assert on_disk["optimizer_fused"] is False
+    assert on_disk["checkpoint_dtype"] == "float32" and on_disk["accumulation_group_sizes"] == [1]
+    # the tiny profile is fp32 on any device; on a GPU node it still trains on CUDA, where peak memory is
+    # measured and AdamW uses the fused kernel
+    if torch.cuda.is_available():
+        assert on_disk["device"] == "cuda" and on_disk["peak_memory_gib"] > 0 and on_disk["optimizer_fused"] is True
+    else:
+        assert on_disk["device"] == "cpu" and on_disk["peak_memory_gib"] is None and on_disk["optimizer_fused"] is False
     for key in ("data_sha256", "learning_rate", "lr_scheduler", "warmup_ratio", "max_seq_len", "optimizer",
                 "gradient_checkpointing", "wall_time_sec", "torch_version", "transformers_version", "hostname",
                 "started_at", "finished_at", "seed", "teacher", "version"):
@@ -208,7 +215,6 @@ def test_smoke_train_tiny(tmp_path, sft_rows):
     assert (run_dir / "checkpoint" / "tokenizer_config.json").exists()
     reloaded = AutoModelForCausalLM.from_pretrained(run_dir / "checkpoint")
     assert reloaded.config.model_type == "llama" and reloaded.config.use_cache is True
-    import torch
     from safetensors import safe_open
 
     with safe_open(run_dir / "checkpoint" / "model.safetensors", "pt") as f:

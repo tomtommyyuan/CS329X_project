@@ -15,10 +15,11 @@ First look at the driver: `nvidia-smi | head -4` on a compute node. On 2026-10-0
 cd /hai/scratch/$USER && git clone https://github.com/tomtommyyuan/CS329X_project CS329X_project && cd CS329X_project
 export UV_CACHE_DIR=/hai/scratch/$USER/uv-cache HF_HOME=/hai/scratch/$USER/hf
 
-# training venv: extras first, then force the cu124 torch (the extras would otherwise pull the newest torch)
+# training venv: the cu124 torch FIRST, then the extras (an installed torch satisfies them, so nothing upgrades it).
+# Never add ".[eval]" here: the unpinned vllm pulls a torch-2.11 stack whose torchvision breaks `import transformers`.
 uv venv .venv --python 3.12 && source .venv/bin/activate
-uv pip install -e ".[train]"
 uv pip install "torch==2.6.0" --index-url https://download.pytorch.org/whl/cu124
+uv pip install -e ".[train]" pytest lemminflect                             # lemminflect: E0 normalize test
 python -c "import torch; print(torch.__version__, torch.version.cuda)"       # 2.6.0+cu124 12.4
 deactivate
 

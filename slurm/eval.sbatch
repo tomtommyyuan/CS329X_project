@@ -6,11 +6,11 @@
 #   MODEL=Qwen/Qwen3-4B-Base sbatch slurm/eval.sbatch - dev   # untrained base S_0 (run id {short}.base_B_s0)
 #
 # Submit from the repo root with logs/ present (SLURM opens the log before the script runs).
-# CONFIRM partition / account / QoS before submitting (2026-08 HAIC handbook; may have changed):
+# Account / partition / exclude verified 2026-10-04 (see train.sbatch); re-check if rejected:
 #   sacctmgr show user $USER withassoc format=user,account%20,qos%30
-# Login node does no compute. Install once on the cluster:
-#   uv venv .venv && uv pip install -e ".[train,eval]" --python .venv/bin/python
-#   vLLM lives in its own venv (.venv-vllm, see README §0) because its pinned torch / transformers differ from the training venv
+# Login node does no compute. Install once on the cluster as in README §0: vLLM lives ONLY in its own venv (.venv-vllm,
+#   vllm==0.8.5.post1 on torch 2.6.0 / CUDA 12.4). Never install ".[eval]" into the training .venv: the unpinned vllm
+#   pulls a torch-2.11 stack (torchvision etc.) that breaks `import transformers` next to the cu124 torch.
 #   HF_HOME=/hai/scratch/$USER/hf huggingface-cli download Qwen/Qwen3-4B-Base
 #
 #SBATCH --job-name=vcd-eval
