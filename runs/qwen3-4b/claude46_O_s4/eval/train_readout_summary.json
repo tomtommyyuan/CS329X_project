@@ -1,0 +1,33 @@
+{
+  "n": 5642,
+  "category_counts": {
+    "answer": 5639,
+    "malformed": 3
+  },
+  "category_rates": {
+    "answer": 0.999468273661822,
+    "malformed": 0.0005317263381779511
+  },
+  "mean_mass_AB": 0.9998327788344307,
+  "top1_histogram": [
+    {
+      "token": " A",
+      "count": 2825
+    },
+    {
+      "token": " B",
+      "count": 2817
+    }
+  ],
+  "backend": "transformers",
+  "seconds": 191.95695972442627,
+  "run_id": "qwen3-4b.claude46_O_s4",
+  "model": "runs/qwen3-4b/claude46_O_s4/checkpoint",
+  "split": "train",
+  "prompts_path": "/hai/scratch/tomyyc/CS329X_project/data/prompts/train_prompts_v2.jsonl",
+  "answer_mass_min": 0.9,
+  "dtype": "float32",
+  "batch_size": 64,
+  "sft_path": "/hai/scratch/tomyyc/CS329X_project/data/sft/claude46_O_s4.jsonl",
+  "sft_sha256": "c85af73ba0c6d832bbd9246571b101733d0d8b333d76eb7efa8629f1034b628b"
+}

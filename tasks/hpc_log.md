@@ -10,7 +10,7 @@
 | gate run（README §1） | 完成 2026-10-04 | 显存 / 精度 / 丢弃过；一致性因 bf16 噪声未过 → 评估统一 transformers 后端；E0.7 过 |
 | SFT 文件 O + R | 完成 2026-10-04 | 18 个文件，n 与计划一致；F / C 未建 |
 | E1 18 run | 完成 2026-10-04 | 18 / 18，0 失败；12 个在 array 129420，6 个在交互分配 |
-| dev 评估 + 分析 | 完成 2026-10-04 | `results/e1_dev`；**E1 规则未过**（gpt4o 2/5、claude46 4/5），等 Mac 侧决定 |
+| dev 评估 + 分析 | 完成 2026-10-05 | 冻结规则（456b487）重跑 `results/e1_dev`；E1a / E1b 过；dev 判定仅描述 |
 | test 评估 + 分析 | 未开始，等确认 | 只跑一次 |
 | F / C 改写（Mac 侧） | 进行中 2026-10-04 | 完成后 `data/rewrites_train/` 进仓库，再建 paired O / F / C |
 
@@ -206,3 +206,30 @@ BLOCKED: 同上一段，E1 决策规则在 dev 未过（fp32 下相同），等 
 - 受控的剂量实验或第二个基座属于新实验，要另行预注册。
 
 BLOCKED: 仍等 Mac 侧决定（E1 门槛如何解释、是否改用次级统计量、是否加新实验）；test 未评估，checkpoint 保留。
+
+### 2026-10-05 e1_plan §7 第 1–4 步：训练 prompt readout、dev 重跑、冻结
+
+- 第 1 步：`git pull --rebase` 到 456b487，pytest **109 passed, 1 skipped**。
+- 第 2 步：18 个 run 的 `--split train` readout（交互分配 129037，同一 `eval.sbatch` 路径，fp32，batch 64）。行数 = manifest `n_examples`（5,642 / 4,936 / 5,619），`sft_sha256` = `data_sha256`，18 / 18 通过。
+- 第 3 步：新 13 覆盖 `results/e1_dev`（n_perm = n_boot = 10,000，69 s）。与 Mac 侧 `results/e1_dev_revised` 对比：除 E1a / E1b 两段（那边是 pending）以外 `summary.md` 逐行相同；所有 CSV / JSON 数值差 ≤ 3e-16，枚举与固定 seed 的重抽样是确定性的。
+
+| E1a（门：每个 O run ≥ 0.95） | 训练标签复现 |
+|---|---|
+| claude46 s1–5 | 0.985–0.988 |
+| deepseek_v4 s1–5 | 0.989–0.996 |
+| gpt4o s1–5 | 0.983–0.986 |
+| random R s1–3（描述，不进判定） | 0.553–0.557 |
+
+| E1b（门：ci_lo > 0.5） | other | 争议项 | 站自己 teacher 的比例 [95% CI] |
+|---|---|---|---|
+| claude46 | deepseek_v4 / gpt4o | 299 / 357 | 0.930 [0.902, 0.954] / 0.919 [0.892, 0.945] |
+| deepseek_v4 | claude46 / gpt4o | 299 / 198 | 0.951 [0.931, 0.968] / 0.918 [0.889, 0.944] |
+| gpt4o | claude46 / deepseek_v4 | 357 / 198 | 0.910 [0.883, 0.934] / 0.900 [0.862, 0.933] |
+
+E1a、E1b 都过，**E1 PASS**，进入 test。E2 在 dev 上的判定（primary FAIL、secondary pass）只是描述，不当结果报。
+
+**E1 / E2 规则冻结于 456b487。** 此后不改 13 的默认值、readout、阈值和规则；test 只跑一次。
+
+§8 并行进展：45 个 paired SFT 文件已建（`data/sft_paired/`，5,132 / 4,682 / 4,668，O / F / C 的 prompt 顺序与字母逐行相同，最长 265 token）。训练 array 130120（`STUDENT_SHORT=qwen3-4b-paired DATA_LIST=paired_runs.txt`，`%8`）已开跑，目前无 OOM，peak ≤ 69.7 GiB。
+
+QoS 每人最多 64 个作业，没法给每个 run 单独挂评估作业。所以只挂了 3 个 follower（130129–130131，每个 teacher 一个，`afterany:130120`，脚本在 `/hai/scratch/tomyyc/vcd_diag/eval_paired.sh`），依次跑每个 paired run 的 train 和 dev readout。test readout 只在 `results/e1/summary.md` 已存在时才跑，用来保证"§7 第 5 步之后再做 test"。
