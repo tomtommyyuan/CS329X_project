@@ -8,7 +8,7 @@
 |---|---|---|
 | 环境（README §0） | 完成 2026-10-04 | ingrai / hai / QoS ingrai 已核实；训练 venv 重建；83 passed 1 skipped |
 | gate run（README §1） | 未开始 | 含 vLLM / transformers 一致性、peak_memory_gib ≤ 70、E0.7 |
-| SFT 文件 O + R | 未开始 | 在 compute 分配里建 |
+| SFT 文件 O + R | 完成 2026-10-04 | 18 个文件，n 与计划一致；F / C 未建 |
 | E1 18 run | 未开始 | |
 | dev 评估 + 分析 | 未开始 | 冻结点 |
 | test 评估 + 分析 | 未开始 | 只跑一次 |
@@ -38,3 +38,20 @@
 - sbatch 的 `--account` / `--partition` / `--exclude` 核实值与占位相同，只改注释为"2026-10-04 已核实"。
 
 下一步：建 O + R 的 SFT 文件（步骤 1）。
+
+### 2026-10-04 步骤 1：SFT 文件 O + R
+
+在分配 129037 里跑 `10_build_sft_data.py`（O：三 teacher × seeds 1–5；R：`--random-label --ref-teacher gpt4o --seeds 1,2,3`；都加 `--tokenizer Qwen/Qwen3-4B-Base` 出 token 统计）。F / C 未建（改写还在 Mac 上跑）。
+
+| 文件 | n_examples | families | order-stable 率 | A / B | target token / epoch | 最长样例 token |
+|---|---|---|---|---|---|---|
+| gpt4o_O_s{1..5} | 5,619 | 1,481 | 0.946 | 2,850 / 2,769 | 273,410 | 230 |
+| claude46_O_s{1..5} | 5,642 | 1,489 | 0.947 | 2,830 / 2,812 | 441,661 | 300 |
+| deepseek_v4_O_s{1..5} | 4,936 | 1,428 | 0.827 | 2,484 / 2,452 | 216,935 | 230 |
+| random_R_s{1,2,3} | 5,619 | 1,481 | — | 约 2,810 / 2,810 | 89,904 | 187 |
+
+- n 与计划一致（5,619 / 5,642 / 4,936）；target token 与 e1_plan §3 的 27 万 / 44 万 / 22 万一致；最长 300 token，远低于 `max_seq_len` 1024，预计 `n_dropped_too_long` 为 0。
+- 同一 teacher 的 5 个 seed：`prompt_ids_sha256` 相同，文件 `sha256` 各不相同（只差行序）。注：e1_plan §3 "manifest 的 data sha256 应相同" 实际应看 prompt-id 集，文件 sha256 本来就随 seed 变。
+- R 的 `ref_sha256` 等于同 seed 的 gpt4o_O 文件，prompt-id 集相同。
+
+下一步：gate run（步骤 2）。
