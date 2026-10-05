@@ -1,0 +1,66 @@
+families complete on T1,T3,T5,T6 for all teachers/groups/S0: 139; also on T0: 137
+
+=== (a) base-controlled inheritance: partial Pearson(r_s, r_T | controls), seed-pooled students, 139 families ===
+
+-- a_resid_rho|none
+        analysis        student  m__gpt4o  m__claude46  m__deepseek_v4
+a_resid_rho|none       S[gpt4o]     0.284        0.114           0.307
+a_resid_rho|none    S[claude46]     0.158        0.193           0.245
+a_resid_rho|none S[deepseek_v4]     0.222        0.063           0.356
+a_resid_rho|none           S[R]    -0.068        0.016          -0.073
+        analysis            stat   value   ci_lo  ci_hi  boot_se      p      p_type  null_mean  null_sd  p_holm
+a_resid_rho|none       row_gpt4o -0.0230 -0.1975 0.1492   0.0882 0.4615 family-perm    -0.0293   0.0608  0.9230
+a_resid_rho|none       col_gpt4o  0.0624 -0.0497 0.1581   0.0522 0.0890  label-perm    -0.0277   0.0645  0.1780
+a_resid_rho|none    row_claude46 -0.0521 -0.2171 0.0894   0.0795 0.6889 family-perm    -0.0229   0.0649  0.9230
+a_resid_rho|none    col_claude46  0.0795 -0.0612 0.1840   0.0619 0.0216  label-perm    -0.0216   0.0500  0.0648
+a_resid_rho|none row_deepseek_v4  0.1343 -0.0180 0.2858   0.0774 0.0034 family-perm    -0.0280   0.0615  0.0102
+a_resid_rho|none col_deepseek_v4  0.0489 -0.0690 0.1415   0.0541 0.1108  label-perm    -0.0304   0.0647  0.1780
+a_resid_rho|none     interaction  0.0929  0.0372 0.1487   0.0285 0.0010  label-perm    -0.0004   0.0309     NaN
+
+-- a_resid_rho|S0
+      analysis        student  m__gpt4o  m__claude46  m__deepseek_v4
+a_resid_rho|S0       S[gpt4o]     0.260        0.064           0.224
+a_resid_rho|S0    S[claude46]     0.129        0.155           0.169
+a_resid_rho|S0 S[deepseek_v4]     0.190        0.001           0.265
+a_resid_rho|S0           S[R]    -0.082       -0.001          -0.115
+      analysis            stat   value   ci_lo  ci_hi  boot_se      p      p_type  null_mean  null_sd  p_holm
+a_resid_rho|S0       row_gpt4o  0.0356 -0.1334 0.2023   0.0859 0.1324 family-perm    -0.0291   0.0600  0.2647
+a_resid_rho|S0       col_gpt4o  0.0694 -0.0515 0.1720   0.0558 0.0834  label-perm    -0.0295   0.0687  0.1668
+a_resid_rho|S0    row_claude46 -0.0144 -0.1849 0.1073   0.0752 0.4533 family-perm    -0.0225   0.0644  0.4533
+a_resid_rho|S0    col_claude46  0.0911 -0.0570 0.2055   0.0663 0.0158  label-perm    -0.0229   0.0530  0.0474
+a_resid_rho|S0 row_deepseek_v4  0.0750 -0.0793 0.2271   0.0785 0.0468 family-perm    -0.0281   0.0615  0.1404
+a_resid_rho|S0 col_deepseek_v4  0.0413 -0.0834 0.1311   0.0552 0.1374  label-perm    -0.0313   0.0659  0.1668
+a_resid_rho|S0     interaction  0.0970  0.0386 0.1568   0.0306 0.0010  label-perm    -0.0004   0.0327     NaN
+
+-- a_resid_rho|rbar
+        analysis        student  m__gpt4o  m__claude46  m__deepseek_v4
+a_resid_rho|rbar       S[gpt4o]     0.083       -0.174           0.125
+a_resid_rho|rbar    S[claude46]    -0.065       -0.013           0.073
+a_resid_rho|rbar S[deepseek_v4]     0.022       -0.214           0.225
+a_resid_rho|rbar           S[R]    -0.043        0.078          -0.050
+        analysis            stat   value   ci_lo  ci_hi  boot_se      p      p_type  null_mean  null_sd  p_holm
+a_resid_rho|rbar       row_gpt4o -0.0423 -0.2945 0.2167   0.1298 0.5085 family-perm    -0.0412   0.0863  1.0000
+a_resid_rho|rbar       col_gpt4o  0.0605 -0.0841 0.1937   0.0702 0.1142  label-perm    -0.0322   0.0756  0.1142
+a_resid_rho|rbar    row_claude46 -0.0859 -0.3241 0.1393   0.1183 0.7339 family-perm    -0.0321   0.0920  1.0000
+a_resid_rho|rbar    col_claude46  0.1617  0.0205 0.2801   0.0664 0.0008  label-perm    -0.0272   0.0635  0.0024
+a_resid_rho|rbar row_deepseek_v4  0.2029 -0.0228 0.4235   0.1149 0.0018 family-perm    -0.0400   0.0860  0.0054
+a_resid_rho|rbar col_deepseek_v4  0.1001 -0.0268 0.2007   0.0575 0.0226  label-perm    -0.0318   0.0672  0.0452
+a_resid_rho|rbar     interaction  0.1373  0.0536 0.2259   0.0436 0.0008  label-perm    -0.0005   0.0458     NaN
+
+-- a_resid_rho|S0+rbar
+           analysis        student  m__gpt4o  m__claude46  m__deepseek_v4
+a_resid_rho|S0+rbar       S[gpt4o]     0.119       -0.164           0.082
+a_resid_rho|S0+rbar    S[claude46]    -0.040        0.001           0.035
+a_resid_rho|S0+rbar S[deepseek_v4]     0.066       -0.205           0.178
+a_resid_rho|S0+rbar           S[R]    -0.027        0.087          -0.076
+           analysis            stat   value   ci_lo  ci_hi  boot_se      p      p_type  null_mean  null_sd  p_holm
+a_resid_rho|S0+rbar       row_gpt4o  0.0374 -0.2001 0.2764   0.1216 0.1712 family-perm    -0.0409   0.0852  0.3423
+a_resid_rho|S0+rbar       col_gpt4o  0.0535 -0.0911 0.1888   0.0718 0.1342  label-perm    -0.0328   0.0770  0.1342
+a_resid_rho|S0+rbar    row_claude46 -0.0346 -0.2749 0.1643   0.1108 0.5205 family-perm    -0.0315   0.0914  0.5205
+a_resid_rho|S0+rbar    col_claude46  0.1647  0.0182 0.2862   0.0686 0.0010  label-perm    -0.0282   0.0656  0.0030
+a_resid_rho|S0+rbar row_deepseek_v4  0.1126 -0.1060 0.3275   0.1105 0.0358 family-perm    -0.0401   0.0861  0.1074
+a_resid_rho|S0+rbar col_deepseek_v4  0.0964 -0.0359 0.1970   0.0589 0.0268  label-perm    -0.0322   0.0674  0.0536
+a_resid_rho|S0+rbar     interaction  0.1371  0.0531 0.2253   0.0442 0.0012  label-perm    -0.0006   0.0466     NaN
+
+S0_relaxed vs teachers on the same 139 families: gpt4o 0.125, claude46 0.168, deepseek_v4 0.333 | vs rbar 0.295
+teacher-teacher on same cells: gpt4o-claude46 0.241, gpt4o-deepseek_v4 0.348, claude46-deepseek_v4 0.158

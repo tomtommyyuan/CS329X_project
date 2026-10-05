@@ -1,0 +1,19 @@
+families 139
+
+rho(S0_relaxed, teacher): {'gpt4o': np.float64(0.277), 'claude46': np.float64(0.245), 'deepseek_v4': np.float64(0.533)}
+rho(student_pooled, S0_relaxed): {'gpt4o': np.float64(0.521), 'claude46': np.float64(0.387), 'deepseek_v4': np.float64(0.551)}
+    student     teacher   own   rho  rho_S0   move  ci_lo  ci_hi
+      gpt4o       gpt4o  True 0.377   0.277  0.100 -0.014  0.219
+      gpt4o    claude46 False 0.187   0.245 -0.057 -0.171  0.062
+      gpt4o deepseek_v4 False 0.469   0.533 -0.064 -0.164  0.038
+   claude46       gpt4o False 0.226   0.277 -0.051 -0.174  0.074
+   claude46    claude46  True 0.234   0.245 -0.011 -0.153  0.122
+   claude46 deepseek_v4 False 0.345   0.533 -0.188 -0.305 -0.061
+deepseek_v4       gpt4o False 0.322   0.277  0.045 -0.059  0.149
+deepseek_v4    claude46 False 0.142   0.245 -0.103 -0.198 -0.010
+deepseek_v4 deepseek_v4  True 0.504   0.533 -0.029 -0.131  0.069
+
+teacher-wise contrast: move(S_T -> T) - mean move(S_T' -> T), T' != T
+gpt4o 0.103 [0.031 0.182]
+claude46 0.069 [-0.036  0.163]
+deepseek_v4 0.097 [0.008 0.185]

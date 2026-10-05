@@ -1,0 +1,16 @@
+student,subset,n_cells,agree_gpt4o,agree_claude46,agree_deepseek_v4
+gpt4o,all,600,0.845,0.816,0.854
+gpt4o,own_order_stable,540,0.881,0.843,0.874
+gpt4o,own_order_unstable,36,0.433,0.433,0.694
+gpt4o,teachers_unanimous,476,0.915,0.915,0.915
+gpt4o,teachers_split,124,0.576,0.435,0.618
+claude46,all,600,0.821,0.82,0.803
+claude46,own_order_stable,553,0.842,0.852,0.828
+claude46,own_order_unstable,44,0.586,0.441,0.541
+claude46,teachers_unanimous,476,0.889,0.889,0.889
+claude46,teachers_split,124,0.56,0.555,0.473
+deepseek_v4,all,600,0.81,0.795,0.84
+deepseek_v4,own_order_stable,491,0.866,0.852,0.902
+deepseek_v4,own_order_unstable,108,0.567,0.544,0.567
+deepseek_v4,teachers_unanimous,476,0.892,0.892,0.892
+deepseek_v4,teachers_split,124,0.495,0.423,0.64

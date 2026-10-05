@@ -1,0 +1,46 @@
+/hai/scratch/tomyyc/vcd_diag/wf/verify_Q1_0/null.py:42: Pandas4Warning: Starting with pandas version 4.0 all arguments of mean will be keyword-only.
+  pooled = piv.mean(1).unstack()[V]
+/hai/scratch/tomyyc/vcd_diag/wf/verify_Q1_0/null.py:42: Pandas4Warning: Starting with pandas version 4.0 all arguments of mean will be keyword-only.
+  pooled = piv.mean(1).unstack()[V]
+/hai/scratch/tomyyc/vcd_diag/wf/verify_Q1_0/null.py:42: Pandas4Warning: Starting with pandas version 4.0 all arguments of mean will be keyword-only.
+  pooled = piv.mean(1).unstack()[V]
+                   run  resid     d_obs  null_mean   null_sd         p                                                   null_rho    n
+0      claude46_pooled  False -0.110735  -0.091068  0.059810  0.631368  {'claude46': 0.052, 'deepseek_v4': 0.139, 'gpt4o': 0.082}  139
+1      claude46_pooled   True -0.052149  -0.023124  0.065066  0.683416        {'claude46': 0.0, 'deepseek_v4': 0.0, 'gpt4o': 0.0}  139
+2        claude46_O_s1  False -0.060101  -0.086363  0.061054  0.333483   {'claude46': 0.05, 'deepseek_v4': 0.132, 'gpt4o': 0.077}  139
+3        claude46_O_s1   True  0.003376  -0.023857  0.065683  0.343333      {'claude46': 0.0, 'deepseek_v4': 0.001, 'gpt4o': 0.0}  139
+4        claude46_O_s2  False -0.153580  -0.088718  0.060241  0.859257  {'claude46': 0.054, 'deepseek_v4': 0.138, 'gpt4o': 0.083}  139
+5        claude46_O_s2   True -0.103898  -0.023261  0.065305  0.892755       {'claude46': 0.0, 'deepseek_v4': 0.0, 'gpt4o': -0.0}  139
+6        claude46_O_s3  False -0.151844  -0.084216  0.060888  0.870006  {'claude46': 0.048, 'deepseek_v4': 0.127, 'gpt4o': 0.076}  139
+7        claude46_O_s3   True -0.103088  -0.023784  0.065528  0.885256    {'claude46': -0.001, 'deepseek_v4': 0.0, 'gpt4o': -0.0}  139
+8        claude46_O_s4  False -0.084504  -0.076280  0.057376  0.562422   {'claude46': 0.04, 'deepseek_v4': 0.111, 'gpt4o': 0.063}  139
+9        claude46_O_s4   True -0.031459  -0.022747  0.060135  0.568072   {'claude46': -0.0, 'deepseek_v4': -0.0, 'gpt4o': -0.001}  139
+10       claude46_O_s5  False -0.055596  -0.081998  0.061227  0.328934  {'claude46': 0.046, 'deepseek_v4': 0.123, 'gpt4o': 0.072}  139
+11       claude46_O_s5   True -0.004035  -0.023350  0.065786  0.392680      {'claude46': 0.0, 'deepseek_v4': -0.0, 'gpt4o': -0.0}  139
+12  deepseek_v4_pooled  False  0.181682   0.088292  0.047430  0.023049   {'claude46': 0.088, 'deepseek_v4': 0.23, 'gpt4o': 0.135}  139
+13  deepseek_v4_pooled   True  0.134337  -0.027640  0.060619  0.003250       {'claude46': 0.0, 'deepseek_v4': -0.0, 'gpt4o': 0.0}  139
+14    deepseek_v4_O_s1  False  0.156599   0.081985  0.048443  0.060547  {'claude46': 0.081, 'deepseek_v4': 0.216, 'gpt4o': 0.127}  139
+15    deepseek_v4_O_s1   True  0.107400  -0.027004  0.060757  0.014249       {'claude46': -0.0, 'deepseek_v4': 0.0, 'gpt4o': 0.0}  139
+16    deepseek_v4_O_s2  False  0.170274   0.081866  0.048243  0.031948   {'claude46': 0.085, 'deepseek_v4': 0.22, 'gpt4o': 0.131}  139
+17    deepseek_v4_O_s2   True  0.124827  -0.027283  0.060746  0.005950      {'claude46': 0.0, 'deepseek_v4': -0.0, 'gpt4o': -0.0}  139
+18    deepseek_v4_O_s3  False  0.194192   0.085453  0.047940  0.010949  {'claude46': 0.084, 'deepseek_v4': 0.224, 'gpt4o': 0.131}  139
+19    deepseek_v4_O_s3   True  0.151334  -0.028443  0.061505  0.001500       {'claude46': 0.0, 'deepseek_v4': -0.0, 'gpt4o': 0.0}  139
+20    deepseek_v4_O_s4  False  0.155339   0.084973  0.048043  0.071946  {'claude46': 0.086, 'deepseek_v4': 0.226, 'gpt4o': 0.134}  139
+21    deepseek_v4_O_s4   True  0.102091  -0.027137  0.061671  0.017799      {'claude46': -0.0, 'deepseek_v4': 0.0, 'gpt4o': -0.0}  139
+22    deepseek_v4_O_s5  False  0.194479   0.080557  0.047644  0.008500  {'claude46': 0.079, 'deepseek_v4': 0.211, 'gpt4o': 0.123}  139
+23    deepseek_v4_O_s5   True  0.152338  -0.025639  0.059688  0.001750      {'claude46': 0.0, 'deepseek_v4': 0.001, 'gpt4o': 0.0}  139
+24        gpt4o_pooled  False -0.091678  -0.094421  0.049743  0.475226  {'claude46': 0.089, 'deepseek_v4': 0.233, 'gpt4o': 0.139}  139
+25        gpt4o_pooled   True -0.023049  -0.029877  0.060834  0.453827      {'claude46': 0.0, 'deepseek_v4': -0.0, 'gpt4o': -0.0}  139
+26          gpt4o_O_s1  False -0.070579  -0.089666  0.050964  0.347383  {'claude46': 0.087, 'deepseek_v4': 0.224, 'gpt4o': 0.135}  139
+27          gpt4o_O_s1   True -0.003110  -0.030265  0.062340  0.328834      {'claude46': 0.0, 'deepseek_v4': -0.0, 'gpt4o': -0.0}  139
+28          gpt4o_O_s2  False -0.133486  -0.088889  0.050945  0.811609   {'claude46': 0.085, 'deepseek_v4': 0.22, 'gpt4o': 0.131}  139
+29          gpt4o_O_s2   True -0.077198  -0.029362  0.061627  0.781211       {'claude46': 0.0, 'deepseek_v4': -0.0, 'gpt4o': 0.0}  139
+30          gpt4o_O_s3  False -0.043925  -0.093766  0.050070  0.158842  {'claude46': 0.087, 'deepseek_v4': 0.232, 'gpt4o': 0.138}  139
+31          gpt4o_O_s3   True  0.038621  -0.029662  0.061196  0.130943     {'claude46': -0.0, 'deepseek_v4': 0.001, 'gpt4o': 0.0}  139
+32          gpt4o_O_s4  False -0.066080  -0.087831  0.050090  0.328434  {'claude46': 0.081, 'deepseek_v4': 0.214, 'gpt4o': 0.126}  139
+33          gpt4o_O_s4   True  0.000083  -0.028560  0.059625  0.311734     {'claude46': 0.001, 'deepseek_v4': -0.0, 'gpt4o': 0.0}  139
+34          gpt4o_O_s5  False -0.132236  -0.088598  0.049904  0.807210  {'claude46': 0.082, 'deepseek_v4': 0.216, 'gpt4o': 0.128}  139
+35          gpt4o_O_s5   True -0.079201  -0.028342  0.059301  0.806610        {'claude46': 0.0, 'deepseek_v4': 0.0, 'gpt4o': 0.0}  139
+claude46 {'T1': 0.006, 'T3': 0.012, 'T5': 0.019, 'T6': -0.037}
+deepseek_v4 {'T1': 0.014, 'T3': 0.007, 'T5': 0.06, 'T6': -0.081}
+gpt4o {'T1': 0.008, 'T3': 0.011, 'T5': 0.029, 'T6': -0.048}

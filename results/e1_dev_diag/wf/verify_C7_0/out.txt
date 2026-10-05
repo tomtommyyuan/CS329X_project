@@ -1,0 +1,79 @@
+== 1. R raw readout: letter P(A), p_sym deviation from .5
+qwen3-4b.random_R_s1 P(A) mean 0.5095 min 0.3813 max 0.5717 share P(A)>.5 0.651; |p_sym-.5| mean 0.00552 max 0.01969; share p_sym>.5 (focus act x) 0.272; n p_sym==.5 5
+qwen3-4b.random_R_s2 P(A) mean 0.4941 min 0.4145 max 0.5623 share P(A)>.5 0.406; |p_sym-.5| mean 0.01170 max 0.04245; share p_sym>.5 (focus act x) 0.380; n p_sym==.5 5
+qwen3-4b.random_R_s3 P(A) mean 0.5000 min 0.4451 max 0.5502 share P(A)>.5 0.503; |p_sym-.5| mean 0.01237 max 0.03546; share p_sym>.5 (focus act x) 0.576; n p_sym==.5 5
+qwen3-4b.gpt4o_O_s1 |p_sym-.5| mean 0.4387
+
+== 2. R agreement (seen variants, ties excluded) with 95% family-bootstrap CI
+                      run     teacher  agree    lo    hi   n
+     qwen3-4b.random_R_s1    claude46  0.542 0.470 0.617 563
+     qwen3-4b.random_R_s1 deepseek_v4  0.585 0.514 0.652 595
+     qwen3-4b.random_R_s1       gpt4o  0.594 0.521 0.664 574
+qwen3-4b.random_R_s1_bf16    claude46  0.522 0.453 0.590 563
+qwen3-4b.random_R_s1_bf16 deepseek_v4  0.555 0.493 0.617 595
+qwen3-4b.random_R_s1_bf16       gpt4o  0.561 0.493 0.626 574
+     qwen3-4b.random_R_s2    claude46  0.439 0.364 0.516 563
+     qwen3-4b.random_R_s2 deepseek_v4  0.444 0.372 0.517 595
+     qwen3-4b.random_R_s2       gpt4o  0.465 0.391 0.542 574
+qwen3-4b.random_R_s2_bf16    claude46  0.455 0.383 0.526 563
+qwen3-4b.random_R_s2_bf16 deepseek_v4  0.454 0.388 0.519 595
+qwen3-4b.random_R_s2_bf16       gpt4o  0.474 0.402 0.543 574
+     qwen3-4b.random_R_s3    claude46  0.426 0.350 0.504 563
+     qwen3-4b.random_R_s3 deepseek_v4  0.415 0.346 0.484 595
+     qwen3-4b.random_R_s3       gpt4o  0.432 0.359 0.509 574
+qwen3-4b.random_R_s3_bf16    claude46  0.437 0.366 0.510 563
+qwen3-4b.random_R_s3_bf16 deepseek_v4  0.430 0.363 0.500 595
+qwen3-4b.random_R_s3_bf16       gpt4o  0.439 0.373 0.510 574
+teacher share p_sym>.5 (seen): {'gpt4o': 0.494, 'claude46': 0.512, 'deepseek_v4': 0.517}
+
+== 3. bf16 vs fp32: share of cells where R's majority act differs; flip rates
+qwen3-4b.random_R_s1 cells with different majority act fp32 vs bf16: 0.163; mean |dp| 0.00362
+qwen3-4b.random_R_s2 cells with different majority act fp32 vs bf16: 0.080; mean |dp| 0.00363
+qwen3-4b.random_R_s3 cells with different majority act fp32 vs bf16: 0.063; mean |dp| 0.00394
+                  teacher  flip_rate  mean_jsd  share_uncertain
+     qwen3-4b.random_R_s1   0.050000  0.000004              1.0
+qwen3-4b.random_R_s1_bf16   0.196667  0.000035              1.0
+     qwen3-4b.random_R_s2   0.037778  0.000003              1.0
+qwen3-4b.random_R_s2_bf16   0.111111  0.000032              1.0
+     qwen3-4b.random_R_s3   0.036667  0.000006              1.0
+qwen3-4b.random_R_s3_bf16   0.091111  0.000040              1.0
+
+== 4. R profile correlation with teachers (Pearson over family-demeaned shifts) + permutation p (shuffle families)
+                      run     teacher  pearson     lo     hi  p_perm2  n_fam     r_sd
+     qwen3-4b.random_R_s1       gpt4o    0.065  0.008  0.130   0.3870    140 0.001369
+     qwen3-4b.random_R_s1    claude46    0.092  0.031  0.155   0.0790    148 0.001412
+     qwen3-4b.random_R_s1 deepseek_v4    0.035 -0.041  0.112   0.5795    149 0.001433
+qwen3-4b.random_R_s1_bf16       gpt4o   -0.036 -0.145  0.078   0.4735    140 0.004186
+qwen3-4b.random_R_s1_bf16    claude46    0.033 -0.057  0.129   0.5090    148 0.004196
+qwen3-4b.random_R_s1_bf16 deepseek_v4   -0.031 -0.115  0.057   0.5275    149 0.004263
+     qwen3-4b.random_R_s2       gpt4o   -0.025 -0.100  0.058   0.5570    140 0.001242
+     qwen3-4b.random_R_s2    claude46   -0.061 -0.132  0.004   0.1460    148 0.001228
+     qwen3-4b.random_R_s2 deepseek_v4    0.052 -0.012  0.120   0.2125    149 0.001238
+qwen3-4b.random_R_s2_bf16       gpt4o    0.026 -0.035  0.100   0.5990    140 0.004084
+qwen3-4b.random_R_s2_bf16    claude46   -0.103 -0.171 -0.037   0.0265    148 0.004062
+qwen3-4b.random_R_s2_bf16 deepseek_v4    0.010 -0.087  0.111   0.8330    149 0.004061
+     qwen3-4b.random_R_s3       gpt4o    0.039 -0.099  0.154   0.9570    140 0.001792
+     qwen3-4b.random_R_s3    claude46    0.095  0.025  0.173   0.3320    148 0.001771
+     qwen3-4b.random_R_s3 deepseek_v4    0.059 -0.035  0.149   0.9975    149 0.001788
+qwen3-4b.random_R_s3_bf16       gpt4o    0.078 -0.021  0.177   0.1405    140 0.004597
+qwen3-4b.random_R_s3_bf16    claude46    0.069 -0.028  0.168   0.1675    148 0.004593
+qwen3-4b.random_R_s3_bf16 deepseek_v4    0.009 -0.073  0.085   0.8630    149 0.004566
+  run_id     teacher  pearson  spearman  n_cells
+R_pooled    claude46    0.088     0.103      592
+R_pooled deepseek_v4    0.085     0.167      596
+R_pooled       gpt4o    0.050     0.167      560
+
+== 5. R seed-vs-seed profile correlation (fp32) and fp32 vs bf16 same seed
+qwen3-4b.random_R_s1 qwen3-4b.random_R_s2 -0.37
+qwen3-4b.random_R_s1 qwen3-4b.random_R_s3 0.347
+qwen3-4b.random_R_s1 fp32 vs bf16 0.397
+qwen3-4b.random_R_s2 qwen3-4b.random_R_s3 -0.124
+qwen3-4b.random_R_s2 fp32 vs bf16 0.262
+qwen3-4b.random_R_s3 fp32 vs bf16 0.315
+
+== 6. R framing effects (mean r)
+variant                    T1       T3       T5       T6    T5-T6
+teacher                                                          
+qwen3-4b.random_R_s1 -0.00014  0.00137 -0.00058 -0.00066  0.00008
+qwen3-4b.random_R_s2  0.00006 -0.00072  0.00047  0.00020  0.00027
+qwen3-4b.random_R_s3 -0.00014  0.00043  0.00085 -0.00114  0.00199
