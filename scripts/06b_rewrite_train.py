@@ -36,6 +36,7 @@ def main() -> None:
     ap.add_argument("--styles", default="F,C")
     ap.add_argument("--out-dir", default="data/rewrites_train")
     ap.add_argument("--limit", type=int, default=None)
+    ap.add_argument("--shard", default=None, help="k/n: process every n-th item starting at k (run n workers in parallel on one teacher; they share the output files)")
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO)
     for noisy in ("httpx", "openai", "anthropic", "httpcore"):
@@ -50,6 +51,9 @@ def main() -> None:
     demos = load_models(Path(args.demos or f"data/teacher_phase1/{args.teacher}_train_demo.jsonl"), TeacherResponse)
     items = [d for d in demos if d.prompt_id in wanted and d.category == "answer"]
     items.sort(key=lambda d: d.prompt_id)
+    if args.shard:
+        k, n = (int(x) for x in args.shard.split("/"))
+        items = items[k::n]
     if args.limit:
         items = items[: args.limit]
     print(f"{len(items)} training items to rewrite for {args.teacher} (from {sft_path})")
