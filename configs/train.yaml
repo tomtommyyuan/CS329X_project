@@ -44,7 +44,7 @@ train:
   attn_implementation: sdpa
 
 readout:
-  backend: transformers   # 2026-10-05: vLLM (top-20 logprobs) vs transformers differed by up to 0.06 on bf16; full-vocabulary softmax for every readout# vllm if importable else transformers
+  backend: transformers   # 2026-10-05: vLLM (top-20 logprobs) vs transformers differed by up to 0.06 on bf16; full-vocabulary softmax for every readout (auto = vllm if importable else transformers)
   top_logprobs: 20
   answer_mass_min: 0.9              # category "answer" iff P(" A"|"A") + P(" B"|"B") >= this
   dtype: float32   # 2026-10-05 Mac decision: fp32 readout removes the bf16 noise the gate measured (mean 0.007, max 0.06 in P(A)) at no cost; training stays bf16
