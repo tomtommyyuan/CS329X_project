@@ -191,6 +191,7 @@ class TransformersBackend:  # forward pass, full softmax; CPU ok
 class VllmBackend:          # optional import; SamplingParams(max_tokens=1, temperature=0, logprobs=top_logprobs), raw string prompts
 
 def run_readout(model_path, prompts, run_id, backend="auto", batch_size=32, dtype="bfloat16", top_logprobs=20) -> list[TeacherResponse]
+# 2026-10-05 决定：实际评估用 configs/train.yaml 的 readout.backend = transformers、readout.dtype = float32（gate 测出 bf16 读数噪声 mean 0.007 / max 0.06，vLLM top-20 截断又加一层）；训练仍为 bf16
 ```
 
 | 项 | 规则 |

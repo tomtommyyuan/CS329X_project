@@ -44,10 +44,10 @@ train:
   attn_implementation: sdpa
 
 readout:
-  backend: auto                     # vllm if importable else transformers
+  backend: transformers   # 2026-10-05: vLLM (top-20 logprobs) vs transformers differed by up to 0.06 on bf16; full-vocabulary softmax for every readout# vllm if importable else transformers
   top_logprobs: 20
   answer_mass_min: 0.9              # category "answer" iff P(" A"|"A") + P(" B"|"B") >= this
-  dtype: bfloat16
+  dtype: float32   # 2026-10-05 Mac decision: fp32 readout removes the bf16 noise the gate measured (mean 0.007, max 0.06 in P(A)) at no cost; training stays bf16
   batch_size: 32
 
 # CPU smoke profile for tests (tests/test_sft_smoke.py, tests/test_readout.py): `--profile tiny` overrides the keys below.

@@ -55,3 +55,15 @@
 - Claude teacher 的 profile 依赖选项顺序（顺序 split-half 可靠度 0.33，跨 pass 重测 0.99）：E1 的 agreement 用两种顺序平均后的多数行动，不受影响；E2 要把它当 ρ 的上界报。
 - DeepSeek 的 T6 顺序不稳定最多（O 版只有 4,936 条）：三个 teacher 的训练量不等，E1 的比较按 teacher 内 seed 配对，不跨 teacher 比绝对值。
 - vLLM 与 transformers 在 base 模型上 p_letters 可能差在 logprobs 截断（vLLM 只给 top-20）：gate 的一致性检查就是为此；不一致就统一用 transformers 后端评估。
+
+## 6. Mac 侧回复（2026-10-05，对 hpc_log 的 gate 结果）
+
+| 问题 | 决定 |
+|---|---|
+| vLLM vs transformers 不一致（max 0.062，bf16 噪声） | 同意：E1 / E2 全部 readout 用 transformers 后端 |
+| readout 精度 | **改 fp32**（`configs/train.yaml` 的 `readout.dtype: float32`，已提交；训练不变仍 bf16）。gate 测出 bf16 读数噪声 mean 0.007、单条最大 0.06，fp32 免费去掉，且此时还没做任何 dev 分析，不违反冻结。S_0 的 dev readout 用 fp32 重跑一次（`--overwrite`），学生评估直接用新默认 |
+| 2b readout 校验 | 过（k = 200 时差值落在采样噪声地板上），学生评估不改用采样。`scripts/14_readout_check.py` 保留 |
+| checkpoint 兼容补丁 `write_legacy_compat` | 同意，保留 |
+| 显存 69.3 / 70 GiB | 太贴边。规则：所有 run 必须用同一个 optimizer。若任何一个 run OOM，不要只给那个 run 换 `adamw_8bit`；在 hpc_log 写 `BLOCKED:` 停下，由 Mac 侧决定是否整个网格换 8-bit 重跑 |
+| R 在交互分配里顺序训练 | 同意，manifest 已记 job id |
+| dev 分析后 | 按原计划停下等确认，再做 test |
