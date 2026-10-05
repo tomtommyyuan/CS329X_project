@@ -1,0 +1,48 @@
+{
+  "slope": 1.1505295663329307,
+  "intercept": 0.00395568507081559,
+  "pearson": 0.8802535560925201,
+  "p": 1.3214298928584643e-06,
+  "n_runs": 15,
+  "n_teachers": 3,
+  "method": "exact",
+  "n_perm": 756756,
+  "null_mean": 0.0,
+  "null_sd": 0.3493220318473586,
+  "seed_noise_sd": 0.011780717391054346,
+  "ordering_preserved": true,
+  "teachers": {
+    "claude46": {
+      "s_teacher": 0.05881294964028777,
+      "s_student_mean": 0.04761743346036187,
+      "s_student_sd": 0.004231267895919391,
+      "n_runs": 5
+    },
+    "deepseek_v4": {
+      "s_teacher": 0.14942770484103637,
+      "s_student_mean": 0.17060017490285148,
+      "s_student_sd": 0.014895411706204271,
+      "n_runs": 5
+    },
+    "gpt4o": {
+      "s_teacher": 0.0751420502432533,
+      "s_student_mean": 0.11968962722225454,
+      "s_student_sd": 0.0132883027072424,
+      "n_runs": 5
+    }
+  },
+  "n_common_families": 139,
+  "descriptive": {
+    "R_runs": {
+      "qwen3-4b.random_R_s1": 9.032651509370256e-05,
+      "qwen3-4b.random_R_s2": 0.0002865330825123927,
+      "qwen3-4b.random_R_s3": 0.0019239507165439412
+    },
+    "base_gated": {
+      "qwen3-4b.base_B_s0": 0.14566552395342322
+    },
+    "base_prior": {
+      "qwen3-4b.base_B_s0": 0.16459006094249265
+    }
+  }
+}

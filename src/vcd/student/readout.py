@@ -17,10 +17,12 @@ from __future__ import annotations
 import datetime as _dt
 import logging
 import time
-from typing import Iterable, Optional, Sequence
+from pathlib import Path
+from typing import Iterable, Mapping, Optional, Sequence
 
 import numpy as np
 
+from vcd.io import read_jsonl
 from vcd.schemas import Prompt, TeacherResponse
 from vcd.teacher.parse import p_x_from_letters
 
@@ -70,6 +72,29 @@ def _top1(probs: SparseProbs | np.ndarray) -> tuple[int, float]:
         return int(tid), float(probs[tid])
     tid = int(np.argmax(probs))
     return tid, float(probs[tid])
+
+
+# --------------------------------------------------------------------------- training prompts (E1a / E1b readout)
+
+
+def sft_prompts(sft_path: str | Path, prompts: Mapping[str, Prompt]) -> list[Prompt]:
+    """The prompts of an SFT file (data/sft/*.jsonl), in file order = trained order, one per row, nothing else.
+
+    Used by `scripts/12_eval_student.py --split train`: a run is read out on exactly the prompt_ids it was trained
+    on (the other option order is NOT added). Raises if a prompt_id is not in `prompts` (the train split).
+    """
+    out: list[Prompt] = []
+    seen: set[str] = set()
+    for i, row in enumerate(read_jsonl(sft_path), start=1):
+        pid = row["prompt_id"]
+        if pid in seen:
+            continue
+        p = prompts.get(pid)
+        if p is None:
+            raise ValueError(f"{sft_path}:{i}: prompt_id {pid!r} is not in the given prompt set")
+        seen.add(pid)
+        out.append(p)
+    return out
 
 
 # --------------------------------------------------------------------------- rows

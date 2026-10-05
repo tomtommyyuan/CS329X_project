@@ -5,12 +5,18 @@ Examples
   python scripts/12_eval_student.py --run-dir runs/qwen3-4b/gpt4o_O_s1 --split test --backend vllm
   # untrained base model S_0; run id = "{student_model_short}.base_B_s0", written under runs/{short}/base_B_s0/
   python scripts/12_eval_student.py --model Qwen/Qwen3-4B-Base --split dev
+  # E1a / E1b (rules frozen on dev 2026-10-05): read the run out on exactly its own training prompts, in the trained
+  # order only (one option order per item), taken from paths.prompts_train; the SFT file comes from the manifest's
+  # data_path unless --sft is given -> eval/train_responses.jsonl (+ train_readout_summary.json with the SFT sha256)
+  python scripts/12_eval_student.py --run-dir runs/qwen3-4b/gpt4o_O_s1 --split train
+  python scripts/12_eval_student.py --model Qwen/Qwen3-4B-Base --split train --sft data/sft/gpt4o_O_s1.jsonl
   # CPU smoke with the tiny profile on the pilot prompts (expect category "malformed": the untrained 135M model copies the
   # "<A or B>" placeholder instead of answering; a trained checkpoint via --run-dir answers)
   python scripts/12_eval_student.py --model HuggingFaceTB/SmolLM2-135M --profile tiny --split pilot --limit 8 --out /tmp/smoke
 
-Every variant and both option orders of the split are scored (order averaging happens in the analysis).
-Rows are TeacherResponse with teacher = run id and mode "profile" (docs/05_training_stack.md §4-5).
+Every variant and both option orders of the split are scored (order averaging happens in the analysis), except
+--split train, which scores only the prompts of the SFT file. Rows are TeacherResponse with teacher = run id and
+mode "profile" (docs/05_training_stack.md §4-5).
 """
 
 from __future__ import annotations
@@ -23,8 +29,8 @@ from pathlib import Path
 from vcd.config import resolve
 from vcd.io import load_models, write_jsonl
 from vcd.schemas import Prompt
-from vcd.student.readout import run_readout
-from vcd.train.data import RUN_ID_RE, load_train_yaml
+from vcd.student.readout import run_readout, sft_prompts
+from vcd.train.data import RUN_ID_RE, file_sha256, load_train_yaml
 
 
 def resolve_run(args: argparse.Namespace, cfg: dict) -> tuple[str, str, Path]:
@@ -52,13 +58,31 @@ def resolve_run(args: argparse.Namespace, cfg: dict) -> tuple[str, str, Path]:
     return model_path, run_id, out_dir
 
 
+def resolve_sft(args: argparse.Namespace) -> Path:
+    """The SFT file whose prompts a --split train readout scores: --sft, else the run manifest's data_path."""
+    if args.sft:
+        path = resolve(args.sft)
+    elif args.run_dir and (Path(args.run_dir) / "train_manifest.json").exists():
+        data_path = json.loads((Path(args.run_dir) / "train_manifest.json").read_text(encoding="utf-8")).get("data_path")
+        if not data_path:
+            raise SystemExit("train_manifest.json has no data_path; pass --sft PATH")
+        path = resolve(data_path)
+    else:
+        raise SystemExit("--split train needs --sft PATH (or a --run-dir with a train_manifest.json whose data_path exists)")
+    if not path.exists():
+        raise SystemExit(f"SFT file {path} does not exist (data/sft is not in git: rebuild it with scripts/10_build_sft_data.py or pass --sft)")
+    return path
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     src = ap.add_mutually_exclusive_group(required=True)
     src.add_argument("--run-dir", "--run", dest="run_dir", help="run directory runs/{student}/{teacher}_{version}_s{seed} (uses its checkpoint/)")
     src.add_argument("--model", help="HF model id or local path to evaluate directly (untrained base S_0)")
-    ap.add_argument("--split", default="test", choices=["dev", "test", "pilot"], help="prompt split; selects paths.prompts_{split} unless --prompts is given")
+    ap.add_argument("--split", default="test", choices=["dev", "test", "pilot", "train"], help="prompt split; selects paths.prompts_{split} unless --prompts is given; "
+                    "`train` scores only the run's own SFT prompts (E1a / E1b)")
     ap.add_argument("--prompts", help="prompt jsonl (default: config paths.prompts_{split})")
+    ap.add_argument("--sft", default=None, help="--split train only: SFT jsonl whose prompt_ids are scored (default: the run manifest's data_path)")
     ap.add_argument("--backend", default=None, choices=["auto", "vllm", "transformers"], help="default: config readout.backend")
     ap.add_argument("--batch-size", type=int, default=None, help="default: config readout.batch_size")
     ap.add_argument("--dtype", default=None, help="model dtype (default: config readout.dtype; CPU forces float32)")
@@ -82,6 +106,12 @@ def main() -> None:
     if prompts_path is None:
         raise SystemExit(f"no prompts path for split {args.split}; pass --prompts")
     prompts = load_models(resolve(prompts_path), Prompt)
+    sft_path = None
+    if args.split == "train":
+        sft_path = resolve_sft(args)
+        prompts = sft_prompts(sft_path, {p.prompt_id: p for p in prompts})  # trained prompts, trained order, one option order per item
+    elif args.sft:
+        raise SystemExit("--sft only applies to --split train")
     if args.limit:
         prompts = prompts[: args.limit]
 
@@ -96,6 +126,8 @@ def main() -> None:
     rows, summary = run_readout(model_path, prompts, run_id, backend=backend, batch_size=batch_size, dtype=dtype, top_logprobs=top_logprobs, answer_mass_min=answer_mass_min)
     summary.update({"run_id": run_id, "model": model_path, "split": args.split, "prompts_path": str(prompts_path), "answer_mass_min": answer_mass_min,
                     "dtype": dtype, "batch_size": batch_size})  # dtype as requested; the CPU path of the transformers backend upcasts half precision to fp32
+    if sft_path is not None:
+        summary.update({"sft_path": str(sft_path), "sft_sha256": file_sha256(sft_path)})
     write_jsonl(resp_path, rows)
     summ_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
     print(json.dumps({k: summary[k] for k in ("n", "category_rates", "mean_mass_AB", "backend", "seconds")}, ensure_ascii=False))

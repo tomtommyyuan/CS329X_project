@@ -168,12 +168,14 @@ run id = `"{student_model_short}.{teacher}_{version}_s{seed}"`，例 `qwen3-4b.g
 ## 4. 评估入口（`scripts/12_eval_student.py`）
 
 ```
-12_eval_student.py --run-dir runs/qwen3-4b/gpt4o_O_s1 --split dev|test|pilot [--prompts PATH]
+12_eval_student.py --run-dir runs/qwen3-4b/gpt4o_O_s1 --split dev|test|pilot|train [--prompts PATH] [--sft PATH]
                    [--backend auto|vllm|transformers] [--batch-size 32] [--limit N] [--config configs/train.yaml] [--profile tiny]
                    [--model PATH]      # 不经 run-dir，直接评一个模型（S_0 基线：Qwen3-4B-Base 不训练）
 ```
 
-读 `--prompts`（默认按 split 取 `paths.prompts_{split}`），**所有 variant、两个 order 都评**（dev 含 T0），写 `eval/{split}_responses.jsonl` 与 `eval/{split}_readout_summary.json`（n、各 category 占比、`mean_mass_AB`、top1 token 直方图前 10、backend、耗时）。`--model` 模式的 run id 用 `"{student_model_short}.base_B_s0"`。
+读 `--prompts`（默认按 split 取 `paths.prompts_{split}`），**所有 variant、两个 order 都评**（dev 含 T0），写 `eval/{split}_responses.jsonl` 与 `eval/{split}_readout_summary.json`（n、各 category 占比、`mean_mass_AB`、top1 token 直方图前 10、backend、耗时、dtype、batch_size）。`--model` 模式的 run id 用 `"{student_model_short}.base_B_s0"`。
+
+`--split train`（2026-10-05 加，E1a / E1b 用）：只评该 run **自己的训练 prompt**，prompt_id 取自 SFT 文件（manifest 的 `data_path`，或 `--sft PATH`；`--model` 模式必须给 `--sft`），从 `paths.prompts_train` 取 Prompt，按文件顺序，只评训练过的那个 order（`vcd.student.readout.sft_prompts`）；输出 `eval/train_responses.jsonl`、`eval/train_readout_summary.json`（多记 `sft_path`、`sft_sha256`）。其它行为不变。
 
 ## 5. Readout 规范（`src/vcd/student/readout.py`）
 
@@ -221,7 +223,8 @@ RunKey = NamedTuple("RunKey", student=str, teacher=str, version=str, seed=int)
 def parse_run_id(run_id: str) -> RunKey
 def binary_jsd(p: np.ndarray, q: np.ndarray) -> np.ndarray          # base-2, 与 profile._jsd 相同；对称化 p 指 p_sym
 def load_run_responses(runs_dir: Path, split: str, student_short: str | None = None) -> list[TeacherResponse]   # 读全部 runs/*/*/eval/{split}_responses.jsonl
-def sym_table(responses, prompts: dict[str, Prompt], focus_by_family: dict[str, str]) -> pd.DataFrame   # 封装上面四步
+def sym_table(responses, prompts: dict[str, Prompt], focus_by_family: dict[str, str], mass_gate=True) -> pd.DataFrame   # 封装上面四步；mass_gate=False 把带 p_x 的 malformed 行也当 answer，只给 base_prior_shifts 用
+def base_prior_shifts(rows, prompts, variants) -> pd.DataFrame       # 基座先验 profile r_0：sym_table(mass_gate=False) → framing_shifts；协变量，不是 S_0 的 readout
 def category_rates(frame: pd.DataFrame, by=("teacher", "variant")) -> pd.DataFrame      # answer / malformed 占比；profile.answer_rates 只看 demo 行所以另写
 def order_gap(sym: pd.DataFrame) -> pd.DataFrame                    # per teacher: mean |p_o1 - p_o2|, share (p_o1>0.5)==(p_o2>0.5)  (docs/04 组 A)
 def teacher_agreement(sym_s: pd.DataFrame, sym_t: pd.DataFrame, variants, by_variant=False) -> pd.DataFrame
@@ -230,29 +233,69 @@ def teacher_agreement(sym_s: pd.DataFrame, sym_t: pd.DataFrame, variants, by_var
 def student_teacher_jsd(sym_s, sym_t, variants, by_variant=False) -> pd.DataFrame        # mean_{(i,j)} binary_jsd(p_s, p_t)  (组 C)
 def consistency(sym: pd.DataFrame, variants) -> pd.DataFrame        # = profile.teacher_consistency + pairwise_flip_rates 合表：flip_rate, mean_jsd, family_flip_share, share_uncertain  (组 B)
 def seen_vs_unseen(sym, seen=("T1","T3","T5","T6"), unseen="T0") -> pd.DataFrame        # flip / JSD 在 seen 内部 vs (unseen, T1)；test 无 T0 时返回空表
-def inheritance(shifts_s: pd.DataFrame, shifts_t: pd.DataFrame, own: dict[str, str], n_perm=10_000, n_boot=10_000, seed=0, by_variant=False) -> pd.DataFrame
+def inheritance(shifts_s: pd.DataFrame, shifts_t: pd.DataFrame, own: dict[str, str], n_perm=10_000, n_boot=10_000, seed=0, by_variant=False, control=None) -> pd.DataFrame
     # 每个 run：rho_own, rho_other (每个 other teacher 一列或长表), rho_other_max, other_argmax, delta_rho = rho_own - rho_other_max,
     # rho 用 Pearson（另给 spearman 列），对齐在 (family, variant) 交集上；r 已是 family 内去均值（framing_shifts 保证）
-    # p_perm：打乱该 run 的 family 标签（整 family 置换，variant 结构保留）n_perm 次重算 delta_rho，p = share(perm >= observed)
+    # p_perm：打乱该 run 的 family 标签（整 family 置换，variant 结构保留）n_perm 次重算 delta_rho，p = (count(perm >= observed) + 1) / (n_perm + 1)（下限 1 / (n_perm + 1)）
     # ci：family bootstrap n_boot 次的 2.5 / 97.5 分位
+    # control=<一张只含 r_0 的 shifts 表>：所有 rho 换成给定 r_0 的 partial Pearson（两边先对 [1, r_0] 回归取残差），family 还要对 control 完整，
+    #   多出 control（名字）、rho_base（学生与 r_0 的 raw Pearson）两列；置换只打乱学生的 family，teacher 与 r_0 不动；bootstrap 三方联动重抽
+def inheritance_partial(shifts_s, shifts_t, control, own, variants, n_perm, n_boot, seed, by_variant=False) -> pd.DataFrame   # = inheritance(control=...)；ΔρPartial 的命名入口
+def partial_corr(x, y, z) -> float                                                         # 标量版 partial Pearson r(x, y | z)
+def profile_rho_partial(shifts_s, shifts_t, control, variants, by_variant=False) -> pd.DataFrame   # 每 (run, teacher)：partial, raw, rho_base, n_cells
 def pooled_shifts(shifts_s, runs: list[str], name: str) -> pd.DataFrame                 # 同 (student, teacher, version) 的各 seed 的 r 取平均 -> 一张 shifts 表
-def pooled_inheritance(shifts_s, shifts_t, own, variants, n_perm, n_boot, seed) -> pd.DataFrame
-    # 每个 (teacher, version) 一行：seed-mean profile 的 rho_own / delta_rho / p_perm / CI，加 Holm 校正的 p_holm（同一 version 内跨 teacher）；E2 的判定表
+def pooled_inheritance(shifts_s, shifts_t, own, variants, n_perm, n_boot, seed, control=None) -> pd.DataFrame
+    # 每个 (teacher, version) 一行：seed-mean profile 的 rho_own / delta_rho / p_perm / CI，加 Holm 校正的 p_holm（同一 version 内跨 teacher）
+def pooled_inheritance_partial(shifts_s, shifts_t, control, own, variants, n_perm, n_boot, seed) -> pd.DataFrame   # P3：= pooled_inheritance(control=...)
 def holm(pvals) -> np.ndarray                                                             # Holm step-down 校正 p
-def grid_permutation(table: pd.DataFrame, n_perm=10_000, seed=0) -> dict                # 打乱 15 个 run 的 teacher 归属，mean delta_rho 的 null 与 p  (docs/03 §3)
+def n_label_assignments(labels) -> int; def label_assignments(labels) -> np.ndarray     # 多重集 labels 的全部不同排列（15 run / 3 × 5 → 756,756 行，numpy 枚举 < 0.1 s）
+def grid_permutation(table: pd.DataFrame, n_perm=10_000, seed=0, exact_max=0) -> dict   # 打乱 run → teacher 归属（每 teacher 5 个不变），mean delta_rho 的 null 与 p；exact_max=0 随机 n_perm 次（原规则）
+def grid_permutation_partial(table, n_perm=10_000, seed=0, exact_max=1_000_000) -> dict  # P1：输入 inheritance_partial 表，归属数 ≤ exact_max 时枚举全部（method "exact"，p 下限 1/756,756），否则随机
+def suggestibility_by_run(shifts, pos="T5", neg="T6", families=None) -> pd.DataFrame    # 每个 profile 的 s = δ(T5) − δ(T6)：who, delta_T5, delta_T6, s, n_families；families 限定 family 集（P2 传公共集）
+def dose_response(s_runs: dict, s_teachers: dict, own: dict, n_perm=10_000, seed=0, exact_max=1_000_000) -> dict
+    # P2：15 个 O run 的 s 对自己 teacher 的 s_T 做 OLS，slope / intercept / pearson；p 单侧（slope > 0），null = 同上的 run → teacher 重指派（枚举或随机）；
+    # s_run 与 s_T 由 13 在同一 family 集上算：对每个 O run、每个 teacher 和 r_0 都完整的 family（`complete_families`；dev 139 个），不是各自的完整集
+    # p 约定：exact = 全部不同指派中（含观测指派）统计量 ≥ 观测的占比（下限 1/756,756）；random = (count + 1) / (n + 1)
+    # 另给每 teacher 的学生 s 均值 / sd、pooled 组内 sd（seed_noise_sd）、学生均值排序是否等于 teacher 排序（ordering_preserved）
+def letters_of(rows) -> dict[str, str | None]                                            # prompt_id → argmax letter
+def train_reproduction(letters: dict, targets: dict) -> dict                             # E1a：n_targets, n_scored, n_missing, n_no_letter, n_match, accuracy
+def contested_items(own_targets, other_targets) -> list[str]                            # 两 teacher 标签不同的训练 prompt_id（同一 prompt_id，故同一 order）
+def contested_alignment(letters_by_run, own_targets, other_targets, n_boot=10_000, seed=0, family_of=None) -> dict
+    # E1b：seed 合并后，争议项上学生给自己 teacher 字母的 (item, run) 对占比 share，family bootstrap 95% CI（ci_lo, ci_hi），n_items, n_families, n_runs, n_pairs
 def seed_noise_null(metric_table: pd.DataFrame, value: str) -> pd.DataFrame
     # 输入列 run_id, teacher, version, seed, <value>；输出每 (teacher, version) 的 seed 两两 |差| 的 n_pairs, mean, sd, q95，以及 pooled 一行 (teacher="all")
 def effect_in_null_sd(diff: float, null_row: pd.Series) -> float   # 效应量 = diff / null sd
 def shared_component_r2(shifts_s, shifts_t, own: str, others: list[str]) -> float      # r_s 对 [r_own, r_other...] 的 OLS R²  (组 D)
 ```
 
-`13_e1_analysis.py --runs-dir runs --student qwen3-4b --split test [--teacher-dir data/teacher_phase1 | --teacher-files gpt4o=path,...] [--prompts ...] [--out results/e1]` 输出：`category_rates.csv`、`order_gap.csv`、`agreement.csv`（含 by_variant）、`jsd.csv`、`consistency.csv`、`inheritance.csv`、`inheritance_pooled.csv`、`seed_null.csv`、`grid_permutation.json`、`summary.md`（markdown 表，不画图）。summary 区分"没有 run"和"有 run 但全部 malformed"（后者列出每个 run 的 answer rate）。
+`13_e1_analysis.py --runs-dir runs --student qwen3-4b --split test [--teacher-dir data/teacher_phase1 | --teacher-files gpt4o=path,...] [--prompts ...] [--prompts-train ...] [--sft-dir data/sft] [--exact-max 1000000] [--out results/e1]` 输出：
 
-**决策规则（test 评估前冻结，docs/03 §8）**：
-- E1（docs/03 §0）：每个 teacher 的每个 O seed 都要 `agree_own > agree_other_max`，否则先修训练。
-- E2：每个 teacher 用 **5 个 seed 的 seed-mean profile**（`pooled_inheritance`）算一个 Δρ 和一个 family-permutation p，跨 3 个 teacher 做 Holm 校正；Δρ > 0 且 `p_holm` < 0.05 的 teacher ≥ 2/3 则过。per-seed 的 Δρ / p 只作透明度展示，不是判定。
+| 文件 | 内容 |
+|---|---|
+| `category_rates.csv`、`order_gap.csv`、`agreement.csv`（+ `_by_variant`）、`jsd.csv`、`consistency.csv`、`seen_vs_unseen.csv`、`e1_table.csv`、`seed_null.csv` | 描述性 E1（agreement / JSD / 一致性）；JSD 标注为受 teacher 校准混淆 |
+| `e1_train_reproduction.csv`、`e1_contested.csv` | E1a / E1b；需要 `eval/train_responses.jsonl` 与 SFT 文件（`--sft-dir`；O 文件缺失时从 `{teacher}_train_demo.jsonl` 用 `select_demo_targets` 重建） |
+| `inheritance_partial.csv`、`inheritance_partial_by_variant.csv`（含 T0 行：r 在 T0 + 四个 seen variant 上去均值，只取 T0 cell）、`inheritance_partial_pooled.csv`、`grid_permutation_partial.json` | E2 修订版：ΔρPartial 每 run、按 variant、seed-mean（P3）、teacher 归属枚举（P1） |
+| `suggestibility_runs.csv`、`dose_response.json` | P2：每个 teacher / run / base 的 s；回归与 p；`descriptive` 里 R run、gated base、base prior 的 s |
+| `inheritance.csv`、`inheritance_by_variant.csv`、`inheritance_pooled.csv`、`grid_permutation.json` | 原规则（uncontrolled Δρ），只作透明度 |
+| `summary.md` | 全部表 + 判定；区分"没有 run"、"有 run 但全部 malformed"、"pending" |
 
-随机标签学生 R 的 agreement / JSD 与 O 学生同表列出，一致性永不单独报。
+**决策规则（2026-10-05 在 dev 上冻结，test 只评一次；替换 2026-10-04 在 dev 上未过的原规则）**：
+
+| 判定 | 规则 | pending 条件 |
+|---|---|---|
+| E1a | 每个 O run 在自己的训练 prompt 上 argmax 字母 = SFT 目标字母的比例 ≥ 0.95，且 `n_missing == 0`（每个 SFT prompt 都读出，部分 readout 不算过）；`answer_rate`（质量 ≥ 0.9 的行占比）同表报，不进门 | 任一 teacher 的 O run 无 `train_responses.jsonl` 或无 SFT 目标 → E1a、E1b、E1 三行都 `pending`，不出单行 pass |
+| E1b | 对每个 other teacher：争议训练项（own 与 other 标签不同）上，5 seed 合并后学生给 own 字母的比例，family-bootstrap 95% CI 下界 > 0.5 | 同上 |
+| **E1** | 三个 teacher 的 E1a 与 E1b 都过 | 任一 pending → `pending (...)` |
+| P1 | 15 个 O run 的 mean ΔρPartial（r_0 = base 先验 profile，无 0.9 门）对 run → teacher 重指派 null（全部 756,756 种），p < 0.05 | 没有 B run |
+| P2 | s_run = δ(T5) − δ(T6) 对自己 teacher 的 s_T 回归，slope > 0 且同一 null 的 p < 0.05；两边都在对全部 O run、teacher、r_0 完整的公共 family 集上算 | O run 的 teacher 少于 2 个 |
+| P3（supportive，不进判定） | 每 teacher seed-mean 的 ΔρPartial > 0 的 teacher ≥ 2/3（Holm p 一并报） | — |
+| **E2** | P1 与 P2 都 p < 0.05（含义：teacher 归属能预测学生 profile 与 suggestibility，超出基座先验；不等于每个学生都离自己 teacher 最近，P3 的逐 teacher 行要并排报） | 任一 pending |
+
+split ≠ test 时 summary 的 Verdicts 表下自动加一行：该 split 是选规则的 split，判定只是描述性，PASS 由构造保证；只有 `results/e1`（test）是确认性的。summary 还印一行 Conventions（exact / random p、percentile CI、P2 的公共 family 数）。
+
+原规则（一行，留档）：E1 = 每个 O seed `agree_own > agree_other_max`；E2 = seed-mean 的 uncontrolled Δρ > 0 且 Holm p < 0.05 的 teacher ≥ 2/3。dev 上 E1 gpt4o 2/5、claude46 4/5；E2 0/3；原因见 `results/e1_dev_diag/README.md`（teacher 共识 83–89%、JSD 受校准混淆、基座先验像 DeepSeek）。summary 的 "Pre-revision rule" 节仍按原格式输出。
+
+随机标签学生 R 的 agreement / JSD 与 O 学生同表列出，一致性永不单独报；R 与 S_0 不进 P1 / P2 统计，只在表里描述。
 
 ## 7. SLURM（HAIC）
 
