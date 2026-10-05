@@ -19,7 +19,7 @@
 
 - [x] Phase 1 teacher 数据：`data/teacher_phase1/{teacher}_train_demo.jsonl`、`{teacher}_{dev,test}_profile.jsonl`（含 T0），在 git 里
 - [x] 训练文件可重建：`scripts/10_build_sft_data.py`（O 版三 teacher 5,619 / 5,642 / 4,936 条，R 3 seeds）；`data/sft/` 不进 git，在集群上重建
-- [x] 代码：99 passed 1 skipped（skip = vLLM 缺席）；CPU 端到端冒烟通过
+- [x] 代码：109 passed 1 skipped（skip = vLLM 缺席）；CPU 端到端冒烟通过
 - [ ] 集群环境（README §0）；account / partition / QoS 已核实
 - [ ] gate run 通过（§2）
 
@@ -57,7 +57,7 @@
 
 ## 5. 已知风险
 
-- Claude teacher 的 profile 依赖选项顺序（顺序 split-half 可靠度 0.33，跨 pass 重测 0.99）：E1 的 agreement 用两种顺序平均后的多数行动，不受影响；E2 要把它当 ρ 的上界报。
+- Claude teacher 的 profile 依赖选项顺序（顺序 split-half r 0.33，跨 pass 重测 0.99）：E1 的 agreement 用两种顺序平均后的多数行动，不受影响；E2 的 ρ 上界是 sqrt(2r / (1 + r)) = 0.70（symmetrized profile 的 Spearman-Brown 可靠度开方），不是 r 本身。
 - DeepSeek 的 T6 顺序不稳定最多（O 版只有 4,936 条）：三个 teacher 的训练量不等，E1 的比较按 teacher 内 seed 配对，不跨 teacher 比绝对值。
 - vLLM 与 transformers 在 base 模型上 p_letters 可能差在 logprobs 截断（vLLM 只给 top-20）：gate 的一致性检查就是为此；不一致就统一用 transformers 后端评估。
 
@@ -75,18 +75,18 @@
 
 ## 7. Mac 侧回复 #2（2026-10-05）
 
-对 hpc_log 2026-10-04 / 10-05 两段的三个选项选 **(b)**：在看 test 之前、在 dev 上改 E1 / E2 的量，改完冻结。训练不动、readout 不动、0.9 阈值不动、`configs/train.yaml` 不动。规则见 §0（E1a / E1b）与 e2_plan §1–2（r_0 协变量、P1 / P2 / P3），代码与测试已在仓库（`e1_metrics.py`、`12 --split train`、新 13；`python -m pytest -q` 99 passed 1 skipped）。Mac 侧用现有 dev readout 跑过新 13：`results/e1_dev_revised/summary.md`（E1 pending；E2 在 dev 上 PASS：P1 p 1.3e-6、P2 slope 1.15 p 1.3e-6、P3 2/3 正——dev 是选规则的 split，这个 PASS 由构造保证、只是描述，不要在 hpc_log 里当结果报；只有 test 的 `results/e1` 是确认性的）。本节的 <commit> 指 Mac 侧提交并推送本次修订后的 main HEAD；pull 不到这些文件就先在 hpc_log 写 `BLOCKED:` 等。
+对 hpc_log 2026-10-04 / 10-05 两段的三个选项选 **(b)**：在看 test 之前、在 dev 上改 E1 / E2 的量，改完冻结。训练不动、readout 不动、0.9 阈值不动、`configs/train.yaml` 不动。规则 = §0（E1a / E1b）+ e2_plan §1–2 的**更正版**（primary 原 Δρ + Holm，secondary D 及其 D_specific 守门，P1 / P2 只作描述；c2c9d96 的 run-level 置换已撤回，见 §9）。dev 值在 e2_plan §2：E2 primary 0/3 **FAIL**、secondary D 0.101 [0.041, 0.164] p 1.0e-4、D_specific 0.140 [0.065, 0.226] → pass；dev 是选规则的 split，这些判定只是描述，不要在 hpc_log 里当结果报；只有 test 的 `results/e1` 是确认性的。本节的 <commit> 指 Mac 侧提交并推送本次更正后的 main HEAD；pull 不到这些文件就先在 hpc_log 写 `BLOCKED:` 等。
 
 HPC agent 按顺序做（都在 compute 分配里）：
 
 | # | 做什么 | 命令 | 验收 |
 |---|---|---|---|
-| 1 | 更新代码 | `git pull --rebase`；`python -m pytest -q` | 99 passed 1 skipped |
+| 1 | 更新代码 | `git pull --rebase`；`python -m pytest -q` | 109 passed 1 skipped |
 | 2 | 训练 prompt readout（E1a / E1b），18 个 run（15 个 O + 3 个 R；checkpoint 还在） | 每个 run：`python scripts/12_eval_student.py --run-dir runs/qwen3-4b/<run> --split train`（prompt 自动取 manifest 的 `data_path`，`data/sft/` 缺了先按 §2 第 1 步重建；eval.sbatch 把 `dev` 换成 `train` 即可） | 每个 run 有 `eval/train_responses.jsonl`，行数 = manifest `n_examples`（gpt4o / R 5,619、claude46 5,642、deepseek_v4 4,936），`train_readout_summary.json` 的 `sft_sha256` = manifest `data_sha256` |
-| 3 | dev 分析，覆盖 | `python scripts/13_e1_analysis.py --runs-dir runs --student qwen3-4b --split dev --out results/e1_dev --n-perm 10000 --n-boot 10000` | `summary.md` 顶部 Verdicts 表 E1 不再 pending（E1a 每个 O run `passed` True 且 `n_missing` 0；E1b 六对 ci_lo > 0.5）；P1 / P2 / P3 数字与 `results/e1_dev_revised` 一致（枚举是确定性的）；表下那行"dev = rule-selection split"说明 E2 的 dev 判定只是描述 |
+| 3 | dev 分析，覆盖 | `python scripts/13_e1_analysis.py --runs-dir runs --student qwen3-4b --split dev --out results/e1_dev --n-perm 10000 --n-boot 10000` | `summary.md` 顶部 Verdicts 表 = E1a / E1b / **E1** / **E2 primary**（PASS / PARTIAL / FAIL）/ **E2 secondary**（D 与 D_specific，pass / fail）；E1 不再 pending（E1a 每个 O run `passed` True 且 `n_missing` 0；E1b 六对 ci_lo > 0.5）；Descriptive 表里的 P1 / P2 数字（run-level mean ΔρPartial、slope）与 teacher 层面精确 p、D（含 D_shared / D_specific）、S_0 控制行与 `results/e1_dev_revised` 一致（枚举与 seed 固定的重抽样都是确定性的）；表下那行"dev = rule-selection split"说明 E2 的 dev 判定只是描述；Reliability ceilings 段落存在（上限 = sqrt(2r / (1 + r))，不是 r） |
 | 4 | 冻结 | 在 `tasks/hpc_log.md` 追加一段：日期、E1a / E1b 的数字、一行 `E1 / E2 规则冻结于 <commit>`（<commit> = 第 1 步 pull 后的 main HEAD）；之后不改 13 的默认值 | — |
 | 5 | test readout（只跑一次） | S_0：`MODEL=Qwen/Qwen3-4B-Base sbatch slurm/eval.sbatch - test`；每个 run：`sbatch slurm/eval.sbatch runs/qwen3-4b/<run> test`（18 个 run） | 19 个 `eval/test_responses.jsonl`，各 3,000 行（含 T0） |
-| 6 | test 分析 | 同 3，`--split test --out results/e1` | `results/e1/summary.md` 的 Verdicts 表就是 E1 / E2 的结论；不再改任何量 |
+| 6 | test 分析 | 同 3，`--split test --out results/e1` | `results/e1/summary.md` 的 Verdicts 表就是 E1 / E2 的结论：E2 primary 按 PASS / PARTIAL / FAIL 如实报，secondary D 过不过都报，Reliability ceilings 段落（test 侧两个 teacher 的 split-half r < 0.5 → docs/03 §1 原文"RQ1 / E2 / E7 降为 exploratory，主线改为 E2b / E3 / E4 / E5"，本项目做其中的 E3）要原样进论文表；不再改任何量 |
 | 7 | 提交 | `git add runs/qwen3-4b/*/train_manifest.json runs/qwen3-4b/*/eval results/e1_dev results/e1 tasks/hpc_log.md && git commit && git pull --rebase && git push` | Mac 侧写论文表 |
 | 8 | 清理 | dev / train / test 都评完的 run：`rm -rf runs/qwen3-4b/<run>/checkpoint` | scratch 回落 |
 
@@ -107,6 +107,15 @@ HPC agent 按顺序做（都在 compute 分配里）：
 
 注意：§2 的 `runs/qwen3-4b/*_O_*` 是 E1 / E2 的全集 O 学生，保留；paired 的 O 学生只用于 E3 的配对比较，两者的差异（全集 vs 交集，约 9% 的 item）顺带是稳健性检查。显存和 §2 一样贴边（Claude 的 F / C 版 rationale 和 O 一样长），OOM 规则见 §6。
 
-## 9. 暂停 test（2026-10-05，Mac 侧）
+## 9. E2 规则更正完成，test 放行（2026-10-05，Mac 侧）
 
-hpc_log "dev 结果的解读 + 两处更正"是对的：§7 冻结的 P1 / P2 用 15 个 run 做置换，把同一 teacher 的 5 个 seed 当成了独立单位（伪复制）；可交换的单位只有 3 个 teacher，teacher 层面的精确 p 最小 1/6。E1a / E1b 不受影响。**§7 第 1 到 4 步照做（训练 prompt readout、dev 分析、E1 判定），第 5 步 test 等下一个冻结 commit**；§8 的建文件和训练照做。更正后的 E2 规则（原 Δρ 规则保留为 primary；次级统计量用 family 作重抽样单位；剂量反应只作描述）正在改，改完在 e2_plan §2 和这里写明 commit。
+hpc_log "dev 结果的解读 + 两处更正"是对的：c2c9d96 冻结的 P1 / P2 用 15 个 run 做置换，把同一 teacher 的 5 个 seed 当成了独立单位（伪复制）；可交换的单位只有 3 个 teacher，teacher 层面的精确 p 最小 1/6。E1a / E1b 不受影响。更正已在**本 commit**（含本节的 main HEAD；提交后把 hash 写进 hpc_log 的冻结行）完成并冻结，审查后又加了 D 的分解守门（e2_plan §2 版本 5）与上限公式更正，规则见 e2_plan §1–2：
+
+| 项 | 更正后 |
+|---|---|
+| E2 primary | 原预注册规则不变：每 teacher seed-mean 的 uncontrolled Δρ > 0 且 family permutation Holm p < 0.05；≥ 2/3 PASS、1/3 PARTIAL、0/3 FAIL，如实报 |
+| E2 secondary | D = 学生（seed 合并）× teacher 偏相关矩阵（给定 r_0）的对角减非对角均值，见过的 framing；family bootstrap 95% CI 不含 0、family permutation p < 0.05，**且** 学生特有部分 D_specific（D = D_shared + D_specific，D_shared = 共享残差 × 行尺度不等，不含 own-teacher 信息）的 CI 下界 > 0 |
+| 描述项（无判定） | run-level mean ΔρPartial 与剂量反应 slope 只报数字 + teacher 层面精确 p（下限 1/6）；P3；各组 suggestibility 的 family-bootstrap CI 与两两差；S_0 控制行用 ungated covariate profile |
+| 注记 | 每个 ρ 旁印上限 sqrt(2r / (1 + r))（r = teacher 的顺序 split-half 可靠度；test Claude 0.70 / DeepSeek 0.80 / GPT-4o 0.90）；E0 门槛看 r 本身：test 侧 DeepSeek 0.47、Claude 0.33 触发 docs/03 §1 "RQ1 / E2 / E7 降为 exploratory，主线改为 E2b / E3 / E4 / E5"，本项目做其中的 E3 |
+
+HPC agent：`git pull --rebase` 到本 commit 后，§7 第 1 到 4 步照做（第 3 步用新 13 覆盖 `results/e1_dev`，第 4 步的冻结 commit 写本 commit 的 hash），**E1a / E1b 过了就直接进第 5、6 步的 test**，不再等；§8 照做。dev 上 D 等数字见 e2_plan §2。

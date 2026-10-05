@@ -13,7 +13,7 @@
 | `slurm/README.md` | 集群上的一次性安装、gate run、48 run 网格、恢复 |
 | `tasks/hpc_log.md` | HPC agent 的工作日志（见下） |
 
-代码在 `src/vcd/`（Python 3.12，包名 `vcd`），脚本 `scripts/01` 到 `13`，测试 `tests/`（`python -m pytest -q`，当前 99 passed 1 skipped，skip 是 vLLM 缺席时的后端对照）。代码、注释、commit 英文；文档中文，简洁，能用表就用表，LLM 能从要点推出的细节不写。
+代码在 `src/vcd/`（Python 3.12，包名 `vcd`），脚本 `scripts/01` 到 `13`，测试 `tests/`（`python -m pytest -q`，当前 109 passed 1 skipped，skip 是 vLLM 缺席时的后端对照）。代码、注释、commit 英文；文档中文，简洁，能用表就用表，LLM 能从要点推出的细节不写。
 
 ## 两个角色
 

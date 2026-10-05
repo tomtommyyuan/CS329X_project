@@ -231,7 +231,9 @@ def test_analysis_script_cli(world, tmp_path):
     )
     assert "skipping 1 run id" in res.stderr
     md = (out / "summary.md").read_text()
-    assert "No student runs found" not in md and "alpha (2 seeds pooled" in md and "E2 PASS" in md and "- alpha: 2/2 seeds pass -> ok" in md
+    assert "No student runs found" not in md and "- alpha: 2/2 seeds pass -> ok" in md
+    prim = [l for l in md.splitlines() if l.startswith("| **E2 primary** |")]  # verdict is a table row with PASS / PARTIAL / FAIL (corrected 2026-10-05)
+    assert len(prim) == 1 and "alpha " in prim[0] and prim[0].rstrip("| ").endswith("**PASS**")
     tab = pd.read_csv(out / "e1_table.csv")
     assert set(tab["run_id"]) == {"qwen3-4b.alpha_O_s1", "qwen3-4b.alpha_O_s2", "qwen3-4b.beta_O_s1", "qwen3-4b.random_R_s1"}
     pooled = pd.read_csv(out / "inheritance_pooled.csv").set_index("run_id")

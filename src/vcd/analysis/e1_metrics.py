@@ -11,10 +11,18 @@ Notation (docs/04 §0): p(i,j) symmetrized P(positive act); r(i,j) = p(i,j) - me
 (family-demeaned, so a shared average judgment cannot masquerade as a shared profile).
 
 Revision frozen on dev 2026-10-05 (tasks/e2_plan.md §1-2, docs/05 §6): the untrained base's prior profile r_0
-(`base_prior_shifts`, no answer-mass gate) is a covariate; inheritance is measured with partial correlations
-given r_0 (`inheritance_partial`, `pooled_inheritance_partial`, `grid_permutation_partial`), suggestibility
-inheritance with a dose-response regression (`suggestibility_by_run`, `dose_response`), and E1 on the training
-items (`train_reproduction`, `contested_alignment`).
+(`base_prior_shifts`, no answer-mass gate) is a covariate; E1 is measured on the training items
+(`train_reproduction`, `contested_alignment`).
+
+Corrected the same day after the HPC agent's critique: the run-level permutations of `grid_permutation_partial`
+(P1) and `dose_response` (P2) reassign the 15 O runs, but the 5 seeds of one teacher are near-replicates of the
+same training data, so runs are not exchangeable units and those p-values are pseudo-replicated. They stay
+available as DESCRIPTIVE numbers (with a teacher-level exact p, `teacher_level_exact_p`, floor 1 / 3! = 1/6).
+The inferential unit is the family: the E2 primary is the pre-registered per-teacher seed-mean delta_rho with
+family permutation + Holm (`pooled_inheritance`), the pre-declared secondary is the diagonal contrast D of the
+student x teacher partial-correlation matrix with family bootstrap CI and family permutation p
+(`joint_partial_D`), suggestibility is descriptive with family-bootstrap group CIs (`suggestibility_groups`),
+and the S_0 control row comes from the ungated covariate profile (`base_prior_control`).
 """
 
 from __future__ import annotations
@@ -390,8 +398,10 @@ def inheritance(
     `own` maps run_id -> its teacher's name. All correlations for one run are computed on the same family
     set (families complete for the run and every teacher), so rho_own and rho_other are comparable.
     p_perm: the run's family labels are permuted as whole families (variant structure kept) n_perm times
-    and delta_rho recomputed; p = share(perm >= observed). ci_lo / ci_hi: 2.5 / 97.5 % of delta_rho over
-    n_boot family bootstraps. With by_variant, the same is done on each variant's cells (one row per variant).
+    and delta_rho recomputed; p = share(perm >= observed). perm_null_mean / perm_null_sd describe that null: it is
+    NOT centred at 0 (the permutation keeps every profile's variant main effects, so a teacher whose main effects
+    resemble the run's keeps a positive mean), which is why the mean is printed next to p_perm. ci_lo / ci_hi:
+    2.5 / 97.5 % of delta_rho over n_boot family bootstraps. With by_variant, the same is done on each variant's cells (one row per variant).
 
     With `control` (a shifts table holding ONE profile, the base prior r_0 from `base_prior_shifts`), every rho
     is the partial correlation given r_0 on the same cells (`spearman_own` becomes the Spearman of the
@@ -450,7 +460,7 @@ def inheritance(
             other_argmax = max(other_vals, key=other_vals.get) if other_vals else None
             d_obs = rho_own - rho_other_max
             # permutation: shuffle family rows of the student matrix; teachers (and the control) fixed
-            p_perm, null_sd = np.nan, np.nan
+            p_perm, null_mean, null_sd = np.nan, np.nan, np.nan
             if others and n_perm > 0:
                 perms = np.stack([rng.permutation(n_f) for _ in range(n_perm)])  # (n_perm, n_f)
                 Xp = S[perms].reshape(n_perm, -1)  # (n_perm, n_f * n_v)
@@ -460,7 +470,7 @@ def inheritance(
                     r_by_t = {t: _partial_corr_with_fixed(Xp, T[t].ravel(), Z.ravel()) for t in teachers}
                 d_null = r_by_t[own_t] - np.max(np.stack([r_by_t[t] for t in others]), axis=0)
                 p_perm = float((np.sum(d_null >= d_obs) + 1) / (n_perm + 1))
-                null_sd = float(np.nanstd(d_null))
+                null_mean, null_sd = float(np.nanmean(d_null)), float(np.nanstd(d_null))
             # family bootstrap
             ci_lo, ci_hi = np.nan, np.nan
             if others and n_boot > 0:
@@ -475,14 +485,14 @@ def inheritance(
                         rb = {t: _rowwise_partial_corr(Xb, T[t][boots].reshape(len(boots), -1), Zb) for t in teachers}
                     d_boot[start : start + len(boots)] = rb[own_t] - np.max(np.stack([rb[t] for t in others]), axis=0)
                 ci_lo, ci_hi = (float(v) for v in np.nanquantile(d_boot, [0.025, 0.975]))
-            row = dict(run_id=run, teacher=own_t, variant=vname, n_families=n_f, n_cells=n_f * len(vcols), rho_own=rho_own, spearman_own=spear[own_t], rho_other_max=rho_other_max, other_argmax=other_argmax, delta_rho=d_obs, p_perm=p_perm, perm_null_sd=null_sd, ci_lo=ci_lo, ci_hi=ci_hi)
+            row = dict(run_id=run, teacher=own_t, variant=vname, n_families=n_f, n_cells=n_f * len(vcols), rho_own=rho_own, spearman_own=spear[own_t], rho_other_max=rho_other_max, other_argmax=other_argmax, delta_rho=d_obs, p_perm=p_perm, perm_null_mean=null_mean, perm_null_sd=null_sd, ci_lo=ci_lo, ci_hi=ci_hi)
             if control is not None:
                 row["control"] = ctrl_name
                 row["rho_base"] = rho_base
             for t in teachers:
                 row[f"rho__{t}"] = rhos[t]
             out.append(row)
-    cols = ["run_id", "teacher", "variant", "n_families", "n_cells", "rho_own", "spearman_own", "rho_other_max", "other_argmax", "delta_rho", "p_perm", "perm_null_sd", "ci_lo", "ci_hi"]
+    cols = ["run_id", "teacher", "variant", "n_families", "n_cells", "rho_own", "spearman_own", "rho_other_max", "other_argmax", "delta_rho", "p_perm", "perm_null_mean", "perm_null_sd", "ci_lo", "ci_hi"]
     if control is not None:
         cols += ["control", "rho_base"]
     return pd.DataFrame(out, columns=cols + [f"rho__{t}" for t in teachers])
@@ -553,7 +563,7 @@ def pooled_inheritance(
         pooled.append(pooled_shifts(shifts_s, runs, name))
         pooled_own[name] = own[runs[0]]
         meta[name] = (version, len(runs), ",".join(str(parse_run_id(r).seed) for r in runs))
-    cols = ["run_id", "teacher", "version", "n_seeds", "seeds", "variant", "n_families", "n_cells", "rho_own", "spearman_own", "rho_other_max", "other_argmax", "delta_rho", "p_perm", "p_holm", "perm_null_sd", "ci_lo", "ci_hi"]
+    cols = ["run_id", "teacher", "version", "n_seeds", "seeds", "variant", "n_families", "n_cells", "rho_own", "spearman_own", "rho_other_max", "other_argmax", "delta_rho", "p_perm", "p_holm", "perm_null_mean", "perm_null_sd", "ci_lo", "ci_hi"]
     if control is not None:
         cols += ["control", "rho_base"]
     if not pooled:
@@ -695,6 +705,8 @@ def grid_permutation_partial(table: pd.DataFrame, n_perm: int = 10_000, seed: in
     out = grid_permutation(table, n_perm=n_perm, seed=seed, exact_max=exact_max)
     out["control"] = str(table["control"].iloc[0]) if len(table) else None
     out["n_assignments"] = int(n_label_assignments([*table.loc[table["variant"] == "all", "teacher"]])) if len(table) else 0
+    out["teacher_exact"] = teacher_level_exact_p(table) if len(table) else {}
+    out["unit_note"] = "run-level p is pseudo-replicated (seeds of one teacher are near-replicates); descriptive only"
     return out
 
 
@@ -750,6 +762,10 @@ def dose_response(s_runs: Mapping[str, float], s_teachers: Mapping[str, float], 
     slope = float(slope_of(own_idx[None, :])[0])
     intercept = float(y.mean() - slope * x.mean())
     null, method = _assignment_null(own_idx, slope_of, n_perm, seed, exact_max)
+    # teacher-level exact p (the only valid exchangeable unit; descriptive, floor 1 / k!)
+    null_t = slope_of(teacher_assignments(len(teachers))[:, own_idx])
+    teacher_exact = {"p": float(np.mean(null_t >= slope - 1e-12)), "rank": int(np.sum(null_t > slope + 1e-12)) + 1, "n_assignments": int(len(null_t)),
+                     "floor": 1.0 / len(null_t), "null": [float(v) for v in null_t], "method": "teacher-exact"}
     per_t = {}
     for i, t in enumerate(teachers):
         v = y[own_idx == i]
@@ -759,7 +775,345 @@ def dose_response(s_runs: Mapping[str, float], s_teachers: Mapping[str, float], 
     return {"slope": slope, "intercept": intercept, "pearson": pearson(x, y)[0], "p": _p_from_null(null, slope, method), "n_runs": len(runs), "n_teachers": len(teachers),
             "method": method, "n_perm": int(len(null)), "null_mean": float(null.mean()), "null_sd": float(null.std()),
             "seed_noise_sd": float(np.sqrt(np.mean(within_var))) if within_var else np.nan,
-            "ordering_preserved": bool(np.array_equal(np.argsort(-means, kind="stable"), np.argsort(-s_t, kind="stable"))), "teachers": per_t}
+            "ordering_preserved": bool(np.array_equal(np.argsort(-means, kind="stable"), np.argsort(-s_t, kind="stable"))), "teachers": per_t,
+            "teacher_exact": teacher_exact, "unit_note": "run-level p is pseudo-replicated (seeds of one teacher are near-replicates); descriptive only"}
+
+
+# --------------------------------------------------------------------------- corrected E2 (2026-10-05): family-level inference
+
+
+def e2_primary_verdict(n_pass: int, n_teachers: int) -> str:
+    """Pre-registered E2 categories: PASS when >= 2/3 of the teachers pass, PARTIAL when at least one does, FAIL when none."""
+    if n_teachers <= 0:
+        return "pending"
+    if n_pass * 3 >= 2 * n_teachers:
+        return "PASS"
+    return "PARTIAL" if n_pass >= 1 else "FAIL"
+
+
+def teacher_assignments(k: int) -> np.ndarray:
+    """All k! relabellings of k teachers as rows of a (k! x k) int array, the identity first."""
+    return np.array(list(itertools.permutations(range(k))), dtype=np.int64).reshape(-1, k)
+
+
+def teacher_level_exact_p(table: pd.DataFrame) -> dict:
+    """Teacher-level exact p for the mean delta_rho over the runs of a grid (descriptive only).
+
+    The seeds of one teacher are near-replicates, so the exchangeable units are the teachers, not the runs: the
+    null relabels the teachers (k! assignments, 6 for three teachers, the observed one included) and scores every
+    run against its relabelled own teacher. p = share of assignments with mean delta_rho >= observed, floor 1 / k!.
+    `table` is an `inheritance` / `inheritance_partial` output (variant == 'all' rows, rho__{teacher} columns).
+    """
+    t = table[table["variant"] == "all"] if "variant" in table else table
+    rho_cols = [c for c in t.columns if c.startswith("rho__")]
+    teachers = [c[len("rho__") :] for c in rho_cols]
+    out = {"observed": np.nan, "p": np.nan, "rank": None, "n_assignments": 0, "floor": np.nan, "null": [], "method": "teacher-exact", "n_runs": int(len(t))}
+    if len(t) == 0 or len(teachers) < 2:
+        return out
+    R = t[rho_cols].to_numpy(dtype=float)
+    n = len(R)
+    own_idx = np.array([teachers.index(x) for x in t["teacher"]])
+    A = teacher_assignments(len(teachers))[:, own_idx]  # (k!, n_runs): each run's own teacher under every relabelling
+    own = R[np.arange(n)[None, :], A]
+    masked = np.broadcast_to(R, (len(A), n, len(teachers))).copy()
+    masked[A[:, :, None] == np.arange(len(teachers))[None, None, :]] = -np.inf
+    null = (own - masked.max(axis=2)).mean(axis=1)
+    obs = float(null[0])
+    out.update(observed=obs, p=float(np.mean(null >= obs - 1e-12)), rank=int(np.sum(null > obs + 1e-12)) + 1, n_assignments=int(len(null)), floor=1.0 / len(null), null=[float(v) for v in null])
+    return out
+
+
+def _contrast_D(M: np.ndarray) -> np.ndarray:
+    """D = mean_k [ M[k, k] - mean_{j != k} M[k, j] ] for a stack of K x K matrices (m x K x K) -> (m,)."""
+    K = M.shape[-1]
+    diag = M[:, np.arange(K), np.arange(K)]
+    off = (M.sum(axis=2) - diag) / (K - 1)
+    return (diag - off).mean(axis=1)
+
+
+def _D_matrices(E: np.ndarray, Tr: np.ndarray) -> dict[str, np.ndarray]:
+    """The student x teacher correlation matrix of mean-zero residual stacks and its shared / specific decomposition.
+
+    E: (m, K, n) student residuals (given r_0, or just centred when there is no control); Tr: (m, K, n) teacher residuals.
+    full[k, j] = <E_k, Tr_j> / (|E_k| |Tr_j|) is the (partial) Pearson correlation. Writing E_k = Ebar + U_k with Ebar the
+    mean student residual, full = shared + specific with shared[k, j] = <Ebar, Tr_j> / (|E_k| |Tr_j|) and
+    specific[k, j] = <U_k, Tr_j> / (|E_k| |Tr_j|). The shared part carries no own-teacher information and cancels in
+    _contrast_D only when the rows have equal scale |E_k|; `scalefree[k, j] = <E_k, Tr_j> / (s_bar |Tr_j|)` with
+    s_bar = sqrt(mean_k |E_k|^2) replaces the row scale by the pooled one so that the shared part cancels exactly.
+    """
+    E = E - E.mean(axis=2, keepdims=True)
+    Tr = Tr - Tr.mean(axis=2, keepdims=True)
+    nE = np.sqrt((E**2).sum(axis=2))  # (m, K)
+    nT = np.sqrt((Tr**2).sum(axis=2))
+    G = np.einsum("mkn,mjn->mkj", E, Tr)
+    Ebar = E.mean(axis=1, keepdims=True)  # (m, 1, n)
+    Gs = np.einsum("mkn,mjn->mkj", np.broadcast_to(Ebar, E.shape), Tr)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        den = nE[:, :, None] * nT[:, None, :]
+        full, shared = G / den, Gs / den
+        s_bar = np.sqrt((nE**2).mean(axis=1))  # (m,)
+        scalefree = G / (s_bar[:, None, None] * nT[:, None, :])
+    return {"full": full, "shared": shared, "specific": full - shared, "scalefree": scalefree}
+
+
+def joint_partial_D(
+    shifts_students_pooled_by_teacher: Mapping[str, pd.DataFrame],
+    shifts_teachers: pd.DataFrame,
+    control: Optional[pd.DataFrame],
+    variants: Sequence[str] = SEEN_VARIANTS,
+    cells: Optional[Sequence[str]] = None,
+    n_perm: int = 10_000,
+    n_boot: int = 10_000,
+    seed: int = 0,
+) -> dict:
+    """E2 secondary statistic D (pre-declared and frozen on dev 2026-10-05): diagonal minus off-diagonal mean of the
+    student (seed-pooled) x teacher partial-correlation matrix given the base prior r_0, with family-level inference.
+
+    `shifts_students_pooled_by_teacher` maps a teacher name to a shifts table holding ONE profile, the seed-mean
+    student of that teacher (`pooled_shifts`); `shifts_teachers` holds the teacher profiles; `control` is the
+    r_0 table (`base_prior_shifts`) or None for the raw (non-partial) D. M[k, j] = partial rho(r_{S_k}, r_{T_j} | r_0)
+    on the families complete for every student, every teacher and r_0 on all `variants`; `cells` restricts the
+    correlated cells to a subset of the variants (T0-only D: variants = T0 + seen, cells = ["T0"]).
+    D = mean_k [ M[k, k] - mean_{j != k} M[k, j] ].
+
+    Decomposition (added before the freeze, after the review of 2026-10-05): with E_k the student residuals given r_0,
+    E_k = Ebar + U_k, M = M_shared + M_specific (see `_D_matrices`) and D = D_shared + D_specific. D_shared is the mean
+    student residual interacting with unequal row scales |E_k|; it carries no own-teacher information, so a D driven by
+    it is structural, not inheritance. D_specific (student-specific deviations only) gets its own family bootstrap CI
+    (ci_specific_lo / ci_specific_hi) and permutation p (p_perm_specific); the secondary rule (`e2_secondary_verdict`)
+    requires both D and D_specific to clear 0. D_scalefree (pooled row scale, shared part cancels exactly) is reported
+    with its CI as an exploratory alternative.
+    ci_lo / ci_hi: family bootstrap (students, teachers and r_0 resampled jointly). p_perm: family permutation of the
+    student side with teachers and r_0 fixed, one permutation applied to every pooled student profile at once (the
+    students' shared structure is kept under the null). With a control the permuted quantity is each student's
+    RESIDUAL given r_0 (Kennedy / Freedman-Lane style), so that the permuted object is the one the partial
+    correlation uses; on the dev data the raw-profile permutation gives an indistinguishable null (sd 0.020 vs 0.022,
+    same p), so the choice is not tuned. p = (count(null >= D) + 1) / (n_perm + 1).
+    Also returns D_raw (no control) as a point estimate, the matrices and the per-teacher row contrasts.
+    """
+    cells = list(cells or variants)
+    present = set(shifts_teachers["teacher"].unique())
+    teachers = [t for t in sorted(shifts_students_pooled_by_teacher) if t in present]
+    out = {"D": np.nan, "D_raw": np.nan, "ci_lo": np.nan, "ci_hi": np.nan, "p_perm": np.nan, "null_mean": np.nan, "null_sd": np.nan,
+           "D_shared": np.nan, "D_specific": np.nan, "ci_specific_lo": np.nan, "ci_specific_hi": np.nan, "p_perm_specific": np.nan, "null_mean_specific": np.nan, "null_sd_specific": np.nan,
+           "D_scalefree": np.nan, "ci_scalefree_lo": np.nan, "ci_scalefree_hi": np.nan, "row_scale": {}, "n_families": 0,
+           "n_teachers": len(teachers), "teachers": teachers, "variants": list(variants), "cells": cells, "control": None, "n_perm": 0, "n_boot": 0,
+           "matrix": {}, "matrix_raw": {}, "matrix_shared": {}, "matrix_specific": {}, "per_teacher": {}}
+    if len(teachers) < 2:
+        return out
+    students: dict[str, str] = {}
+    for t in teachers:
+        names = shifts_students_pooled_by_teacher[t]["teacher"].unique()
+        if len(names) != 1:
+            raise ValueError(f"pooled student table for {t} must hold one profile, got {list(names)}")
+        students[t] = str(names[0])
+    ctrl_name: Optional[str] = None
+    if control is not None:
+        names = control["teacher"].unique()
+        if len(names) != 1:
+            raise ValueError(f"control must hold exactly one profile, got {list(names)}")
+        ctrl_name = str(names[0])
+    out["control"] = ctrl_name
+    tables = [shifts_students_pooled_by_teacher[t] for t in teachers] + [shifts_teachers] + ([control] if control is not None else [])
+    fams = _complete_families(pd.concat(tables), [*students.values(), *teachers] + ([ctrl_name] if ctrl_name else []), variants)
+    out["n_families"] = len(fams)
+    if len(fams) < 4:
+        return out
+    ci = [list(variants).index(v) for v in cells]
+    S = np.stack([_shift_matrix(shifts_students_pooled_by_teacher[t], students[t], fams, variants)[:, ci] for t in teachers])  # (K, n_f, n_c)
+    T = np.stack([_shift_matrix(shifts_teachers, t, fams, variants)[:, ci] for t in teachers])
+    Z = _shift_matrix(control, ctrl_name, fams, variants)[:, ci] if control is not None else None
+    K, n_f = len(teachers), len(fams)
+
+    def residuals(Sm: np.ndarray, Tm: np.ndarray, Zm: Optional[np.ndarray]) -> tuple[np.ndarray, np.ndarray]:
+        """(m, K, n_f, n_c) stacks -> (m, K, n) residual stacks given the matching (m, n_f, n_c) control (or centred)."""
+        m = Sm.shape[0]
+        Sf, Tf = Sm.reshape(m * K, -1), Tm.reshape(m * K, -1)
+        if Zm is None:
+            return (Sf - Sf.mean(axis=1, keepdims=True)).reshape(m, K, -1), (Tf - Tf.mean(axis=1, keepdims=True)).reshape(m, K, -1)
+        Zf = np.repeat(Zm.reshape(m, 1, -1), K, axis=1).reshape(m * K, -1)
+        return _residualize_rows(Sf, Zf).reshape(m, K, -1), _residualize_rows(Tf, Zf).reshape(m, K, -1)
+
+    E, Tr = residuals(S[None], T[None], Z[None] if Z is not None else None)
+    mats = _D_matrices(E, Tr)
+    M_obs, M_sh, M_sp, M_sf = (mats[k][0] for k in ("full", "shared", "specific", "scalefree"))
+    Eraw, Traw = residuals(S[None], T[None], None)
+    M_raw = _D_matrices(Eraw, Traw)["full"][0]
+    D_obs = float(_contrast_D(M_obs[None])[0])
+    as_dict = lambda Mx: {students[a]: {b: float(Mx[i, j]) for j, b in enumerate(teachers)} for i, a in enumerate(teachers)}  # noqa: E731
+    out.update(D=D_obs, D_raw=float(_contrast_D(M_raw[None])[0]), D_shared=float(_contrast_D(M_sh[None])[0]), D_specific=float(_contrast_D(M_sp[None])[0]),
+               D_scalefree=float(_contrast_D(M_sf[None])[0]), matrix=as_dict(M_obs), matrix_raw=as_dict(M_raw), matrix_shared=as_dict(M_sh), matrix_specific=as_dict(M_sp),
+               row_scale={students[a]: float(np.sqrt((E[0, i] ** 2).sum() / E.shape[2])) for i, a in enumerate(teachers)})
+    for i, a in enumerate(teachers):
+        off = float((M_obs[i].sum() - M_obs[i, i]) / (K - 1))
+        off_sp = float((M_sp[i].sum() - M_sp[i, i]) / (K - 1))
+        out["per_teacher"][a] = {"student": students[a], "rho_own": float(M_obs[i, i]), "mean_rho_other": off, "contrast": float(M_obs[i, i]) - off,
+                                 "contrast_specific": float(M_sp[i, i]) - off_sp, "raw_rho_own": float(M_raw[i, i])}
+    rng = np.random.default_rng([seed, zlib.crc32(b"joint_partial_D"), *(zlib.crc32(c.encode()) for c in cells)])
+    if n_perm > 0:
+        # permutation units: the students' residuals given r_0 (family x cell matrices) against the teachers' residuals, one permutation for all students
+        E0 = E[0].reshape(K, n_f, -1)
+        d_null, d_null_sp = np.empty(n_perm), np.empty(n_perm)
+        for start in range(0, n_perm, 2000):
+            m = min(2000, n_perm - start)
+            perms = np.stack([rng.permutation(n_f) for _ in range(m)])  # (m, n_f)
+            Ep = E0[:, perms].transpose(1, 0, 2, 3).reshape(m, K, -1)  # (m, K, n)
+            mn = _D_matrices(Ep, np.broadcast_to(Tr, (m, K, Tr.shape[2])))
+            d_null[start : start + m] = _contrast_D(mn["full"])
+            d_null_sp[start : start + m] = _contrast_D(mn["specific"])
+        out.update(p_perm=float((np.sum(d_null >= D_obs) + 1) / (n_perm + 1)), null_mean=float(np.nanmean(d_null)), null_sd=float(np.nanstd(d_null)), n_perm=int(n_perm),
+                   p_perm_specific=float((np.sum(d_null_sp >= out["D_specific"]) + 1) / (n_perm + 1)), null_mean_specific=float(np.nanmean(d_null_sp)), null_sd_specific=float(np.nanstd(d_null_sp)))
+    if n_boot > 0:
+        d_boot, d_boot_sp, d_boot_sf = np.empty(n_boot), np.empty(n_boot), np.empty(n_boot)
+        for start in range(0, n_boot, 1000):
+            m = min(1000, n_boot - start)
+            boots = rng.integers(0, n_f, size=(m, n_f))
+            Sb = S[:, boots].transpose(1, 0, 2, 3)  # (m, K, n_f, n_c)
+            Tb = T[:, boots].transpose(1, 0, 2, 3)
+            Zb = Z[boots] if Z is not None else None
+            Eb, Trb = residuals(Sb, Tb, Zb)
+            mb = _D_matrices(Eb, Trb)
+            d_boot[start : start + m] = _contrast_D(mb["full"])
+            d_boot_sp[start : start + m] = _contrast_D(mb["specific"])
+            d_boot_sf[start : start + m] = _contrast_D(mb["scalefree"])
+        lo, hi = np.nanquantile(d_boot, [0.025, 0.975])
+        lo_sp, hi_sp = np.nanquantile(d_boot_sp, [0.025, 0.975])
+        lo_sf, hi_sf = np.nanquantile(d_boot_sf, [0.025, 0.975])
+        out.update(ci_lo=float(lo), ci_hi=float(hi), ci_specific_lo=float(lo_sp), ci_specific_hi=float(hi_sp), ci_scalefree_lo=float(lo_sf), ci_scalefree_hi=float(hi_sf), n_boot=int(n_boot))
+    return out
+
+
+def e2_secondary_verdict(d: Mapping, alpha: float = 0.05) -> str:
+    """Pre-declared E2 secondary rule (frozen on dev 2026-10-05, decomposition guard added the same day after review):
+    pass when D > 0, its family-bootstrap 95% CI excludes 0, its family-permutation p < alpha AND the student-specific
+    part D_specific has a family-bootstrap CI above 0 (so a D made of the shared student residual x unequal row scales
+    cannot pass); "pending (...)" when D or its resamples are missing."""
+    if not d or np.isnan(d.get("D", np.nan)):
+        return "pending (no base readout for the covariate r_0, or fewer than 2 teachers with O runs)"
+    if any(np.isnan(d.get(k, np.nan)) for k in ("ci_lo", "p_perm", "ci_specific_lo")):
+        return "pending (no resamples)"
+    return "pass" if (d["D"] > 0 and d["ci_lo"] > 0 and d["p_perm"] < alpha and d["ci_specific_lo"] > 0) else "fail"
+
+
+def reliability_ceiling(split_half_r: float) -> float:
+    """Attenuation ceiling of a correlation with the two-order symmetrized profile from the order split-half r:
+    the symmetrized profile averages the two orders, so its reliability is Spearman-Brown 2r / (1 + r) and the maximal
+    correlation any other variable can reach with it is sqrt of that. Test split: Claude 0.329 -> 0.704, DeepSeek
+    0.466 -> 0.797, GPT-4o 0.691 -> 0.904. The raw r itself is NOT a bound (the base prior reaches 0.533 against a
+    DeepSeek split-half r of 0.515 on dev)."""
+    r = float(split_half_r)
+    if np.isnan(r) or r <= 0:
+        return np.nan
+    return float(np.sqrt(2 * r / (1 + r)))
+
+
+def suggestibility_groups(
+    shifts: pd.DataFrame,
+    groups: Mapping[str, Sequence[str]],
+    families: Optional[Sequence[str]] = None,
+    pos: str = "T5",
+    neg: str = "T6",
+    n_boot: int = 10_000,
+    seed: int = 0,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Descriptive suggestibility s = delta(pos) - delta(neg) per group of profiles with family-bootstrap 95% CIs,
+    plus every pairwise group difference with its CI.
+
+    `groups` maps a group name to the profile names (values of the `teacher` column) pooled into it: the O runs of
+    one teacher, a teacher by itself, the R runs, the base prior. For family i and group g, d_g(i) is the mean over
+    the group's profiles of r(i, pos) - r(i, neg); s_g = mean_i d_g(i) on the families where every group is complete
+    (optionally restricted to `families`). The bootstrap resamples families jointly for all groups, so the pairwise
+    differences are paired. Returns (groups table: group, n_profiles, n_families, s, ci_lo, ci_hi; pairs table:
+    a, b, diff = s_a - s_b, ci_lo, ci_hi).
+    """
+    gcols, pcols = ["group", "n_profiles", "n_families", "s", "ci_lo", "ci_hi"], ["a", "b", "diff", "ci_lo", "ci_hi"]
+    sub = shifts[shifts["variant"].isin([pos, neg])]
+    if families is not None:
+        sub = sub[sub["family_id"].isin(set(families))]
+    if sub.empty:
+        return pd.DataFrame(columns=gcols), pd.DataFrame(columns=pcols)
+    piv = sub.pivot_table(index="family_id", columns=["teacher", "variant"], values="r")
+    rows: dict[str, tuple[int, np.ndarray]] = {}
+    for g, whos in groups.items():
+        whos = [w for w in whos if (w, pos) in piv.columns and (w, neg) in piv.columns]
+        if not whos:
+            continue
+        rows[g] = (len(whos), np.stack([piv[(w, pos)].to_numpy(dtype=float) - piv[(w, neg)].to_numpy(dtype=float) for w in whos]).mean(axis=0))
+    if not rows:
+        return pd.DataFrame(columns=gcols), pd.DataFrame(columns=pcols)
+    names = list(rows)
+    D = np.stack([rows[g][1] for g in names])  # (G, n_families)
+    D = D[:, ~np.isnan(D).any(axis=0)]
+    n_f = D.shape[1]
+    s = D.mean(axis=1) if n_f else np.full(len(names), np.nan)
+    Sb = None
+    if n_boot > 0 and n_f > 1:
+        rng = np.random.default_rng([seed, zlib.crc32(b"suggestibility_groups")])
+        Sb = np.empty((len(names), n_boot))
+        for start in range(0, n_boot, 2000):
+            m = min(2000, n_boot - start)
+            boots = rng.integers(0, n_f, size=(m, n_f))
+            Sb[:, start : start + m] = D[:, boots].mean(axis=2)
+    g_rows, p_rows = [], []
+    for i, g in enumerate(names):
+        lo, hi = (np.quantile(Sb[i], [0.025, 0.975]) if Sb is not None else (np.nan, np.nan))
+        g_rows.append(dict(group=g, n_profiles=rows[g][0], n_families=int(n_f), s=float(s[i]), ci_lo=float(lo), ci_hi=float(hi)))
+        for j in range(i + 1, len(names)):
+            lo, hi = (np.quantile(Sb[i] - Sb[j], [0.025, 0.975]) if Sb is not None else (np.nan, np.nan))
+            p_rows.append(dict(a=g, b=names[j], diff=float(s[i] - s[j]), ci_lo=float(lo), ci_hi=float(hi)))
+    return pd.DataFrame(g_rows, columns=gcols), pd.DataFrame(p_rows, columns=pcols)
+
+
+def base_prior_control(shifts_0: pd.DataFrame, shifts_t: pd.DataFrame, variants: Sequence[str] = SEEN_VARIANTS, n_boot: int = 10_000, seed: int = 0) -> pd.DataFrame:
+    """The e2_plan S_0 control ("S_0's delta_rho ~ 0"), computed from the UNGATED covariate profile r_0 so that it is
+    checkable (the gated S_0 readout has almost no complete family).
+
+    One row per teacher: raw Pearson of r_0 with that teacher on the common complete families, family-bootstrap
+    CI, rank, and `margin` = rho(teacher) - max rho(other teachers) with its CI (positive only for the closest
+    teacher). The control holds when the closest teacher's margin CI includes 0; a CI above 0 means the base is
+    systematically closest to that teacher before any training. `profile` is labelled "ungated covariate profile".
+    """
+    cols = ["who", "profile", "teacher", "n_families", "rho", "ci_lo", "ci_hi", "rank", "margin", "margin_ci_lo", "margin_ci_hi"]
+    names = shifts_0["teacher"].unique()
+    if len(names) != 1:
+        raise ValueError(f"shifts_0 must hold exactly one profile, got {list(names)}")
+    who = str(names[0])
+    teachers = sorted(shifts_t["teacher"].unique())
+    if len(teachers) < 2:
+        return pd.DataFrame(columns=cols)
+    fams = _complete_families(pd.concat([shifts_0, shifts_t]), [who, *teachers], variants)
+    if len(fams) < 4:
+        return pd.DataFrame(columns=cols)
+    Zm = _shift_matrix(shifts_0, who, fams, variants)
+    T = {t: _shift_matrix(shifts_t, t, fams, variants) for t in teachers}
+    z = Zm.ravel()
+    rho = np.array([float(_corr_with_fixed(z[None, :], T[t].ravel())[0]) for t in teachers])
+
+    def margins(R: np.ndarray) -> np.ndarray:  # (m, K) -> (m, K): rho_k - max_{j != k} rho_j
+        masked = np.repeat(R[:, None, :], R.shape[1], axis=1)
+        masked[:, np.arange(R.shape[1]), np.arange(R.shape[1])] = -np.inf
+        return R - masked.max(axis=2)
+
+    marg = margins(rho[None, :])[0]
+    ci = np.full((len(teachers), 4), np.nan)
+    if n_boot > 0:
+        rng = np.random.default_rng([seed, zlib.crc32(b"base_prior_control")])
+        n_f = len(fams)
+        rb = np.empty((n_boot, len(teachers)))
+        for start in range(0, n_boot, 1000):
+            m = min(1000, n_boot - start)
+            boots = rng.integers(0, n_f, size=(m, n_f))
+            Zb = Zm[boots].reshape(m, -1)
+            for j, t in enumerate(teachers):
+                rb[start : start + m, j] = _rowwise_corr(Zb, T[t][boots].reshape(m, -1))
+        mb = margins(rb)
+        ci[:, :2] = np.nanquantile(rb, [0.025, 0.975], axis=0).T
+        ci[:, 2:] = np.nanquantile(mb, [0.025, 0.975], axis=0).T
+    order = np.argsort(-rho, kind="stable")
+    rank = np.empty(len(teachers), dtype=int)
+    rank[order] = np.arange(1, len(teachers) + 1)
+    return pd.DataFrame([dict(who=who, profile="ungated covariate profile", teacher=t, n_families=len(fams), rho=float(rho[j]), ci_lo=float(ci[j, 0]), ci_hi=float(ci[j, 1]),
+                              rank=int(rank[j]), margin=float(marg[j]), margin_ci_lo=float(ci[j, 2]), margin_ci_hi=float(ci[j, 3])) for j, t in enumerate(teachers)], columns=cols)
 
 
 # --------------------------------------------------------------------------- training-item E1 (E1a / E1b)

@@ -31,6 +31,22 @@
       "n_runs": 5
     }
   },
+  "teacher_exact": {
+    "p": 0.16666666666666666,
+    "rank": 1,
+    "n_assignments": 6,
+    "floor": 0.16666666666666666,
+    "null": [
+      1.1505295663329307,
+      0.33988765081766886,
+      -1.2381584096726617,
+      -1.0599671631513667,
+      -0.09056240318156314,
+      0.8982707588549936
+    ],
+    "method": "teacher-exact"
+  },
+  "unit_note": "run-level p is pseudo-replicated (seeds of one teacher are near-replicates); descriptive only",
   "n_common_families": 139,
   "descriptive": {
     "R_runs": {

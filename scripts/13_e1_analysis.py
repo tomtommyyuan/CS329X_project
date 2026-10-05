@@ -15,23 +15,32 @@ Inputs: every runs/{student}/{run}/eval/{split}_responses.jsonl (TeacherResponse
 also runs/{student}/{run}/eval/train_responses.jsonl (scripts/12 --split train) and the SFT files in --sft-dir (an O
 file that is missing locally is rebuilt in memory from {teacher_dir}/{teacher}_train_demo.jsonl).
 Outputs (docs/05 §6): category_rates.csv, order_gap.csv, agreement.csv, agreement_by_variant.csv, jsd.csv,
-consistency.csv, seen_vs_unseen.csv, e1_table.csv, inheritance.csv, inheritance_by_variant.csv, inheritance_pooled.csv,
-seed_null.csv, grid_permutation.json (pre-revision rule), inheritance_partial.csv, inheritance_partial_by_variant.csv,
-inheritance_partial_pooled.csv, grid_permutation_partial.json, suggestibility_runs.csv, dose_response.json,
-e1_train_reproduction.csv, e1_contested.csv and summary.md. No figures.
+consistency.csv, seen_vs_unseen.csv, e1_table.csv, inheritance.csv, inheritance_by_variant.csv, inheritance_pooled.csv
+(E2 primary), seed_null.csv, grid_permutation.json, e2_secondary_D.json (E2 secondary), inheritance_partial.csv,
+inheritance_partial_by_variant.csv, inheritance_partial_pooled.csv, grid_permutation_partial.json, suggestibility_runs.csv,
+suggestibility_groups.csv, suggestibility_group_pairs.csv, dose_response.json, base_control.csv, e1_train_reproduction.csv,
+e1_contested.csv and summary.md. No figures.
 
-Decision rules (frozen on dev 2026-10-05, replacing the rules that failed on dev; tasks/e1_plan.md §0, tasks/e2_plan.md §2):
+Decision rules (frozen on dev 2026-10-05, corrected the same day after the HPC agent's critique; tasks/e1_plan.md §0, tasks/e2_plan.md §2):
   E1  E1a every O run reproduces >= 95% of its own SFT target letters on its training prompts (every prompt read out);
       E1b on contested training items (own teacher's label != another teacher's) the seed-pooled share of items where the
       student gives its own teacher's letter has a family-bootstrap 95% CI lower bound > 0.5 against each other teacher.
       Verdict = E1a and E1b for all three teachers; "pending (no train readouts)" until eval/train_responses.jsonl exist.
-  E2  r_0 = the untrained base's prior profile (two-letter probabilities WITHOUT the 0.9 mass gate) is a covariate.
-      P1 mean over the O runs of deltaRhoPartial = partial rho(r_s, r_own | r_0) - max_other partial rho(r_s, r_other | r_0),
-         null = reassigning the runs to teachers keeping 5 per teacher (all 756,756 assignments), pass iff p < 0.05;
-      P2 dose-response: slope of s_run = delta(T5) - delta(T6) on the own teacher's s_T across the O runs, both on the
-         families complete for every O run, every teacher and r_0; p from the same reassignment null, pass iff slope > 0 and p < 0.05;
-      P3 supportive: per-teacher deltaRhoPartial of the seed-mean profile, family permutation + Holm, >= 2/3 positive.
-      Verdict = P1 and P2 both p < 0.05. The pre-revision pooled delta_rho tables are kept for transparency.
+  E2 primary (the pre-registered rule, unchanged): per teacher, the seed-mean student profile's delta_rho = rho(own) -
+      max rho(other) > 0 with family-permutation p (Holm over teachers) < 0.05; PASS >= 2/3 teachers, PARTIAL 1/3, FAIL 0/3.
+  E2 secondary (pre-declared): D = diagonal minus off-diagonal mean of the seed-pooled student x teacher partial-correlation
+      matrix given r_0 (the untrained base's prior profile WITHOUT the 0.9 mass gate), seen framings only; family bootstrap
+      95% CI excludes 0, family permutation p < 0.05, AND the student-specific part D_specific (D = D_shared + D_specific,
+      D_shared = mean student residual x unequal row scales, no own-teacher information) has a family-bootstrap CI above 0.
+      D on T0 only, the raw (non-partial) D and the scale-free D (pooled row scale) are exploratory.
+  Descriptive only (no verdict): the run-level mean deltaRhoPartial and the suggestibility dose-response slope with the
+      teacher-level exact p (3! = 6 relabellings, floor 1/6; the run-level 756,756-assignment p is pseudo-replicated because
+      the seeds of one teacher are near-replicates), per-teacher partial delta_rho (P3), suggestibility per group with
+      family-bootstrap CIs and pairwise differences, the S_0 control row from the ungated covariate profile.
+  Every rho is printed next to its teacher's attenuation ceiling sqrt(2r / (1 + r)) (Spearman-Brown reliability of the
+      two-order symmetrized profile from the order split-half r of docs/E0_results.md §13); the raw r is the E0 gate quantity:
+      with two or more test-split r below 0.5 docs/03 §1 makes RQ1 / E2 / E7 exploratory and the main line E2b / E3 / E4 / E5
+      (of which this project runs E3).
   On any split other than test the Verdicts table is labelled descriptive (dev is the rule-selection split).
 """
 
@@ -57,6 +66,11 @@ E1A_MIN = 0.95  # frozen on dev 2026-10-05
 E1B_MIN_CI_LO = 0.5
 ALPHA = 0.05
 FROZEN = "rules frozen on dev 2026-10-05"
+# Teacher order split-half reliability r of the framing profile (docs/E0_results.md §13). The E0 gate reads r itself; the
+# printed ceiling of a student-teacher rho is M.reliability_ceiling(r) = sqrt(2r / (1 + r)) (the symmetrized profile averages
+# the two orders, so the raw r is not a bound: the base prior reaches 0.533 against DeepSeek's dev r of 0.515).
+RELIABILITY = {"dev": {"gpt4o": 0.675, "claude46": 0.383, "deepseek_v4": 0.515}, "test": {"gpt4o": 0.691, "claude46": 0.329, "deepseek_v4": 0.466}}
+RELIABILITY_GATE = 0.5  # docs/03 §1: >= 2 teachers below -> E0 P2 fails -> RQ1 / E2 / E7 exploratory, main line E2b / E3 / E4 / E5 (E3 here)
 
 
 def _fmt(x) -> str:
@@ -83,6 +97,29 @@ def _md_table(df: pd.DataFrame, cols: list[str]) -> list[str]:
 
 def _kv_table(d: dict, keys: list[str]) -> list[str]:
     return ["| " + " | ".join(keys) + " |", "|" + "---|" * len(keys), "| " + " | ".join(_fmt(d.get(k)) for k in keys) + " |", ""]
+
+
+def _ci(lo, hi) -> str:
+    return f"[{_fmt(lo)}, {_fmt(hi)}]"
+
+
+def _with_ceiling(df: pd.DataFrame, ceilings: dict[str, float], teacher_col: str = "teacher", rho_col: str = "rho_own") -> pd.DataFrame:
+    """Add the own teacher's attenuation ceiling sqrt(2r / (1 + r)) and rho / ceiling next to a rho column."""
+    df = df.copy()
+    df["ceiling"] = df[teacher_col].map(ceilings).astype(float)
+    if rho_col in df:
+        df["rho_over_ceiling"] = df[rho_col] / df["ceiling"]
+    return df
+
+
+def _ceiling_row(df: pd.DataFrame, ceilings: dict[str, float], prefix: str, label_col: str, label: str = "ceiling sqrt(2r/(1+r))") -> pd.DataFrame:
+    """Append a row holding every teacher column's ceiling (`{prefix}{teacher}` columns) so the column ceilings sit under the rhos."""
+    row = {c: np.nan for c in df.columns}
+    row[label_col] = label
+    for c in df.columns:
+        if c.startswith(prefix) and c[len(prefix):] in ceilings:
+            row[c] = ceilings[c[len(prefix):]]
+    return pd.concat([df, pd.DataFrame([row])], ignore_index=True)
 
 
 # --------------------------------------------------------------------------- E1a / E1b inputs
@@ -172,12 +209,48 @@ def e1_train_tables(train_rows: list[TeacherResponse], teachers: list[str], sft_
     return rep, con, {"e1a": e1a, "e1b": e1b, "e1": f"{'PASS' if e1a == e1b == 'pass' else 'FAIL'} (E1a {e1a}, E1b {e1b})"}
 
 
+# --------------------------------------------------------------------------- verdicts
+
+
+def e2_primary(pooled: pd.DataFrame, teachers: list[str]) -> tuple[str, pd.DataFrame]:
+    """Pre-registered E2: per-teacher seed-mean delta_rho > 0 with Holm p < ALPHA; PASS / PARTIAL / FAIL over the teachers."""
+    po = pooled[pooled["version"] == "O"].copy() if pooled is not None and not pooled.empty else pd.DataFrame()
+    if po.empty:
+        return "pending (no pooled O profiles)", po
+    po["passed"] = (po["delta_rho"] > 0) & (po["p_holm"] < ALPHA)
+    return M.e2_primary_verdict(int(po["passed"].sum()), len(teachers)), po
+
+
+def e2_secondary(d: dict) -> str:
+    return M.e2_secondary_verdict(d, ALPHA)
+
+
+def reliability_lines(rel: dict[str, float], ceilings: dict[str, float], teachers: list[str], split: str) -> list[str]:
+    test_r = RELIABILITY["test"]
+    below = [t for t in teachers if test_r.get(t, np.nan) < RELIABILITY_GATE]
+    fmt_pair = lambda t, r: f"{t} r {_fmt(r)} -> ceiling {_fmt(M.reliability_ceiling(r))}"  # noqa: E731
+    lines = [f"Reliability ceilings (teacher order split-half reliability r of the framing profile, docs/E0_results.md §13): the symmetrized profile averages the two orders, so its "
+             "reliability is Spearman-Brown 2r / (1 + r) and the ceiling of any student-teacher rho with it is sqrt(2r / (1 + r)); the raw r is NOT a bound. The tables print the own "
+             "teacher's ceiling and rho / ceiling next to every rho_own, and a ceiling row under every rho__{teacher} / partial__{teacher} / raw__{teacher} column (column ceilings "
+             f"apply to every entry of that column). This split ({split}): " + ", ".join(fmt_pair(t, rel.get(t, np.nan)) for t in teachers)
+             + "; test split: " + ", ".join(fmt_pair(t, test_r.get(t, np.nan)) for t in teachers) + "."]
+    if len(below) >= 2:
+        lines.append(f"E0 gate (docs/03 §1, on the raw split-half r): {len(below)} of {len(teachers)} teachers ({', '.join(below)}) are below {RELIABILITY_GATE} on the test split, so E0's P2 fails: "
+                     "per docs/03 §1 'RQ1 / E2 / E7 降为 exploratory，主线改为 E2b / E3 / E4 / E5' -- family-level inheritance (RQ1 / E2 / E7) is reported as exploratory / secondary and the "
+                     "pre-specified main line is E2b / E3 / E4 / E5, of which this project runs E3 (form effects on inheritance).")
+    else:
+        lines.append(f"E0 gate (docs/03 §1): fewer than 2 teachers below {RELIABILITY_GATE} on the test split; the gate does not fire.")
+    return lines + [""]
+
+
 # --------------------------------------------------------------------------- summary
 
 
 def summary_md(ctx: dict) -> str:
     tab, null, teachers, split, variants = ctx["tab"], ctx["null"], ctx["teachers"], ctx["split"], ctx["variants"]
-    lines = [f"# E1 / E2 summary ({split}, variants {', '.join(variants)}; {FROZEN}; auto-generated)", ""]
+    ceilings: dict[str, float] = ctx["ceilings"]
+    rel: dict[str, float] = ctx["reliability"]
+    lines = [f"# E1 / E2 summary ({split}, variants {', '.join(variants)}; {FROZEN}, corrected 2026-10-05: family-level inference; auto-generated)", ""]
     if tab.empty:
         cat_rates, n_rows = ctx.get("cat_rates"), ctx.get("n_student_rows", 0)
         if n_rows and cat_rates is not None and not cat_rates.empty:
@@ -191,40 +264,111 @@ def summary_md(ctx: dict) -> str:
     grid_p, dose, pooled_p, inh_p = ctx["grid_partial"], ctx["dose"], ctx["pooled_partial"], ctx["inh_partial"]
     e1_states = ctx["e1_states"]
     e1_verdict, e1a, e1b = e1_states["e1"], e1_states["e1a"], e1_states["e1b"]
-    p1 = grid_p.get("p", np.nan)
-    p2 = dose.get("p", np.nan)
     has_base = ctx["base_name"] is not None and not inh_p.empty
-    po = pooled_p[pooled_p["version"] == "O"] if not pooled_p.empty else pooled_p
-    n_p3 = int((po["delta_rho"] > 0).sum()) if len(po) else 0
-    n_p3_sig = int(((po["delta_rho"] > 0) & (po["p_holm"] < ALPHA)).sum()) if len(po) else 0
-    if not has_base:
-        e2_verdict = "pending (no base readout for the covariate r_0)"
-    elif np.isnan(p1) or np.isnan(p2):
-        e2_verdict = "pending (fewer than 2 teachers with O runs)"
-    else:
-        e2_verdict = "PASS" if (p1 < ALPHA and dose["slope"] > 0 and p2 < ALPHA) else "FAIL"
-
+    prim_verdict, po = e2_primary(ctx["pooled"], teachers)
+    D, D_t0, D_raw = ctx["D"], ctx["D_t0"], ctx["D_raw"]
+    sec_verdict = e2_secondary(D)
     rep_o = ctx["rep"][ctx["rep"]["version"] == "O"] if len(ctx["rep"]) else ctx["rep"]
     con = ctx["con"]
-    v_p1 = ("pass" if p1 < ALPHA else "fail") if not np.isnan(p1) else "pending"
-    v_p2 = ("pass" if (dose["slope"] > 0 and p2 < ALPHA) else "fail") if not np.isnan(p2) else "pending"
-    v_p3 = ("supportive" if n_p3 * 3 >= 2 * len(teachers) else "not supportive") if len(po) else "pending"
-    lines += ["## Verdicts (rules frozen on dev 2026-10-05; test is evaluated once)", ""]
+
+    lines += ["## Verdicts (rules frozen on dev 2026-10-05, corrected 2026-10-05; test is evaluated once)", ""]
     if split != "test":
         lines += [f"**{split} = rule-selection split** (the rules were chosen here after the dev diagnostics and frozen on 2026-10-05): "
-                  "the verdicts on this split are descriptive and PASS is expected by construction; only results/e1 (test) is confirmatory.", ""]
+                  "the verdicts on this split are descriptive and not confirmatory; only results/e1 (test) is confirmatory.", ""]
+    prim_val = "; ".join(f"{r['teacher']} {_fmt(r['delta_rho'])} {_ci(r['ci_lo'], r['ci_hi'])} p_perm {_fmt(r['p_perm'])} (null mean {_fmt(r['perm_null_mean'])}) p_holm {_fmt(r['p_holm'])}" for _, r in po.sort_values("teacher").iterrows()) if len(po) else "nan"
+    n_prim = int(po["passed"].sum()) if len(po) else 0
     lines += ["| test | rule | value | verdict |", "|---|---|---|---|",
               f"| E1a | every O run reproduces >= {E1A_MIN:.2f} of its SFT target letters (all prompts read out) | min accuracy {_fmt(rep_o['accuracy'].min()) if len(rep_o) else 'nan'}, min answer rate {_fmt(rep_o['answer_rate'].min()) if len(rep_o) else 'nan'} | {e1a} |",
               f"| E1b | contested training items: ci_lo of the own-teacher share > {E1B_MIN_CI_LO} vs every other teacher | min ci_lo {_fmt(con['ci_lo'].min()) if len(con) else 'nan'} | {e1b} |",
               f"| **E1** | E1a and E1b for all teachers | | **{e1_verdict}** |",
-              f"| P1 | mean deltaRhoPartial over O runs vs teacher-assignment null, p < {ALPHA} | mean {_fmt(grid_p.get('observed'))}, p {_fmt(p1)} ({grid_p.get('method', 'none')}, {grid_p.get('n_perm', 0)} assignments) | {v_p1} |",
-              f"| P2 | slope of s_run on own s_T > 0, assignment-permutation p < {ALPHA} | slope {_fmt(dose.get('slope'))}, p {_fmt(p2)} ({dose.get('method', 'none')}) | {v_p2} |",
-              f"| P3 (supportive) | per-teacher pooled deltaRhoPartial > 0 (Holm p in table) on >= 2/3 teachers | {n_p3}/{len(teachers)} positive, {n_p3_sig}/{len(teachers)} with p_holm < {ALPHA} | {v_p3} |",
-              f"| **E2** | P1 and P2 both p < {ALPHA} | | **{e2_verdict}** |", ""]
-    lines += ["Conventions: exact p = share of all distinct run -> teacher assignments (the observed one included) with statistic >= observed "
-              "(floor 1 / n_assignments); random-assignment and family-permutation p = (count + 1) / (n + 1) (floor 1 / (n + 1)); CIs = 2.5 / 97.5 "
-              f"percentiles of the family bootstrap; P2's s_run and s_T are computed on the {ctx.get('n_common_families', 'nan')} families complete for every O run, every teacher and r_0.", ""]
+              f"| **E2 primary** | pre-registered: per teacher, seed-mean delta_rho = rho(own) - max rho(other) > 0 with family-permutation Holm p < {ALPHA}; PASS >= 2/3 teachers, PARTIAL 1/3, FAIL 0/3 | {prim_val}; {n_prim}/{len(teachers)} pass | **{prim_verdict}** |",
+              f"| **E2 secondary** | pre-declared: D = diagonal - off-diagonal mean of the seed-pooled student x teacher partial-rho matrix given r_0, seen framings; family-bootstrap 95% CI excludes 0, family-permutation p < {ALPHA}, and the student-specific part D_specific (D = D_shared + D_specific) has a CI above 0 | D {_fmt(D.get('D'))} {_ci(D.get('ci_lo'), D.get('ci_hi'))}, p {_fmt(D.get('p_perm'))}; D_specific {_fmt(D.get('D_specific'))} {_ci(D.get('ci_specific_lo'), D.get('ci_specific_hi'))}, D_shared {_fmt(D.get('D_shared'))} ({D.get('n_families', 0)} families, {D.get('n_perm', 0)} perm / {D.get('n_boot', 0)} boot) | **{sec_verdict}** |", ""]
+    lines += reliability_lines(rel, ceilings, teachers, split)
+    lines += ["Conventions: family-permutation p = (count + 1) / (n + 1) (floor 1 / (n + 1)); CIs = 2.5 / 97.5 percentiles of the family bootstrap (families resampled jointly for students, "
+              "teachers and r_0); teacher-level exact p = share of the k! teacher relabellings (the observed one included) with statistic >= observed (floor 1 / k!); the run-level "
+              f"reassignment p (756,756 assignments for 3 x 5 runs) is pseudo-replicated and no longer a test. Suggestibility values are computed on the {ctx.get('n_common_families', 'nan')} families complete for every O run, every teacher and r_0.", ""]
 
+    # ---- descriptive table
+    lines += ["## Descriptive (no verdict)", ""]
+    te_grid = grid_p.get("teacher_exact", {}) if grid_p else {}
+    te_dose = dose.get("teacher_exact", {}) if dose else {}
+    bc = ctx["base_control"]
+    if len(bc):
+        top = bc.sort_values("rank").iloc[0]
+        bc_val = f"closest teacher {top['teacher']}: rho {_fmt(top['rho'])} {_ci(top['ci_lo'], top['ci_hi'])}, margin over the next {_fmt(top['margin'])} {_ci(top['margin_ci_lo'], top['margin_ci_hi'])} ({int(top['n_families'])} families)"
+        bc_note = "control holds (no teacher preferred before training)" if top["margin_ci_lo"] <= 0 else f"S_0 is systematically closest to {top['teacher']} before training: the confound the partial rho controls for"
+    else:
+        bc_val, bc_note = "nan", "pending (no base readout)"
+    po_p = pooled_p[pooled_p["version"] == "O"] if not pooled_p.empty else pooled_p
+    p3_val = "; ".join(f"{r['teacher']} {_fmt(r['delta_rho'])} {_ci(r['ci_lo'], r['ci_hi'])} p_holm {_fmt(r['p_holm'])}" for _, r in po_p.sort_values("teacher").iterrows()) if len(po_p) else "nan"
+    lines += ["| item | value | note |", "|---|---|---|",
+              f"| mean deltaRhoPartial over the O runs (r_0 = {ctx['base_name'] or 'absent'}) | {_fmt(grid_p.get('observed'))} | teacher-level exact p {_fmt(te_grid.get('p'))} (rank {te_grid.get('rank')} of {te_grid.get('n_assignments', 0)} relabellings, floor {_fmt(te_grid.get('floor'))}); the run-level null (mean {_fmt(grid_p.get('null_mean'))}, sd {_fmt(grid_p.get('null_sd'))}, p {_fmt(grid_p.get('p'))}, {grid_p.get('n_perm', 0)} assignments) is pseudo-replicated |",
+              f"| suggestibility dose-response: slope of s_run on own s_T | {_fmt(dose.get('slope'))} (pearson {_fmt(dose.get('pearson'))}, seed-noise sd {_fmt(dose.get('seed_noise_sd'))}, ordering preserved {dose.get('ordering_preserved')}) | teacher-level exact p {_fmt(te_dose.get('p'))} (rank {te_dose.get('rank')} of {te_dose.get('n_assignments', 0)}, floor {_fmt(te_dose.get('floor'))}); run-level p {_fmt(dose.get('p'))} is pseudo-replicated. Statement under test, descriptively: SFT replaces the base model's suggestibility with the training labels' framing-label association (see the group table) |",
+              f"| P3: per-teacher seed-mean deltaRhoPartial (partial given r_0), family permutation + Holm | {p3_val} | supportive only |",
+              f"| D on T0 only (unseen framing; r demeaned over T0 + seen) | {_fmt(D_t0.get('D'))} {_ci(D_t0.get('ci_lo'), D_t0.get('ci_hi'))}, p {_fmt(D_t0.get('p_perm'))} ({D_t0.get('n_families', 0)} families) | exploratory |",
+              f"| raw D (no r_0 control), seen framings | {_fmt(D_raw.get('D'))} {_ci(D_raw.get('ci_lo'), D_raw.get('ci_hi'))}, p {_fmt(D_raw.get('p_perm'))} | exploratory; the partial D above is the pre-declared one |",
+              f"| scale-free D (pooled row scale s_bar, shared part cancels exactly), seen framings, partial | {_fmt(D.get('D_scalefree'))} {_ci(D.get('ci_scalefree_lo'), D.get('ci_scalefree_hi'))} | exploratory alternative to the D_specific guard |",
+              f"| S_0 control (e2_plan: S_0's delta_rho ~ 0), ungated covariate profile | {bc_val} | {bc_note} |", ""]
+
+    # ---- E2 primary table
+    lines += ["## E2 primary: seed-mean profile per teacher, uncontrolled delta_rho with family permutation + Holm (inheritance_pooled.csv)", ""]
+    if len(po):
+        lines += _md_table(_with_ceiling(po.sort_values("teacher"), ceilings), ["teacher", "n_seeds", "n_families", "rho_own", "ceiling", "rho_over_ceiling", "rho_other_max", "other_argmax", "delta_rho", "ci_lo", "ci_hi", "p_perm", "perm_null_mean", "perm_null_sd", "p_holm", "passed"])
+        lines += ["The permutation null of delta_rho is not centred at 0 (the family permutation keeps each profile's variant main effects), so p_perm is read against perm_null_mean.", ""]
+        lines += ["Grid permutation of the pre-registration (random run -> teacher label shuffles; descriptive, pseudo-replicated):", ""]
+        lines += _kv_table(ctx["grid"], ["observed", "null_mean", "null_sd", "p", "method", "n_perm", "n_runs"])
+    else:
+        lines += ["pending: no O runs with a matching teacher profile yet", ""]
+
+    # ---- E2 secondary
+    lines += [f"## E2 secondary: D from the seed-pooled student x teacher partial-rho matrix given r_0 = {ctx['base_name'] or 'absent'}, seen framings (e2_secondary_D.json)", ""]
+    if D and D.get("matrix"):
+        lines += _kv_table(D, ["D", "ci_lo", "ci_hi", "p_perm", "null_mean", "null_sd", "D_raw", "n_families", "n_perm", "n_boot"])
+        lines += ["Decomposition D = D_shared + D_specific (E_k = Ebar + U_k: the mean student residual given r_0 interacting with unequal row scales |E_k| carries no own-teacher "
+                  "information; the secondary passes only if D_specific's CI is also above 0). D_scalefree divides every row by the pooled scale s_bar so the shared part cancels exactly (exploratory):", ""]
+        lines += _kv_table(D, ["D_shared", "D_specific", "ci_specific_lo", "ci_specific_hi", "p_perm_specific", "null_mean_specific", "null_sd_specific", "D_scalefree", "ci_scalefree_lo", "ci_scalefree_hi"])
+        lines += ["Row scales (sd of each pooled student's residual given r_0): " + ", ".join(f"{a} {_fmt(v)}" for a, v in D.get("row_scale", {}).items()) + ".", ""]
+        rows = []
+        teacher_of = {v["student"]: t for t, v in D["per_teacher"].items()}
+        for a, r in D["matrix"].items():
+            own_t = teacher_of.get(a)
+            pt = D["per_teacher"].get(own_t, {})
+            rows.append({"student": a, **{f"partial__{t}": v for t, v in r.items()}, "ceiling_own": ceilings.get(own_t, np.nan), "contrast": pt.get("contrast", np.nan), "contrast_specific": pt.get("contrast_specific", np.nan)})
+        lines += ["Partial-rho matrix (rows = seed-pooled students, columns = teachers; `contrast` = diagonal - mean off-diagonal of the row; last row = column ceilings):", ""]
+        lines += _md_table(_ceiling_row(pd.DataFrame(rows), ceilings, "partial__", "student"), ["student"] + [f"partial__{t}" for t in D["teachers"]] + ["ceiling_own", "contrast", "contrast_specific"])
+        rows = [{"student": a, **{f"specific__{t}": v for t, v in r.items()}} for a, r in D["matrix_specific"].items()]
+        lines += ["Student-specific part M_specific (U_k against the teachers; D_specific is its contrast):", ""] + _md_table(pd.DataFrame(rows), ["student"] + [f"specific__{t}" for t in D["teachers"]])
+        rows = [{"student": a, **{f"raw__{t}": v for t, v in r.items()}} for a, r in D["matrix_raw"].items()]
+        lines += ["Raw (non-partial) matrix on the same cells (last row = column ceilings):", ""] + _md_table(_ceiling_row(pd.DataFrame(rows), ceilings, "raw__", "student"), ["student"] + [f"raw__{t}" for t in D["teachers"]])
+        if D_t0 and D_t0.get("matrix"):
+            rows = [{"student": a, **{f"partial__{t}": v for t, v in r.items()}} for a, r in D_t0["matrix"].items()]
+            lines += ["T0-only matrix (exploratory; last row = column ceilings):", ""] + _md_table(_ceiling_row(pd.DataFrame(rows), ceilings, "partial__", "student"), ["student"] + [f"partial__{t}" for t in D_t0["teachers"]])
+    else:
+        lines += ["pending: no base run (version B) with a prior profile, or fewer than 2 teachers with O runs", ""]
+
+    # ---- suggestibility groups
+    lines += [f"## Suggestibility s = delta(T5) - delta(T6) per group, family-bootstrap 95% CI (suggestibility_groups.csv, suggestibility_group_pairs.csv; {ctx.get('n_common_families', 'nan')} common families)", ""]
+    sg, sgp = ctx["sugg_groups"], ctx["sugg_pairs"]
+    if len(sg):
+        lines += _md_table(sg, ["group", "n_profiles", "n_families", "s", "ci_lo", "ci_hi"])
+        lines += ["Pairwise differences (students of A - students of B; students - own teacher; students - base prior):", ""]
+        if len(sgp):
+            is_stud = sgp["a"].str.startswith("students:")
+            own_pair = pd.Series([_is_own_pair(a, b) for a, b in zip(sgp["a"], sgp["b"])], index=sgp.index)
+            keep = sgp[(is_stud & sgp["b"].str.startswith("students:")) | own_pair | (is_stud & sgp["b"].eq("base_prior"))]
+            lines += _md_table(keep, ["a", "b", "diff", "ci_lo", "ci_hi"])
+    else:
+        lines += ["pending", ""]
+    sug = ctx["sugg"]
+    other = sug[~sug["kind"].isin(["teacher"]) & ~((sug["kind"] == "run") & (sug["version"] == "O"))]
+    if len(other):
+        lines += ["Per profile: R runs and the base (prior profile without the mass gate, and the gated readout where it has complete families):", ""]
+        lines += _md_table(other, ["who", "kind", "delta_T5", "delta_T6", "s", "n_families"])
+    if dose.get("teachers"):
+        dt = pd.DataFrame([{"teacher": t, **v} for t, v in dose["teachers"].items()])
+        lines += ["Dose-response inputs per teacher (dose_response.json):", ""] + _md_table(dt, ["teacher", "s_teacher", "s_student_mean", "s_student_sd", "n_runs"])
+
+    # ---- E1 tables
     lines += ["## E1a: training-label reproduction (e1_train_reproduction.csv)", ""]
     if len(ctx["rep"]):
         lines += _md_table(ctx["rep"].sort_values(["teacher", "version", "seed"]), ["run_id", "n_rows", "answer_rate", "n_targets", "n_scored", "n_missing", "n_no_letter", "accuracy", "passed", "sft_source"])
@@ -245,42 +389,34 @@ def summary_md(ctx: dict) -> str:
     g["n_seeds"] = tab.groupby(["teacher", "version"]).size().values
     lines += ["### Seed means", ""] + _md_table(g, ["teacher", "version", "n_seeds"] + agg_cols)
 
-    lines += [f"## E2 P1: deltaRhoPartial per O run, base prior r_0 = {ctx['base_name'] or 'absent'} (inheritance_partial.csv, grid_permutation_partial.json)", ""]
+    # ---- per-run inheritance (descriptive)
+    lines += [f"## Per-run inheritance (descriptive): deltaRhoPartial given r_0 = {ctx['base_name'] or 'absent'} (inheritance_partial.csv) and uncontrolled delta_rho (inheritance.csv)", ""]
     if has_base:
         core = inh_p[inh_p["run_id"].map(lambda r: M.parse_run_id(r).version == "O")]
-        lines += _md_table(core.sort_values(["teacher", "run_id"]), ["run_id", "n_families", "rho_base", "rho_own", "rho_other_max", "other_argmax", "delta_rho", "p_perm", "ci_lo", "ci_hi"] + [f"rho__{t}" for t in teachers])
-        lines += ["Teacher-assignment null (runs reassigned to teachers, 5 per teacher):", ""]
-        lines += _kv_table(grid_p, ["observed", "null_mean", "null_sd", "p", "method", "n_perm", "n_runs"])
+        lines += _md_table(_ceiling_row(_with_ceiling(core.sort_values(["teacher", "run_id"]), ceilings), ceilings, "rho__", "run_id"), ["run_id", "n_families", "rho_base", "rho_own", "ceiling", "rho_other_max", "other_argmax", "delta_rho", "p_perm", "perm_null_mean", "ci_lo", "ci_hi"] + [f"rho__{t}" for t in teachers])
         gm = core.groupby("teacher")["delta_rho"].agg(["mean", "std", "count"]).reset_index()
         lines += ["Seed means of deltaRhoPartial per teacher:", ""] + _md_table(gm, ["teacher", "mean", "std", "count"])
+        lines += ["Teacher-level exact null of the mean deltaRhoPartial (k! relabellings; grid_permutation_partial.json `teacher_exact`):", ""]
+        lines += _kv_table(te_grid, ["observed", "p", "rank", "n_assignments", "floor"])
     else:
         lines += ["pending: no base run (version B) with a prior profile; evaluate S_0 on this split first", ""]
-
-    lines += [f"## E2 P2: suggestibility dose-response, s = delta(T5) - delta(T6) on the {ctx.get('n_common_families', 'nan')} common families (suggestibility_runs.csv, dose_response.json)", ""]
-    if dose.get("teachers"):
-        dt = pd.DataFrame([{"teacher": t, **v} for t, v in dose["teachers"].items()])
-        lines += _md_table(dt, ["teacher", "s_teacher", "s_student_mean", "s_student_sd", "n_runs"])
-        lines += _kv_table(dose, ["slope", "intercept", "pearson", "p", "method", "n_perm", "seed_noise_sd", "ordering_preserved"])
-    else:
-        lines += ["pending: fewer than 2 teachers with O runs", ""]
-    sug = ctx["sugg"]
-    other = sug[~sug["kind"].isin(["teacher"]) & ~((sug["kind"] == "run") & (sug["version"] == "O"))]
-    if len(other):
-        lines += ["Descriptive: R runs and the base (prior profile without the mass gate, and the gated readout where it has complete families):", ""]
-        lines += _md_table(other, ["who", "kind", "delta_T5", "delta_T6", "s", "n_families"])
-
-    lines += ["## E2 P3 (supportive): seed-mean profile per teacher, deltaRhoPartial with family permutation + Holm (inheritance_partial_pooled.csv)", ""]
-    if len(po):
-        lines += _md_table(po.sort_values("teacher"), ["teacher", "n_seeds", "n_families", "rho_base", "rho_own", "rho_other_max", "other_argmax", "delta_rho", "ci_lo", "ci_hi", "p_perm", "p_holm"])
-    else:
-        lines += ["pending", ""]
+    if "delta_rho" in tab and tab["delta_rho"].notna().any():
+        lines += ["Uncontrolled delta_rho per run (inheritance.csv):", ""]
+        lines += _md_table(_with_ceiling(tab.sort_values(["teacher", "version", "seed"]).dropna(subset=["delta_rho"]), ceilings), ["run_id", "rho_own", "ceiling", "rho_other_max", "other_argmax", "delta_rho", "p_perm", "perm_null_mean", "ci_lo", "ci_hi"])
     byv = ctx["inh_partial_by_variant"]
     if len(byv):
         bv = byv[byv["run_id"].map(lambda r: M.parse_run_id(r).version == "O")].groupby(["teacher", "variant"])["delta_rho"].agg(["mean", "std", "count"]).reset_index()
         lines += ["### deltaRhoPartial by variant (seed mean over O runs; T0 = unseen framing, r demeaned over T0 + seen variants; inheritance_partial_by_variant.csv)", ""]
         lines += _md_table(bv, ["teacher", "variant", "mean", "std", "count"])
+    if len(po_p):
+        lines += ["### P3: seed-mean profile per teacher, deltaRhoPartial with family permutation + Holm (inheritance_partial_pooled.csv)", ""]
+        lines += _md_table(_with_ceiling(po_p.sort_values("teacher"), ceilings), ["teacher", "n_seeds", "n_families", "rho_base", "rho_own", "ceiling", "rho_other_max", "other_argmax", "delta_rho", "ci_lo", "ci_hi", "p_perm", "perm_null_mean", "p_holm"])
+    if len(bc):
+        lines += ["### S_0 control row: ungated covariate profile vs every teacher (base_control.csv)", ""]
+        lines += _md_table(_with_ceiling(bc, ceilings, rho_col="rho"), ["who", "profile", "teacher", "n_families", "rho", "ceiling", "ci_lo", "ci_hi", "rank", "margin", "margin_ci_lo", "margin_ci_hi"])
 
-    lines += ["## Pre-revision rule (original pre-registration; failed on dev 2026-10-04 and replaced 2026-10-05; kept for transparency)", ""]
+    # ---- disclosure of superseded rule versions
+    lines += ["## Pre-revision rule versions (disclosure; none of these is the verdict)", ""]
     lines += ["### E1 (old): every O seed agree_own > agree_other_max", ""]
     core = tab[tab["version"] == "O"].dropna(subset=["agree_own"])
     if core.empty:
@@ -289,29 +425,23 @@ def summary_md(ctx: dict) -> str:
         ok = int((gt["agree_own"] > gt["agree_other_max"]).sum())
         lines.append(f"- {t}: {ok}/{len(gt)} seeds pass -> {'ok' if ok == len(gt) else ('partial' if ok else 'fail')} (old rule, not the verdict)")
     lines.append("")
-    lines += ["### E2 (old): uncontrolled pooled delta_rho = rho(own) - max rho(other), Holm over teachers (inheritance_pooled.csv, grid_permutation.json)", ""]
-    pooled = ctx["pooled"]
-    po_old = pooled[pooled["version"] == "O"] if pooled is not None and not pooled.empty else pd.DataFrame()
-    if len(po_old):
-        n_pass = 0
-        for _, r in po_old.sort_values("teacher").iterrows():
-            passed = bool(r["delta_rho"] > 0 and r["p_holm"] < ALPHA)
-            n_pass += int(passed)
-            lines.append(f"- {r['teacher']} ({r['n_seeds']} seeds pooled, {r['n_families']} families): delta_rho {_fmt(r['delta_rho'])} "
-                         f"[{_fmt(r['ci_lo'])}, {_fmt(r['ci_hi'])}], p_perm {_fmt(r['p_perm'])}, p_holm {_fmt(r['p_holm'])} -> {'pass' if passed else 'fail'}")
-        lines.append(f"- teachers passing: {n_pass}/{len(teachers)} -> old rule: E2 {'PASS' if n_pass * 3 >= 2 * max(len(teachers), 1) else 'FAIL'} (not the verdict)")
-        lines += ["", "Uncontrolled grid permutation (random label shuffles, as pre-registered):", ""]
-        lines += _kv_table(ctx["grid"], ["observed", "null_mean", "null_sd", "p", "method", "n_perm", "n_runs"])
-        lines += _md_table(tab.sort_values(["teacher", "version", "seed"]).dropna(subset=["delta_rho"]), ["run_id", "rho_own", "rho_other_max", "other_argmax", "delta_rho", "p_perm", "ci_lo", "ci_hi"])
-    else:
-        lines += ["no O runs with a matching teacher profile yet", ""]
+    lines += ["### E2 run-level permutations P1 / P2 (frozen in c2c9d96, withdrawn the same day: pseudo-replicated, kept as numbers only)", ""]
+    lines += [f"- P1 mean deltaRhoPartial {_fmt(grid_p.get('observed'))} vs run-reassignment null mean {_fmt(grid_p.get('null_mean'))} sd {_fmt(grid_p.get('null_sd'))}, p {_fmt(grid_p.get('p'))} ({grid_p.get('method', 'none')}, {grid_p.get('n_perm', 0)} assignments) -> not a test; teacher-level exact p {_fmt(te_grid.get('p'))}",
+              f"- P2 slope {_fmt(dose.get('slope'))}, run-reassignment p {_fmt(dose.get('p'))} ({dose.get('method', 'none')}, {dose.get('n_perm', 0)} assignments) -> not a test; teacher-level exact p {_fmt(te_dose.get('p'))}", ""]
+    lines += ["### E2 secondary D without the decomposition guard (version 4 of the rule, superseded before the freeze commit)", ""]
+    lines += [f"- D {_fmt(D.get('D'))} {_ci(D.get('ci_lo'), D.get('ci_hi'))} p {_fmt(D.get('p_perm'))} alone would read {'pass' if D and not np.isnan(D.get('ci_lo', np.nan)) and D['D'] > 0 and D['ci_lo'] > 0 and D['p_perm'] < ALPHA else 'fail / pending'}; "
+              f"the frozen rule (version 5) also needs D_specific {_fmt(D.get('D_specific'))} {_ci(D.get('ci_specific_lo'), D.get('ci_specific_hi'))} above 0 -> {sec_verdict}", ""]
 
     lines += ["## Seed-noise null: |metric(seed a) - metric(seed b)| within (teacher, version)", ""]
     lines += _md_table(null, ["metric", "teacher", "version", "n_pairs", "mean", "sd", "q95"])
     lines += ["Notes: R students are random-label controls; their consistency is reported only next to agreement / JSD. ",
               "Teachers' own cross-framing consistency is in consistency.csv (rows with a teacher name instead of a run id). ",
-              "The base prior profile r_0 bypasses the 0.9 answer-mass gate ONLY as a covariate; S_0's answers are still read out with the gate."]
+              "The base prior profile r_0 bypasses the 0.9 answer-mass gate ONLY as a covariate and for the S_0 control row; S_0's answers are still read out with the gate."]
     return "\n".join(lines)
+
+
+def _is_own_pair(a: str, b: str) -> bool:
+    return a.startswith("students:") and b == "teacher:" + a[len("students:") :]
 
 
 # --------------------------------------------------------------------------- main
@@ -330,11 +460,12 @@ def main() -> None:
     ap.add_argument("--prompts-train", default=None, help="train prompts for E1a / E1b; default: config paths.prompts_train")
     ap.add_argument("--sft-dir", default=None, help="SFT files for E1a / E1b targets; default: config paths.sft_dir (O files absent there are rebuilt from the train demos)")
     ap.add_argument("--variants", default=None, help="comma list of framings for the metrics (default: config data.variants = T1,T3,T5,T6)")
+    ap.add_argument("--reliability", default=None, help="teacher order split-half reliability r for this split, 'gpt4o=0.69,claude46=0.33' (default: docs/E0_results §13 values for dev / test); the printed ceiling is sqrt(2r / (1 + r))")
     ap.add_argument("--config", default="configs/train.yaml")
     ap.add_argument("--out", default="results/e1")
     ap.add_argument("--n-perm", type=int, default=10_000)
     ap.add_argument("--n-boot", type=int, default=10_000)
-    ap.add_argument("--exact-max", type=int, default=1_000_000, help="enumerate every teacher assignment for P1 / P2 when there are at most this many (0 = random n_perm)")
+    ap.add_argument("--exact-max", type=int, default=1_000_000, help="enumerate every run -> teacher assignment for the descriptive P1 / P2 numbers when there are at most this many (0 = random n_perm)")
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
 
@@ -345,6 +476,8 @@ def main() -> None:
     prompts = M.load_prompts(resolve(args.prompts) if args.prompts else cfg["paths"][f"prompts_{args.split}"])
     pid = set(prompts)
     student = args.student or cfg["student_model_short"]
+    reliability = {k: float(v) for k, v in (kv.split("=", 1) for kv in args.reliability.split(","))} if args.reliability else dict(RELIABILITY.get(args.split, {}))
+    ceilings = {t: M.reliability_ceiling(r) for t, r in reliability.items()}  # sqrt(2r / (1 + r)); the raw r stays the E0 gate quantity
 
     # students
     if args.runs_glob:
@@ -390,7 +523,7 @@ def main() -> None:
     tab = M.e1_table(fs, ft, prompts, variants, n_perm=args.n_perm, n_boot=args.n_boot, seed=args.seed)
     tab.to_csv(out / "e1_table.csv", index=False)
 
-    # pre-revision inheritance (uncontrolled), kept for transparency
+    # E2 primary (pre-registered, uncontrolled): per run, per variant, seed-mean per teacher with Holm
     shifts_s, shifts_t = P.framing_shifts(sym_s, variants), P.framing_shifts(sym_t, variants)
     own = {r: M.parse_run_id(r).teacher for r in sym_s["teacher"].unique() if M.is_run_id(r)}
     inh = M.inheritance(shifts_s, shifts_t, own, variants, n_perm=args.n_perm, n_boot=args.n_boot, seed=args.seed)
@@ -403,7 +536,7 @@ def main() -> None:
     grid = M.grid_permutation(core, n_perm=args.n_perm, seed=args.seed) if len(core) else {}
     (out / "grid_permutation.json").write_text(json.dumps(grid, indent=2), encoding="utf-8")
 
-    # revised E2: base prior covariate r_0 (no mass gate), partial correlations
+    # base prior covariate r_0 (no mass gate): partial correlations (descriptive P1 / P3) and the S_0 control row
     base_runs = sorted(r for r in {x.teacher for x in student_rows} if M.is_run_id(r) and M.parse_run_id(r).version == "B")
     base_name: Optional[str] = None
     shifts_0 = pd.DataFrame(columns=["teacher", "family_id", "variant", "p", "r"])
@@ -416,6 +549,10 @@ def main() -> None:
         print(f"base prior profile {base_name}: {shifts_0['family_id'].nunique()} complete families without the mass gate")
     empty_p = pd.DataFrame(columns=list(inh.columns) + ["control", "rho_base"])
     inh_p, inh_p_byv, pooled_p, grid_p = empty_p, empty_p, pd.DataFrame(columns=list(pooled.columns) + ["control", "rho_base"]), {}
+    o_runs = sorted(r for r in own if is_o(r))
+    pooled_by_t = {t: M.pooled_shifts(shifts_s, [r for r in o_runs if own[r] == t], f"{student}.{t}_O_pooled") for t in present if any(own[r] == t for r in o_runs)}
+    D, D_t0, D_raw = {}, {}, {}
+    base_control = pd.DataFrame()
     if not shifts_0.empty:
         inh_p = M.inheritance_partial(shifts_s, shifts_t, shifts_0, own, variants, n_perm=args.n_perm, n_boot=args.n_boot, seed=args.seed)
         inh_p_byv = M.inheritance_partial(shifts_s, shifts_t, shifts_0, own, variants, n_perm=0, n_boot=0, by_variant=True)
@@ -426,18 +563,29 @@ def main() -> None:
             if not z0.empty and not s0.empty and not t0.empty:
                 u = M.inheritance_partial(s0, t0, z0, own, v0, n_perm=0, n_boot=0, by_variant=True)
                 inh_p_byv = pd.concat([inh_p_byv, u[u["variant"] == "T0"]], ignore_index=True)
+                pooled_t0 = {t: M.pooled_shifts(s0, [r for r in o_runs if own[r] == t], f"{student}.{t}_O_pooled") for t in pooled_by_t}
+                D_t0 = M.joint_partial_D(pooled_t0, t0, z0, v0, cells=["T0"], n_perm=args.n_perm, n_boot=args.n_boot, seed=args.seed)
         pooled_p = M.pooled_inheritance_partial(shifts_s, shifts_t, shifts_0, own, variants, n_perm=args.n_perm, n_boot=args.n_boot, seed=args.seed)
         core_p = inh_p[inh_p["run_id"].map(is_o)] if not inh_p.empty else inh_p
         grid_p = M.grid_permutation_partial(core_p, n_perm=args.n_perm, seed=args.seed, exact_max=args.exact_max) if len(core_p) else {}
+        if len(pooled_by_t) >= 2:
+            D = M.joint_partial_D(pooled_by_t, shifts_t, shifts_0, variants, n_perm=args.n_perm, n_boot=args.n_boot, seed=args.seed)
+            D_raw = M.joint_partial_D(pooled_by_t, shifts_t, None, variants, n_perm=args.n_perm, n_boot=args.n_boot, seed=args.seed)
+        base_control = M.base_prior_control(shifts_0, shifts_t, variants, n_boot=args.n_boot, seed=args.seed)
     inh_p.to_csv(out / "inheritance_partial.csv", index=False)
     inh_p_byv.to_csv(out / "inheritance_partial_by_variant.csv", index=False)
     pooled_p.to_csv(out / "inheritance_partial_pooled.csv", index=False)
     (out / "grid_permutation_partial.json").write_text(json.dumps(grid_p, indent=2), encoding="utf-8")
+    base_control.to_csv(out / "base_control.csv", index=False)
+    _dump = lambda x: x.item() if isinstance(x, np.generic) else (None if isinstance(x, float) and np.isnan(x) else str(x))  # noqa: E731  (json default)
+    (out / "e2_secondary_D.json").write_text(json.dumps({"seen_partial": D, "T0_partial": D_t0, "seen_raw": D_raw, "verdict": e2_secondary(D), "alpha": ALPHA,
+                                                         "rule": "pre-declared secondary: D > 0, family-bootstrap 95% CI of D excludes 0, family-permutation p < alpha, and the student-specific part D_specific (D = D_shared + D_specific) has a family-bootstrap CI above 0 (seen framings, partial given r_0)",
+                                                         "reliability_split_half_r": reliability, "ceiling_sqrt_spearman_brown": ceilings},
+                                                        indent=2, default=_dump), encoding="utf-8")
 
-    # revised E2 P2: suggestibility dose-response on ONE family set: complete for every O run, every teacher and r_0
-    o_runs = sorted(r for r in own if M.parse_run_id(r).version == "O")
+    # suggestibility (descriptive): per profile on ONE family set (complete for every O run, every teacher and r_0), per group with CIs
     fam_common = M.complete_families(pd.concat([shifts_s, shifts_t, shifts_0]), [*o_runs, *present] + ([base_name] if not shifts_0.empty else []), variants) if o_runs else []
-    print(f"P2 family set: {len(fam_common)} families complete for {len(o_runs)} O runs, {len(present)} teachers and r_0")
+    print(f"suggestibility family set: {len(fam_common)} families complete for {len(o_runs)} O runs, {len(present)} teachers and r_0")
     sug_t = M.suggestibility_by_run(shifts_t, families=fam_common).assign(kind="teacher", teacher=lambda d: d["who"], version="", seed=np.nan)
     sug_s = M.suggestibility_by_run(shifts_s, families=fam_common)
     keys = M.run_keys_table(sug_s["who"]).set_index("run_id") if len(sug_s) else pd.DataFrame(columns=["teacher", "version", "seed"])
@@ -452,7 +600,19 @@ def main() -> None:
     dose["descriptive"] = {"R_runs": {r: float(s) for r, s, v in zip(sug_s["who"], sug_s["s"], sug_s["version"]) if v == "R"},
                            "base_gated": {r: float(s) for r, s, v in zip(sug_s["who"], sug_s["s"], sug_s["version"]) if v == "B"},
                            "base_prior": {r: float(s) for r, s in zip(sug_0["who"], sug_0["s"])}}
-    (out / "dose_response.json").write_text(json.dumps(dose, indent=2, default=lambda x: None if isinstance(x, float) and np.isnan(x) else x), encoding="utf-8")
+    (out / "dose_response.json").write_text(json.dumps(dose, indent=2, default=_dump), encoding="utf-8")
+    groups = {f"students:{t}": [r for r in o_runs if own[r] == t] for t in present if any(own[r] == t for r in o_runs)}
+    groups |= {f"teacher:{t}": [t] for t in present}
+    r_runs = sorted(r for r in own if M.parse_run_id(r).version == "R")
+    if r_runs:
+        groups["students:R"] = r_runs
+    prior_name = f"{base_name}:prior" if base_name else None
+    shifts_prior = shifts_0.assign(teacher=prior_name) if not shifts_0.empty else shifts_0
+    if base_name:
+        groups["base_prior"] = [prior_name]
+    sugg_groups, sugg_pairs = M.suggestibility_groups(pd.concat([shifts_s, shifts_t, shifts_prior]), groups, families=fam_common, n_boot=args.n_boot, seed=args.seed)
+    sugg_groups.to_csv(out / "suggestibility_groups.csv", index=False)
+    sugg_pairs.to_csv(out / "suggestibility_group_pairs.csv", index=False)
 
     # revised E1: training-label reproduction and contested items
     prompts_train = M.load_prompts(resolve(args.prompts_train) if args.prompts_train else cfg["paths"]["prompts_train"]) if train_rows else {}
@@ -474,6 +634,7 @@ def main() -> None:
 
     ctx = dict(tab=tab, null=null, grid=grid, teachers=present, split=args.split, variants=variants, pooled=pooled, cat_rates=cat_rates, n_student_rows=len(student_rows),
                base_name=base_name, inh_partial=inh_p, inh_partial_by_variant=inh_p_byv, pooled_partial=pooled_p, grid_partial=grid_p, dose=dose, sugg=sugg,
+               sugg_groups=sugg_groups, sugg_pairs=sugg_pairs, D=D, D_t0=D_t0, D_raw=D_raw, base_control=base_control, ceilings=ceilings, reliability=reliability,
                rep=rep, con=con, e1_states=e1_states, n_common_families=len(fam_common))
     (out / "summary.md").write_text(summary_md(ctx), encoding="utf-8")
     print(f"wrote {len(list(out.glob('*.csv')))} CSVs + summary.md to {out}")

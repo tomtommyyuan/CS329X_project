@@ -236,7 +236,8 @@ def seen_vs_unseen(sym, seen=("T1","T3","T5","T6"), unseen="T0") -> pd.DataFrame
 def inheritance(shifts_s: pd.DataFrame, shifts_t: pd.DataFrame, own: dict[str, str], n_perm=10_000, n_boot=10_000, seed=0, by_variant=False, control=None) -> pd.DataFrame
     # 每个 run：rho_own, rho_other (每个 other teacher 一列或长表), rho_other_max, other_argmax, delta_rho = rho_own - rho_other_max,
     # rho 用 Pearson（另给 spearman 列），对齐在 (family, variant) 交集上；r 已是 family 内去均值（framing_shifts 保证）
-    # p_perm：打乱该 run 的 family 标签（整 family 置换，variant 结构保留）n_perm 次重算 delta_rho，p = (count(perm >= observed) + 1) / (n_perm + 1)（下限 1 / (n_perm + 1)）
+    # p_perm：打乱该 run 的 family 标签（整 family 置换，variant 结构保留）n_perm 次重算 delta_rho，p = (count(perm >= observed) + 1) / (n_perm + 1)（下限 1 / (n_perm + 1)）；
+    #   perm_null_mean / perm_null_sd 描述这个 null——它不以 0 为中心（置换保留各 profile 的 variant 主效应），所以 p_perm 旁边一定印 null 均值
     # ci：family bootstrap n_boot 次的 2.5 / 97.5 分位
     # control=<一张只含 r_0 的 shifts 表>：所有 rho 换成给定 r_0 的 partial Pearson（两边先对 [1, r_0] 回归取残差），family 还要对 control 完整，
     #   多出 control（名字）、rho_base（学生与 r_0 的 raw Pearson）两列；置换只打乱学生的 family，teacher 与 r_0 不动；bootstrap 三方联动重抽
@@ -257,6 +258,24 @@ def dose_response(s_runs: dict, s_teachers: dict, own: dict, n_perm=10_000, seed
     # s_run 与 s_T 由 13 在同一 family 集上算：对每个 O run、每个 teacher 和 r_0 都完整的 family（`complete_families`；dev 139 个），不是各自的完整集
     # p 约定：exact = 全部不同指派中（含观测指派）统计量 ≥ 观测的占比（下限 1/756,756）；random = (count + 1) / (n + 1)
     # 另给每 teacher 的学生 s 均值 / sd、pooled 组内 sd（seed_noise_sd）、学生均值排序是否等于 teacher 排序（ordering_preserved）
+# 2026-10-05 更正（family 作推断单位；P1 / P2 的 run-level p 伪复制，只作描述）
+def e2_primary_verdict(n_pass, n_teachers) -> str                                       # "PASS"（≥ 2/3）/ "PARTIAL"（≥ 1）/ "FAIL"（0）
+def teacher_assignments(k) -> np.ndarray                                                  # k! 种 teacher 重标号（恒等在首行）
+def teacher_level_exact_p(table) -> dict                                                  # inheritance(_partial) 表的 mean Δρ 对 k! 重标号的精确 p（observed, p, rank, n_assignments, floor=1/k!, null）；dose_response / grid_permutation_partial 的结果里也各带一个 teacher_exact
+def joint_partial_D(shifts_students_pooled_by_teacher: dict[str, DataFrame], shifts_teachers, control, variants, cells=None, n_perm, n_boot, seed) -> dict
+    # 次级统计量 D：M[k, j] = partial ρ(r_{S_k}, r_{T_j} | r_0)（control=None 则 raw），S_k = teacher k 的 seed-mean 学生（pooled_shifts）；D = mean_k [M[k,k] − mean_{j≠k} M[k,j]]
+    # cells 限定进相关的 variant 子集（T0-only：variants = T0 + seen，cells = ["T0"]）；family 对所有学生、teacher、r_0 完整
+    # ci：family bootstrap（三方联动）；p_perm：对学生的**残差**（给定 r_0）做同一个 family 置换，teacher 与 r_0 不动，(count + 1) / (n + 1)（偏相关用的就是残差；dev 上置换原始 profile 的 null 不可区分，sd 0.020 vs 0.022）
+    # 分解 D = D_shared + D_specific（E_k = Ē + U_k；D_shared = 共享学生残差 × 行尺度 ‖E_k‖ 不等，不含 own-teacher 信息，行尺度相等时精确抵消）；D_specific 自带 ci_specific_lo / hi 与 p_perm_specific；
+    #   D_scalefree = 每行除以 pooled 尺度 s̄（shared 部分精确抵消）+ ci_scalefree_*，探索
+    # 返回 D, D_raw, D_shared, D_specific, D_scalefree, ci_*, p_perm(_specific), null_mean(_specific), null_sd(_specific), row_scale, matrix, matrix_raw, matrix_shared, matrix_specific,
+    #   per_teacher（每行 contrast 与 contrast_specific）, n_families, cells, control
+def e2_secondary_verdict(d: dict, alpha=0.05) -> str                                   # "pass" 当 D > 0、ci_lo > 0、p_perm < alpha 且 ci_specific_lo > 0；缺 D 或缺重抽样 → "pending (...)"；否则 "fail"
+def reliability_ceiling(split_half_r: float) -> float                                    # sqrt(2r / (1 + r))：symmetrized profile 的 Spearman-Brown 可靠度开方 = 任何变量与它的相关上限（test Claude 0.329 → 0.704，DeepSeek 0.466 → 0.797，GPT-4o 0.691 → 0.904）；r ≤ 0 → nan
+def suggestibility_groups(shifts, groups: dict[str, list[str]], families, pos, neg, n_boot, seed) -> (DataFrame, DataFrame)
+    # 每组（某 teacher 的 5 个 O run、某 teacher 自己、R run、base prior）的 s = δ(T5) − δ(T6) 与 family-bootstrap CI；第二张表是全部两两差及 CI（同一重抽样，配对）
+def base_prior_control(shifts_0, shifts_t, variants, n_boot, seed) -> DataFrame
+    # e2_plan 的 S_0 控制行，用 ungated covariate profile r_0：对每个 teacher 的 raw ρ 与 CI、rank、margin = ρ − max ρ(other) 与 CI；最近 teacher 的 margin CI 含 0 → 控制成立
 def letters_of(rows) -> dict[str, str | None]                                            # prompt_id → argmax letter
 def train_reproduction(letters: dict, targets: dict) -> dict                             # E1a：n_targets, n_scored, n_missing, n_no_letter, n_match, accuracy
 def contested_items(own_targets, other_targets) -> list[str]                            # 两 teacher 标签不同的训练 prompt_id（同一 prompt_id，故同一 order）
@@ -274,26 +293,28 @@ def shared_component_r2(shifts_s, shifts_t, own: str, others: list[str]) -> floa
 |---|---|
 | `category_rates.csv`、`order_gap.csv`、`agreement.csv`（+ `_by_variant`）、`jsd.csv`、`consistency.csv`、`seen_vs_unseen.csv`、`e1_table.csv`、`seed_null.csv` | 描述性 E1（agreement / JSD / 一致性）；JSD 标注为受 teacher 校准混淆 |
 | `e1_train_reproduction.csv`、`e1_contested.csv` | E1a / E1b；需要 `eval/train_responses.jsonl` 与 SFT 文件（`--sft-dir`；O 文件缺失时从 `{teacher}_train_demo.jsonl` 用 `select_demo_targets` 重建） |
-| `inheritance_partial.csv`、`inheritance_partial_by_variant.csv`（含 T0 行：r 在 T0 + 四个 seen variant 上去均值，只取 T0 cell）、`inheritance_partial_pooled.csv`、`grid_permutation_partial.json` | E2 修订版：ΔρPartial 每 run、按 variant、seed-mean（P3）、teacher 归属枚举（P1） |
-| `suggestibility_runs.csv`、`dose_response.json` | P2：每个 teacher / run / base 的 s；回归与 p；`descriptive` 里 R run、gated base、base prior 的 s |
-| `inheritance.csv`、`inheritance_by_variant.csv`、`inheritance_pooled.csv`、`grid_permutation.json` | 原规则（uncontrolled Δρ），只作透明度 |
-| `summary.md` | 全部表 + 判定；区分"没有 run"、"有 run 但全部 malformed"、"pending" |
+| `inheritance_pooled.csv` | **E2 primary**：每 teacher seed-mean 的 uncontrolled Δρ、family permutation p 与 `perm_null_mean` / `perm_null_sd`、Holm p、`passed` |
+| `e2_secondary_D.json` | **E2 secondary**：`seen_partial`（判定用）、`T0_partial`、`seen_raw`（探索）各含 D、D_shared / D_specific / D_scalefree、CI、p、四张矩阵、`row_scale`；`verdict`、`rule`、`reliability_split_half_r`、`ceiling_sqrt_spearman_brown` |
+| `inheritance.csv`、`inheritance_by_variant.csv`、`grid_permutation.json` | 每 run / 按 variant 的 uncontrolled Δρ；原预注册的随机归属 grid permutation（描述） |
+| `inheritance_partial.csv`、`inheritance_partial_by_variant.csv`（含 T0 行）、`inheritance_partial_pooled.csv`、`grid_permutation_partial.json` | 描述：ΔρPartial 每 run、按 variant、seed-mean（P3）；run-level 归属枚举（P1 数字）+ `teacher_exact` |
+| `suggestibility_runs.csv`、`suggestibility_groups.csv`、`suggestibility_group_pairs.csv`、`dose_response.json` | 描述：每 profile / 每组的 s 与 CI、两两差；剂量反应 slope（P2 数字）+ `teacher_exact` |
+| `base_control.csv` | S_0 控制行（ungated covariate profile 对每个 teacher 的 ρ、margin 与 CI） |
+| `summary.md` | Verdicts、Reliability ceilings 段、Descriptive 表、全部表、"Pre-revision rule versions" 披露节；区分"没有 run"、"有 run 但全部 malformed"、"pending" |
 
-**决策规则（2026-10-05 在 dev 上冻结，test 只评一次；替换 2026-10-04 在 dev 上未过的原规则）**：
+**决策规则（2026-10-05 在 dev 上冻结并于同日更正，test 只评一次）**：
 
 | 判定 | 规则 | pending 条件 |
 |---|---|---|
-| E1a | 每个 O run 在自己的训练 prompt 上 argmax 字母 = SFT 目标字母的比例 ≥ 0.95，且 `n_missing == 0`（每个 SFT prompt 都读出，部分 readout 不算过）；`answer_rate`（质量 ≥ 0.9 的行占比）同表报，不进门 | 任一 teacher 的 O run 无 `train_responses.jsonl` 或无 SFT 目标 → E1a、E1b、E1 三行都 `pending`，不出单行 pass |
-| E1b | 对每个 other teacher：争议训练项（own 与 other 标签不同）上，5 seed 合并后学生给 own 字母的比例，family-bootstrap 95% CI 下界 > 0.5 | 同上 |
+| E1a | 每个 O run 在自己的训练 prompt 上 argmax 字母 = SFT 目标字母的比例 ≥ 0.95，且 `n_missing == 0`；`answer_rate` 同表报，不进门 | 任一 teacher 的 O run 无 `train_responses.jsonl` 或无 SFT 目标 → E1a、E1b、E1 三行都 `pending` |
+| E1b | 对每个 other teacher：争议训练项上 5 seed 合并后学生给 own 字母的比例，family-bootstrap 95% CI 下界 > 0.5 | 同上 |
 | **E1** | 三个 teacher 的 E1a 与 E1b 都过 | 任一 pending → `pending (...)` |
-| P1 | 15 个 O run 的 mean ΔρPartial（r_0 = base 先验 profile，无 0.9 门）对 run → teacher 重指派 null（全部 756,756 种），p < 0.05 | 没有 B run |
-| P2 | s_run = δ(T5) − δ(T6) 对自己 teacher 的 s_T 回归，slope > 0 且同一 null 的 p < 0.05；两边都在对全部 O run、teacher、r_0 完整的公共 family 集上算 | O run 的 teacher 少于 2 个 |
-| P3（supportive，不进判定） | 每 teacher seed-mean 的 ΔρPartial > 0 的 teacher ≥ 2/3（Holm p 一并报） | — |
-| **E2** | P1 与 P2 都 p < 0.05（含义：teacher 归属能预测学生 profile 与 suggestibility，超出基座先验；不等于每个学生都离自己 teacher 最近，P3 的逐 teacher 行要并排报） | 任一 pending |
+| **E2 primary** | 原预注册规则：每 teacher seed-mean 的 uncontrolled Δρ = ρ(own) − max ρ(other) > 0 且 family permutation（10,000）Holm p < 0.05；≥ 2/3 teacher → **PASS**，恰 1/3 → **PARTIAL**，0/3 → **FAIL** | 没有 pooled O profile |
+| **E2 secondary** | 预先声明：D（见过的 framing、给定 r_0 的偏相关）> 0、family bootstrap 95% CI 不含 0 且 family permutation p < 0.05，**且** D_specific（D = D_shared + D_specific）的 family bootstrap CI 下界 > 0 → pass，否则 fail（`e2_secondary_verdict`） | 没有 B run（r_0）或 O run 的 teacher < 2 |
+| 描述（无判定） | run-level mean ΔρPartial 与 slope + teacher 层面精确 p（6 种重标号，下限 1/6；run-level 756,756 枚举的 p 伪复制，不是检验）；P3；T0-only D、raw D 与 D_scalefree；各组 suggestibility 与两两差（检验的说法："SFT 用训练标签里的 framing–标签关联替换了基座的 suggestibility"）；S_0 控制行 | — |
 
-split ≠ test 时 summary 的 Verdicts 表下自动加一行：该 split 是选规则的 split，判定只是描述性，PASS 由构造保证；只有 `results/e1`（test）是确认性的。summary 还印一行 Conventions（exact / random p、percentile CI、P2 的公共 family 数）。
+每个 ρ_own 旁印上限 `reliability_ceiling(r)` = sqrt(2r / (1 + r))（r = teacher 的顺序 split-half 可靠度，`RELIABILITY`，docs/E0_results §13；`--reliability` 给 r，可覆盖）与 ρ / 上限，每张矩阵 / 每 run 表的 teacher 列下加一行列上限；r 本身不是上界（dev 上 r_0 与 DeepSeek 的 ρ 0.533 > r 0.515）。E0 门槛看 r：test 侧 ≥ 2 个 teacher 的 r < 0.5 时自动印 docs/03 §1 原文（"RQ1 / E2 / E7 降为 exploratory，主线改为 E2b / E3 / E4 / E5"，本项目做其中的 E3）。split ≠ test 时 Verdicts 表下自动加一行：该 split 是选规则的 split，判定只是描述性；只有 `results/e1`（test）是确认性的。summary 还印 Conventions（family permutation / bootstrap / teacher 层面精确 p 的约定、公共 family 数）。
 
-原规则（一行，留档）：E1 = 每个 O seed `agree_own > agree_other_max`；E2 = seed-mean 的 uncontrolled Δρ > 0 且 Holm p < 0.05 的 teacher ≥ 2/3。dev 上 E1 gpt4o 2/5、claude46 4/5；E2 0/3；原因见 `results/e1_dev_diag/README.md`（teacher 共识 83–89%、JSD 受校准混淆、基座先验像 DeepSeek）。summary 的 "Pre-revision rule" 节仍按原格式输出。
+规则版本（全部留档，e2_plan §2 有完整披露）：原 E1 = 每个 O seed `agree_own > agree_other_max`（dev gpt4o 2/5、claude46 4/5）；c2c9d96 的 P1 / P2 run-level 置换（同日撤回，伪复制）；不带 D_specific 守门的 secondary D（版本 4，冻结前被版本 5 取代）；summary 的 "Pre-revision rule versions" 节印旧 E1 规则、P1 / P2 的数字与版本 4 的单看 D 读数。
 
 随机标签学生 R 的 agreement / JSD 与 O 学生同表列出，一致性永不单独报；R 与 S_0 不进 P1 / P2 统计，只在表里描述。
 
