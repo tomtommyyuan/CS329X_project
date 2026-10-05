@@ -148,3 +148,20 @@ E2 在 dev 上（只作参考，判定在 test）：pooled Δρ claude46 −0.11
 - E2 的冻结点：dev 分析用的 13 / e1_metrics 版本是 36f5e1e。若 Mac 侧确认照现规则进 test，就以此为冻结点；若选 (b)，冻结点是改完后的 commit。
 
 BLOCKED: E1 决策规则在 dev 未过（gpt4o 2/5、claude46 4/5 seed 通过），按 e1_plan 不进 test / E2；训练已核实无误，等 Mac 侧在上面三个选项里决定。checkpoint 全部保留（136 GB）。
+
+### 2026-10-05 dev readout 按 Mac 决定改 fp32 重跑
+
+Mac 侧在 7dc06f6（2026-10-04 23:00）把 `readout.dtype` 改成 float32，早于任何 dev 分析；我在 00e5c77 提交时才 rebase 到它，所以上一段的 dev 数字是 bf16 readout 算的。现已全部改用 fp32 重跑：19 个 dev readout（`OVERWRITE=1`，S_0 用 `EXTRA_ARGS=--overwrite`）、`results/e1_dev`、`results/e1_dev_diag`。bf16 版本只留在 git 历史（00e5c77）。`12_eval_student.py` 的 readout summary 现在记录 `dtype` 与 `batch_size`（加了测试）。
+
+| 量 | bf16（00e5c77） | fp32（现行） |
+|---|---|---|
+| E1 每 seed 通过 | claude46 4/5、deepseek_v4 5/5、gpt4o 2/5 | 相同，通过 / 未过的 seed 也相同 |
+| agree_own seed 均值 gpt4o / claude46 / deepseek_v4 | 0.855 / 0.846 / 0.843 | 0.856 / 0.846 / 0.844 |
+| agree_other_max seed 均值 | 0.855 / 0.829 / 0.826 | 0.856 / 0.829 / 0.826 |
+| pooled Δρ（p_holm）claude46 / deepseek_v4 / gpt4o | −0.110（0.954）/ 0.183（0.061）/ −0.091（0.954） | −0.111（0.956）/ 0.182（0.063）/ −0.092（0.956） |
+| O run 各指标最大变化 | — | agree ≤ 0.004、Δρ ≤ 0.012、flip ≤ 0.007 |
+| R run flip rate 最大变化 | — | 0.147（R 处处 p ≈ 0.5，多数行动由精度噪声决定；正是一致性不能单独报的原因） |
+
+诊断在 fp32 下复算，变化 ≤ 0.01：训练标签复现 98.5% / 98.5% / 99.5%；S_0（放宽 0.9）与 DeepSeek 的 profile 相关 0.494；suggestibility 学生 0.168 / 0.121 / 0.051 vs teacher 0.140 / 0.077 / 0.056。上一段的结论与三个待决选项不变。
+
+BLOCKED: 同上一段，E1 决策规则在 dev 未过（fp32 下相同），等 Mac 侧决定；test 未评估。

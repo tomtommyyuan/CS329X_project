@@ -94,7 +94,8 @@ def main() -> None:
 
     print(f"run_id={run_id} model={model_path} prompts={len(prompts)} backend={backend} -> {resp_path}")
     rows, summary = run_readout(model_path, prompts, run_id, backend=backend, batch_size=batch_size, dtype=dtype, top_logprobs=top_logprobs, answer_mass_min=answer_mass_min)
-    summary.update({"run_id": run_id, "model": model_path, "split": args.split, "prompts_path": str(prompts_path), "answer_mass_min": answer_mass_min})
+    summary.update({"run_id": run_id, "model": model_path, "split": args.split, "prompts_path": str(prompts_path), "answer_mass_min": answer_mass_min,
+                    "dtype": dtype, "batch_size": batch_size})  # dtype as requested; the CPU path of the transformers backend upcasts half precision to fp32
     write_jsonl(resp_path, rows)
     summ_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
     print(json.dumps({k: summary[k] for k in ("n", "category_rates", "mean_mass_AB", "backend", "seconds")}, ensure_ascii=False))

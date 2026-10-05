@@ -1,29 +1,29 @@
 calibration: mean |p_sym - 0.5| and share of cells with p_sym outside [0.1, 0.9] (students: mean over seeds' cells)
 order              conf  extreme  n_cells
 group                                    
-S[base_B]         0.328    0.392       97
-S[claude46_O]     0.431    0.791     3000
-S[deepseek_v4_O]  0.443    0.829     3000
-S[gpt4o_O]        0.438    0.811     3000
-S[random_R]       0.011    0.000     1800
+S[base_B]         0.329    0.390      105
+S[claude46_O]     0.431    0.788     3000
+S[deepseek_v4_O]  0.443    0.831     3000
+S[gpt4o_O]        0.438    0.810     3000
+S[random_R]       0.010    0.000     1800
 claude46          0.464    0.920      597
 deepseek_v4       0.383    0.636      599
 gpt4o             0.460    0.889      576
 
 seed-pooled share of contested cells where the students side with the FIRST teacher of the pair (95% family-bootstrap CI)
         students  n_seeds                    pair  n_cells  n_families  side_with_first  ci_lo  ci_hi
-       S[base_B]        1       gpt4o vs claude46        7           3            0.429  0.000  1.000
-       S[base_B]        1    gpt4o vs deepseek_v4       11           8            0.364  0.000  0.715
-       S[base_B]        1 claude46 vs deepseek_v4       12           8            0.417  0.000  0.667
-   S[claude46_O]        5       gpt4o vs claude46       66          33            0.515  0.345  0.677
-   S[claude46_O]        5    gpt4o vs deepseek_v4       65          37            0.566  0.392  0.727
-   S[claude46_O]        5 claude46 vs deepseek_v4      100          47            0.544  0.400  0.677
-S[deepseek_v4_O]        5       gpt4o vs claude46       66          33            0.588  0.423  0.737
-S[deepseek_v4_O]        5    gpt4o vs deepseek_v4       65          37            0.375  0.209  0.535
-S[deepseek_v4_O]        5 claude46 vs deepseek_v4      100          47            0.366  0.248  0.498
-      S[gpt4o_O]        5       gpt4o vs claude46       66          33            0.655  0.488  0.797
-      S[gpt4o_O]        5    gpt4o vs deepseek_v4       65          37            0.455  0.287  0.626
-      S[gpt4o_O]        5 claude46 vs deepseek_v4      100          47            0.380  0.253  0.517
-     S[random_R]        3       gpt4o vs claude46       66          33            0.561  0.428  0.699
-     S[random_R]        3    gpt4o vs deepseek_v4       65          37            0.554  0.468  0.647
-     S[random_R]        3 claude46 vs deepseek_v4      100          47            0.500  0.404  0.602
+       S[base_B]        1       gpt4o vs claude46       10           6            0.600  0.333  1.000
+       S[base_B]        1    gpt4o vs deepseek_v4       15           9            0.400  0.125  0.714
+       S[base_B]        1 claude46 vs deepseek_v4       17          10            0.353  0.071  0.615
+   S[claude46_O]        5       gpt4o vs claude46       66          33            0.515  0.344  0.676
+   S[claude46_O]        5    gpt4o vs deepseek_v4       65          37            0.569  0.389  0.733
+   S[claude46_O]        5 claude46 vs deepseek_v4      100          47            0.546  0.400  0.681
+S[deepseek_v4_O]        5       gpt4o vs claude46       66          33            0.591  0.432  0.733
+S[deepseek_v4_O]        5    gpt4o vs deepseek_v4       65          37            0.369  0.204  0.531
+S[deepseek_v4_O]        5 claude46 vs deepseek_v4      100          47            0.360  0.240  0.489
+      S[gpt4o_O]        5       gpt4o vs claude46       66          33            0.655  0.482  0.797
+      S[gpt4o_O]        5    gpt4o vs deepseek_v4       65          37            0.458  0.291  0.631
+      S[gpt4o_O]        5 claude46 vs deepseek_v4      100          47            0.382  0.254  0.512
+     S[random_R]        3       gpt4o vs claude46       66          33            0.591  0.463  0.719
+     S[random_R]        3    gpt4o vs deepseek_v4       65          37            0.569  0.468  0.676
+     S[random_R]        3 claude46 vs deepseek_v4      100          47            0.490  0.394  0.592

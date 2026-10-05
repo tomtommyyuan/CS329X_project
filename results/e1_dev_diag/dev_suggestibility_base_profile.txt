@@ -1,25 +1,25 @@
 framing effects delta(variant) = mean family-demeaned shift r; students: mean (sd) over seeds
                              T1              T3             T5              T6 sugg_T5_minus_T6
 group                                                                                          
-S0_relaxed          0.011 (0.0)     0.009 (0.0)    0.073 (0.0)    -0.092 (0.0)      0.166 (0.0)
-S[claude46_O]     0.007 (0.002)  -0.004 (0.005)  0.024 (0.002)  -0.027 (0.003)    0.051 (0.004)
-S[deepseek_v4_O]  0.031 (0.003)  -0.001 (0.006)  0.069 (0.004)   -0.099 (0.01)    0.168 (0.014)
+S0_relaxed           0.01 (0.0)     0.009 (0.0)    0.074 (0.0)    -0.092 (0.0)      0.166 (0.0)
+S[claude46_O]     0.007 (0.002)  -0.004 (0.005)  0.024 (0.002)  -0.027 (0.004)    0.051 (0.004)
+S[deepseek_v4_O]  0.031 (0.004)  -0.001 (0.006)  0.069 (0.004)   -0.099 (0.01)    0.168 (0.014)
 S[gpt4o_O]        0.019 (0.003)    -0.0 (0.003)  0.051 (0.005)   -0.07 (0.009)    0.121 (0.014)
-S[random_R]          -0.0 (0.0)   0.001 (0.001)    0.0 (0.001)    -0.001 (0.0)      0.001 (0.0)
+S[random_R]          -0.0 (0.0)     0.0 (0.001)    0.0 (0.001)  -0.001 (0.001)    0.001 (0.001)
 claude46            0.006 (0.0)     0.012 (0.0)    0.019 (0.0)    -0.037 (0.0)      0.056 (0.0)
 deepseek_v4         0.014 (0.0)     0.007 (0.0)     0.06 (0.0)    -0.081 (0.0)       0.14 (0.0)
 gpt4o               0.008 (0.0)     0.011 (0.0)    0.029 (0.0)    -0.048 (0.0)      0.077 (0.0)
 
 S_0 with the 0.9 rule relaxed (diagnostic only): profile correlation with each teacher
     run_id     teacher  pearson  spearman  n_cells
-S0_relaxed    claude46    0.247     0.219      592
-S0_relaxed deepseek_v4    0.488     0.518      596
-S0_relaxed       gpt4o    0.283     0.440      560
+S0_relaxed    claude46    0.243     0.213      592
+S0_relaxed deepseek_v4    0.494     0.525      596
+S0_relaxed       gpt4o    0.277     0.440      560
 
 seed-pooled student profiles vs teachers (Pearson, same as pooled_inheritance's rho; families complete for both)
 teacher           claude46  deepseek_v4  gpt4o
 run_id                                        
-S[claude46_O]        0.207        0.316  0.234
-S[deepseek_v4_O]     0.134        0.463  0.318
-S[gpt4o_O]           0.170        0.445  0.374
-S[random_R]          0.005       -0.007  0.044
+S[claude46_O]        0.207        0.317  0.233
+S[deepseek_v4_O]     0.135        0.465  0.320
+S[gpt4o_O]           0.171        0.446  0.375
+S[random_R]          0.088        0.085  0.050

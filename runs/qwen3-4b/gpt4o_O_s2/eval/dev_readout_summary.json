@@ -6,7 +6,7 @@
   "category_rates": {
     "answer": 1.0
   },
-  "mean_mass_AB": 0.9999607743994149,
+  "mean_mass_AB": 0.9999597950354996,
   "top1_histogram": [
     {
       "token": " B",
@@ -18,10 +18,12 @@
     }
   ],
   "backend": "transformers",
-  "seconds": 28.11889386177063,
+  "seconds": 77.94575452804565,
   "run_id": "qwen3-4b.gpt4o_O_s2",
   "model": "runs/qwen3-4b/gpt4o_O_s2/checkpoint",
   "split": "dev",
   "prompts_path": "/hai/scratch/tomyyc/CS329X_project/data/prompts/dev_prompts_v2.jsonl",
-  "answer_mass_min": 0.9
+  "answer_mass_min": 0.9,
+  "dtype": "float32",
+  "batch_size": 64
 }

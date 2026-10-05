@@ -6,22 +6,24 @@
   "category_rates": {
     "answer": 1.0
   },
-  "mean_mass_AB": 0.9998394969016642,
+  "mean_mass_AB": 0.9998548591684614,
   "top1_histogram": [
     {
       "token": " B",
-      "count": 768
+      "count": 771
     },
     {
       "token": " A",
-      "count": 732
+      "count": 729
     }
   ],
   "backend": "transformers",
-  "seconds": 26.882811784744263,
+  "seconds": 71.49770665168762,
   "run_id": "qwen3-4b.deepseek_v4_O_s4",
   "model": "runs/qwen3-4b/deepseek_v4_O_s4/checkpoint",
   "split": "dev",
   "prompts_path": "/hai/scratch/tomyyc/CS329X_project/data/prompts/dev_prompts_v2.jsonl",
-  "answer_mass_min": 0.9
+  "answer_mass_min": 0.9,
+  "dtype": "float32",
+  "batch_size": 64
 }

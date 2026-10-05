@@ -122,6 +122,7 @@ def test_eval_script_cli_untrained_base_is_malformed(tmp_path):
     assert len(rows) == 8 and all(r.teacher == "smollm2-135m.base_B_s0" and r.mode == "profile" for r in rows)
     summary = json.loads((tmp_path / "pilot_readout_summary.json").read_text())
     assert summary["n"] == 8 and summary["category_rates"].get("malformed", 0) > 0.5, "the untrained 135M model copies the placeholder, not a letter"
+    assert summary["dtype"] == "float32" and summary["batch_size"] == 4, "tiny profile readout settings are recorded"
     assert all(r.category == "malformed" and r.usage["mass_AB"] < 0.9 for r in rows if r.usage["top1"] != " A" and r.usage["top1"] != " B")
     # a second call without --overwrite refuses
     res = subprocess.run([sys.executable, str(ROOT / "scripts/12_eval_student.py"), "--model", TINY, "--profile", "tiny", "--split", "pilot", "--limit", "8", "--out", str(tmp_path)],
