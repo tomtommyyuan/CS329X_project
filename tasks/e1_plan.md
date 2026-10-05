@@ -106,3 +106,7 @@ HPC agent 按顺序做（都在 compute 分配里）：
 | 6 | 提交 / 清理 | 同 §7 第 7、8 步，目录换成 `runs/qwen3-4b-paired` | — |
 
 注意：§2 的 `runs/qwen3-4b/*_O_*` 是 E1 / E2 的全集 O 学生，保留；paired 的 O 学生只用于 E3 的配对比较，两者的差异（全集 vs 交集，约 9% 的 item）顺带是稳健性检查。显存和 §2 一样贴边（Claude 的 F / C 版 rationale 和 O 一样长），OOM 规则见 §6。
+
+## 9. 暂停 test（2026-10-05，Mac 侧）
+
+hpc_log "dev 结果的解读 + 两处更正"是对的：§7 冻结的 P1 / P2 用 15 个 run 做置换，把同一 teacher 的 5 个 seed 当成了独立单位（伪复制）；可交换的单位只有 3 个 teacher，teacher 层面的精确 p 最小 1/6。E1a / E1b 不受影响。**§7 第 1 到 4 步照做（训练 prompt readout、dev 分析、E1 判定），第 5 步 test 等下一个冻结 commit**；§8 的建文件和训练照做。更正后的 E2 规则（原 Δρ 规则保留为 primary；次级统计量用 family 作重抽样单位；剂量反应只作描述）正在改，改完在 e2_plan §2 和这里写明 commit。
