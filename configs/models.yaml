@@ -82,6 +82,10 @@ rewriter:
     base_url: https://generativelanguage.googleapis.com/v1beta/openai/
     readout: sampling
     env_key: GEMINI_API_KEY
+    # Each billed Google project is capped at 10,000 requests per model per DAY; the train-set rewrite needs ~42k.
+    # Put one key per extra billed project in .env as GEMINI_API_KEY_2, _3, ...; unset names are skipped and the
+    # pool switches keys when one hits its daily quota (src/vcd/llm/keypool.py).
+    env_keys: [GEMINI_API_KEY, GEMINI_API_KEY_2, GEMINI_API_KEY_3, GEMINI_API_KEY_4, GEMINI_API_KEY_5]
     # Google's OpenAI-compatible endpoint wants the vendor block nested under a literal "extra_body" key in the JSON body.
     extra_body: {extra_body: {google: {thinking_config: {thinking_budget: 0}}}}
     # On the real 1,000-token rewrite prompt it still thinks (~300 hidden tokens; budget 0 / reasoning_effort none / low make no

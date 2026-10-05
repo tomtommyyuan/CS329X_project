@@ -43,13 +43,24 @@ def build_raw_client(name: str, spec: dict[str, Any]) -> RawClient:
         from vcd.llm.openai_compat import OpenAICompatClient
 
         hosted_api = "base_url" in spec  # DeepSeek-style hosted API needs a real key; self-hosted vLLM does not
-        return OpenAICompatClient(
-            name,
-            api_key=_api_key(spec, required=hosted_api) or "EMPTY",
+        make = lambda key, suffix="": OpenAICompatClient(  # noqa: E731
+            name + suffix,
+            api_key=key or "EMPTY",
             base_url=_base_url(spec),
             max_tokens_param="max_tokens",
             supports_logprobs=spec.get("readout", "logprobs") == "logprobs",
         )
+        if spec.get("env_keys"):  # several billed projects, one key each: pool them (daily request quotas are per project)
+            from vcd.llm.keypool import KeyPoolClient
+
+            keys = [os.environ.get(env) for env in spec["env_keys"]]
+            keys = [k for k in keys if k]
+            if not keys:
+                raise RuntimeError(f"none of {spec['env_keys']} is set: export them or put them in the project .env file")
+            if len(keys) == 1:
+                return make(keys[0])
+            return KeyPoolClient(name, [make(k, f"#{i + 1}") for i, k in enumerate(keys)])
+        return make(_api_key(spec, required=hosted_api))
     if provider == "anthropic":
         from vcd.llm.anthropic_client import AnthropicClient
 

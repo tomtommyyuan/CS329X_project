@@ -131,3 +131,4 @@ v1 的 T2 / T4 零效应，换成围绕"正向行动"的极性问法：T5 "Shoul
 - GPU 侧待办（HAIC）：装 cu128 torch + vLLM 的 venv、下载 Qwen3-4B-Base、gate run（30 步真模型 + vLLM / transformers 一致性 + peak_memory_gib ≤ 70），再放 48 run 网格；E0.7 readout 校验与 gate run 一起做。
 - 还没做、需要用户拍板：train 集 F / C 改写（约 36k 条 × 2 版本，Gemini + GLM，按 v9 单价估约 $300；O 的 prompt_id 集见 `data/sft/{teacher}_O_prompt_ids.txt`，只改写 order-stable 的一半可省一半）。
 - Phase 1 采集完成（2026-10-04）：三个 teacher 的 train demo、dev / test profile（含 T0）全齐；test 集 suggestibility 第三次复现梯度；O 版 SFT 文件三个 teacher 都已建（`data/sft/`）。等用户：HAIC 提交、F / C 改写预算、C 定义。
+- 改写撞上 Gemini **每日**配额（2026-10-04 夜）：`generate_requests_per_model_per_day` 对 gemini-3.8-flash 限 10,000 次 / 项目 / 天（付费 Tier 1），当天的冒烟 + v9 全量 + 刚起的 train 改写合计到顶，三个进程 Exit 1；GLM 抽取已跑到 4,217 / 2,441 / 3,690 条 record（缓存里，不浪费），改写只有冒烟的 143 条。train 集需要约 4.2 万次 Gemini 请求，单项目要 4 到 5 天。方案：多个开了计费的 Google 项目各出一个 key（每个 10k / 天），client 做 key 池轮换；resume 逻辑已改成按版本 / 尝试判断，重启不漏 item。
