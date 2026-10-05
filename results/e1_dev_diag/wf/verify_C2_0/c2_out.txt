@@ -1,0 +1,40 @@
+== teacher-teacher majority agreement on dev cells (both defined)
+gpt4o claude46 545 0.91
+gpt4o deepseek_v4 576 0.887
+claude46 deepseek_v4 562 0.854
+
+== gap = agree(own) - agree(other) on 575 cells, 147 families; 95% family-bootstrap CI
+    student       other  n_contested  ceiling_gap  pooled_gap                ci  frac_of_ceiling  side_own_contested                                per_seed
+      gpt4o    claude46           66        0.115      0.0355 (-0.0035, 0.0757)            0.309               0.655     [0.031, 0.024, 0.049, 0.038, 0.035]
+      gpt4o deepseek_v4           64        0.111     -0.0111  (-0.049, 0.0268)           -0.100               0.450 [-0.01, -0.014, -0.003, -0.014, -0.014]
+   claude46       gpt4o           66        0.115     -0.0035  (-0.043, 0.0358)           -0.030               0.485        [0.0, 0.0, -0.024, 0.01, -0.003]
+   claude46 deepseek_v4           94        0.163      0.0104 (-0.0377, 0.0582)            0.064               0.532    [0.014, 0.014, -0.007, 0.017, 0.014]
+deepseek_v4       gpt4o           64        0.111      0.0313 (-0.0066, 0.0684)            0.281               0.641     [0.028, 0.042, 0.028, 0.028, 0.031]
+deepseek_v4    claude46           94        0.163      0.0522  (0.0095, 0.0958)            0.319               0.660     [0.052, 0.066, 0.052, 0.045, 0.045]
+
+== reference: S0_relaxed and R side-taking on contested cells (same common cells where S0 defined)
+S0_relaxed gpt4o vs claude46 66 side_with_first 0.606
+S0_relaxed gpt4o vs deepseek_v4 64 side_with_first 0.391
+S0_relaxed claude46 vs deepseek_v4 94 side_with_first 0.351
+qwen3-4b.random_R_s1 gpt4o vs claude46 66 side_with_first 0.712
+qwen3-4b.random_R_s1 gpt4o vs deepseek_v4 64 side_with_first 0.531
+qwen3-4b.random_R_s1 claude46 vs deepseek_v4 94 side_with_first 0.372
+qwen3-4b.random_R_s2 gpt4o vs claude46 66 side_with_first 0.515
+qwen3-4b.random_R_s2 gpt4o vs deepseek_v4 64 side_with_first 0.594
+qwen3-4b.random_R_s2 claude46 vs deepseek_v4 94 side_with_first 0.553
+qwen3-4b.random_R_s3 gpt4o vs claude46 66 side_with_first 0.545
+qwen3-4b.random_R_s3 gpt4o vs deepseek_v4 64 side_with_first 0.562
+qwen3-4b.random_R_s3 claude46 vs deepseek_v4 94 side_with_first 0.511
+
+== differential side-taking: P(side a | S[a]) - P(side a | S[b]) on a-vs-b contested cells (cancels base prior)
+gpt4o claude46 n 66 P(side a|S[a]) 0.655 P(side a|S[b]) 0.515 diff 0.139 CI [0.003 0.283] agree on contested (S[a] vs S[b] same letter) 0.742
+gpt4o deepseek_v4 n 64 P(side a|S[a]) 0.45 P(side a|S[b]) 0.359 diff 0.091 CI [0.024 0.181] agree on contested (S[a] vs S[b] same letter) 0.906
+claude46 deepseek_v4 n 94 P(side a|S[a]) 0.532 P(side a|S[b]) 0.34 diff 0.191 CI [0.045 0.338] agree on contested (S[a] vs S[b] same letter) 0.713
+
+== seed-majority student-vs-student agreement, all common cells; and seed-vs-seed within group
+S gpt4o S claude46 0.887
+S gpt4o S deepseek_v4 0.925
+S claude46 S deepseek_v4 0.889
+within gpt4o 0.964
+within claude46 0.952
+within deepseek_v4 0.953

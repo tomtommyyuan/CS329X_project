@@ -1,0 +1,94 @@
+
+===== soft p_sym; common cells n=556 families=139 =====
+raw Pearson matrix:
+g                 S0  S_claude46  S_deepseek_v4  S_gpt4o  S_random  claude46  deepseek_v4  gpt4o
+g                                                                                               
+S0             1.000       0.387          0.551    0.521     0.296     0.245        0.533  0.277
+S_claude46     0.387       1.000          0.625    0.609     0.128     0.234        0.345  0.226
+S_deepseek_v4  0.551       0.625          1.000    0.789     0.123     0.142        0.504  0.322
+S_gpt4o        0.521       0.609          0.789    1.000     0.174     0.187        0.469  0.377
+S_random       0.296       0.128          0.123    0.174     1.000     0.085        0.108  0.047
+claude46       0.245       0.234          0.142    0.187     0.085     1.000        0.226  0.282
+deepseek_v4    0.533       0.345          0.504    0.469     0.108     0.226        1.000  0.432
+gpt4o          0.277       0.226          0.322    0.377     0.047     0.282        0.432  1.000
+
+within-variant (variant main effect removed) Pearson:
+g                 S0  S_claude46  S_deepseek_v4  S_gpt4o  S_random  claude46  deepseek_v4  gpt4o
+g                                                                                               
+S0             1.000       0.276          0.372    0.322     0.104     0.168        0.333  0.125
+S_claude46     0.276       1.000          0.580    0.562     0.040     0.193        0.245  0.158
+S_deepseek_v4  0.372       0.580          1.000    0.727    -0.038     0.063        0.356  0.222
+S_gpt4o        0.322       0.562          0.727    1.000     0.015     0.114        0.307  0.284
+S_random       0.104       0.040         -0.038    0.015     1.000     0.016       -0.073 -0.068
+claude46       0.168       0.193          0.063    0.114     0.016     1.000        0.158  0.241
+deepseek_v4    0.333       0.245          0.356    0.307    -0.073     0.158        1.000  0.348
+gpt4o          0.125       0.158          0.222    0.284    -0.068     0.241        0.348  1.000
+
+variant means of r:
+g           S0  S_claude46  S_deepseek_v4  S_gpt4o  S_random  claude46  deepseek_v4  gpt4o
+variant                                                                                   
+T1       0.008       0.005          0.031    0.018    -0.000     0.007        0.019  0.007
+T3       0.009      -0.001         -0.001    0.005     0.000     0.010        0.009  0.011
+T5       0.074       0.022          0.070    0.048     0.000     0.021        0.061  0.029
+T6      -0.091      -0.026         -0.100   -0.071    -0.001    -0.038       -0.088 -0.046
+
+partial corr student~teacher | S0 (common cells):
+      student  gpt4o  claude46  deepseek_v4  wv_gpt4o  wv_claude46  wv_deepseek_v4
+      S_gpt4o  0.284     0.072        0.264     0.260        0.064           0.224
+   S_claude46  0.134     0.156        0.177     0.129        0.155           0.169
+S_deepseek_v4  0.211     0.009        0.298     0.190        0.001           0.265
+
+corr(student - S0, teacher) and corr(student-S0, teacher - S0):
+      student  gpt4o  claude46  deepseek_v4  dd_gpt4o  dd_claude46  dd_deepseek_v4
+      S_gpt4o  0.103    -0.058       -0.064     0.483        0.287           0.372
+   S_claude46 -0.136    -0.098       -0.324     0.519        0.458           0.350
+S_deepseek_v4  0.155    -0.032        0.160     0.266        0.086           0.330
+
+share of cells with |r|<0.01: {'S0': 0.16, 'S_claude46': 0.685, 'S_deepseek_v4': 0.541, 'S_gpt4o': 0.581, 'S_random': 1.0, 'claude46': 0.809, 'deepseek_v4': 0.39, 'gpt4o': 0.768}
+
+===== HARD labels (p_sym>0.5); common cells n=556 families=139 =====
+raw Pearson matrix:
+g                 S0  S_claude46  S_deepseek_v4  S_gpt4o  S_random  claude46  deepseek_v4  gpt4o
+g                                                                                               
+S0             1.000       0.155          0.289    0.350     0.154     0.225        0.245  0.187
+S_claude46     0.155       1.000          0.458    0.338     0.018     0.183        0.131  0.026
+S_deepseek_v4  0.289       0.458          1.000    0.633    -0.089     0.123        0.327  0.100
+S_gpt4o        0.350       0.338          0.633    1.000    -0.056     0.146        0.293  0.164
+S_random       0.154       0.018         -0.089   -0.056     1.000     0.065       -0.033 -0.015
+claude46       0.225       0.183          0.123    0.146     0.065     1.000        0.176  0.230
+deepseek_v4    0.245       0.131          0.327    0.293    -0.033     0.176        1.000  0.177
+gpt4o          0.187       0.026          0.100    0.164    -0.015     0.230        0.177  1.000
+
+within-variant (variant main effect removed) Pearson:
+g                 S0  S_claude46  S_deepseek_v4  S_gpt4o  S_random  claude46  deepseek_v4  gpt4o
+g                                                                                               
+S0             1.000       0.087          0.174    0.251     0.137     0.162        0.156  0.137
+S_claude46     0.087       1.000          0.421    0.292     0.002     0.148        0.082 -0.003
+S_deepseek_v4  0.174       0.421          1.000    0.576    -0.130     0.047        0.254  0.046
+S_gpt4o        0.251       0.292          0.576    1.000    -0.090     0.077        0.217  0.115
+S_random       0.137       0.002         -0.130   -0.090     1.000     0.050       -0.054 -0.026
+claude46       0.162       0.148          0.047    0.077     0.050     1.000        0.127  0.204
+deepseek_v4    0.156       0.082          0.254    0.217    -0.054     0.127        1.000  0.135
+gpt4o          0.137      -0.003          0.046    0.115    -0.026     0.204        0.135  1.000
+
+variant means of r:
+g           S0  S_claude46  S_deepseek_v4  S_gpt4o  S_random  claude46  deepseek_v4  gpt4o
+variant                                                                                   
+T1       0.014       0.005          0.031    0.022     0.004     0.022        0.007  0.007
+T3       0.022      -0.004         -0.004    0.006    -0.003     0.000        0.029  0.022
+T5       0.108       0.028          0.072    0.050     0.007     0.036        0.058  0.014
+T6      -0.144      -0.028         -0.099   -0.078    -0.008    -0.058       -0.094 -0.043
+
+partial corr student~teacher | S0 (common cells):
+      student  gpt4o  claude46  deepseek_v4  wv_gpt4o  wv_claude46  wv_deepseek_v4
+      S_gpt4o  0.107     0.074        0.228     0.084        0.038           0.186
+   S_claude46 -0.003     0.154        0.097    -0.015        0.136           0.069
+S_deepseek_v4  0.049     0.063        0.276     0.023        0.020           0.233
+
+corr(student - S0, teacher) and corr(student-S0, teacher - S0):
+      student  gpt4o  claude46  deepseek_v4  dd_gpt4o  dd_claude46  dd_deepseek_v4
+      S_gpt4o -0.100    -0.150       -0.087     0.738        0.681           0.680
+   S_claude46 -0.173    -0.148       -0.189     0.772        0.755           0.675
+S_deepseek_v4 -0.113    -0.134       -0.018     0.664        0.626           0.667
+
+share of cells with |r|<0.01: {'S0': 0.712, 'S_claude46': 0.853, 'S_deepseek_v4': 0.739, 'S_gpt4o': 0.77, 'S_random': 0.795, 'claude46': 0.863, 'deepseek_v4': 0.813, 'gpt4o': 0.899}

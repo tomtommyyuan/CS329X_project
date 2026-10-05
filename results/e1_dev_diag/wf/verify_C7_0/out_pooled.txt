@@ -1,0 +1,13 @@
+gpt4o 140 pearson 0.050 p_perm 0.1850 null mean 0.108; spearman 0.167 p_perm 0.7808 null mean 0.177
+claude46 148 pearson 0.088 p_perm 0.6812 null mean 0.070; spearman 0.103 p_perm 0.3134 null mean 0.066
+deepseek_v4 149 pearson 0.085 p_perm 0.1130 null mean 0.151; spearman 0.167 p_perm 0.5142 null mean 0.191
+variant          T1      T3      T5      T6
+teacher                                    
+claude46     0.0060  0.0125  0.0189 -0.0374
+deepseek_v4  0.0143  0.0067  0.0597 -0.0807
+gpt4o        0.0076  0.0110  0.0290 -0.0476
+order gap p_o1-p_o2 mean by seed:                         mean     std
+teacher                             
+qwen3-4b.random_R_s1  0.0152  0.0697
+qwen3-4b.random_R_s2 -0.0054  0.0530
+qwen3-4b.random_R_s3  0.0037  0.0242

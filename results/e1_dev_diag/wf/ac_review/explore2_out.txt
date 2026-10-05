@@ -1,0 +1,5 @@
+gpt4o corr(pooled, S0)=0.517 seed-seed profile r mean=0.886 min=0.871 n_cells 600
+claude46 corr(pooled, S0)=0.387 seed-seed profile r mean=0.791 min=0.735 n_cells 600
+deepseek_v4 corr(pooled, S0)=0.552 seed-seed profile r mean=0.888 min=0.868 n_cells 600
+random corr(pooled, S0)=0.285 seed-seed profile r mean=-0.049 min=-0.370 n_cells 600
+student-student pooled corr {'gpt4o-claude46': np.float64(0.647), 'gpt4o-deepseek_v4': np.float64(0.769), 'claude46-deepseek_v4': np.float64(0.626)}

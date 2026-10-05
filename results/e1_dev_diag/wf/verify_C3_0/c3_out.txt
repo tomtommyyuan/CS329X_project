@@ -1,0 +1,96 @@
+/hai/scratch/tomyyc/vcd_diag/wf/verify_C3_0/c3.py:68: Pandas4Warning: Starting with pandas version 4.0 all arguments of mean will be keyword-only.
+  o=[x for x in TS if x!=t]; print(f"  {t}: raw {np.corrcoef(W[t], W[o].mean(1))[0,1]:.3f}  resid {np.corrcoef(R[t], R[o].mean(1))[0,1]:.3f}")
+/hai/scratch/tomyyc/vcd_diag/wf/verify_C3_0/c3.py:68: Pandas4Warning: Starting with pandas version 4.0 all arguments of mean will be keyword-only.
+  o=[x for x in TS if x!=t]; print(f"  {t}: raw {np.corrcoef(W[t], W[o].mean(1))[0,1]:.3f}  resid {np.corrcoef(R[t], R[o].mean(1))[0,1]:.3f}")
+/hai/scratch/tomyyc/vcd_diag/wf/verify_C3_0/c3.py:68: Pandas4Warning: Starting with pandas version 4.0 all arguments of mean will be keyword-only.
+  o=[x for x in TS if x!=t]; print(f"  {t}: raw {np.corrcoef(W[t], W[o].mean(1))[0,1]:.3f}  resid {np.corrcoef(R[t], R[o].mean(1))[0,1]:.3f}")
+/hai/scratch/tomyyc/vcd_diag/wf/verify_C3_0/c3.py:68: Pandas4Warning: Starting with pandas version 4.0 all arguments of mean will be keyword-only.
+  o=[x for x in TS if x!=t]; print(f"  {t}: raw {np.corrcoef(W[t], W[o].mean(1))[0,1]:.3f}  resid {np.corrcoef(R[t], R[o].mean(1))[0,1]:.3f}")
+/hai/scratch/tomyyc/vcd_diag/wf/verify_C3_0/c3.py:68: Pandas4Warning: Starting with pandas version 4.0 all arguments of mean will be keyword-only.
+  o=[x for x in TS if x!=t]; print(f"  {t}: raw {np.corrcoef(W[t], W[o].mean(1))[0,1]:.3f}  resid {np.corrcoef(R[t], R[o].mean(1))[0,1]:.3f}")
+/hai/scratch/tomyyc/vcd_diag/wf/verify_C3_0/c3.py:68: Pandas4Warning: Starting with pandas version 4.0 all arguments of mean will be keyword-only.
+  o=[x for x in TS if x!=t]; print(f"  {t}: raw {np.corrcoef(W[t], W[o].mean(1))[0,1]:.3f}  resid {np.corrcoef(R[t], R[o].mean(1))[0,1]:.3f}")
+common families 139 cells 556
+
+[1] Pearson profile corr, raw r (common families)
+teacher        gpt4o  claude46  deepseek_v4     S0  S_gpt4o  S_claude46  S_deepseek_v4  S_random
+teacher                                                                                         
+gpt4o          1.000     0.282        0.432  0.277    0.377       0.226          0.322     0.047
+claude46       0.282     1.000        0.226  0.245    0.187       0.234          0.142     0.085
+deepseek_v4    0.432     0.226        1.000  0.533    0.469       0.345          0.504     0.108
+S0             0.277     0.245        0.533  1.000    0.521       0.387          0.551     0.296
+S_gpt4o        0.377     0.187        0.469  0.521    1.000       0.609          0.789     0.174
+S_claude46     0.226     0.234        0.345  0.387    0.609       1.000          0.625     0.128
+S_deepseek_v4  0.322     0.142        0.504  0.551    0.789       0.625          1.000     0.123
+S_random       0.047     0.085        0.108  0.296    0.174       0.128          0.123     1.000
+
+[2] Pearson, variant-main-effect removed
+teacher        gpt4o  claude46  deepseek_v4     S0  S_gpt4o  S_claude46  S_deepseek_v4  S_random
+teacher                                                                                         
+gpt4o          1.000     0.241        0.348  0.125    0.284       0.158          0.222    -0.068
+claude46       0.241     1.000        0.158  0.168    0.114       0.193          0.063     0.016
+deepseek_v4    0.348     0.158        1.000  0.333    0.307       0.245          0.356    -0.073
+S0             0.125     0.168        0.333  1.000    0.322       0.276          0.372     0.104
+S_gpt4o        0.284     0.114        0.307  0.322    1.000       0.562          0.727     0.015
+S_claude46     0.158     0.193        0.245  0.276    0.562       1.000          0.580     0.040
+S_deepseek_v4  0.222     0.063        0.356  0.372    0.727       0.580          1.000    -0.038
+S_random      -0.068     0.016       -0.073  0.104    0.015       0.040         -0.038     1.000
+  type-main-effect share of r variance  gpt4o           0.086  sd(r)=0.096
+  type-main-effect share of r variance  claude46        0.036  sd(r)=0.119
+  type-main-effect share of r variance  deepseek_v4     0.236  sd(r)=0.113
+  type-main-effect share of r variance  S0              0.414  sd(r)=0.091
+  type-main-effect share of r variance  S_gpt4o         0.231  sd(r)=0.092
+  type-main-effect share of r variance  S_claude46      0.084  sd(r)=0.059
+  type-main-effect share of r variance  S_deepseek_v4   0.228  sd(r)=0.132
+  type-main-effect share of r variance  S_random        0.153  sd(r)=0.001
+[3 raw] rho(S0,DS)-rho(S0,gpt4o) = 0.256  95% CI [0.136,0.383]
+[3 raw] rho(S0,DS)-rho(S0,claude46) = 0.288  95% CI [0.167,0.421]
+[3 resid] rho(S0,DS)-rho(S0,gpt4o) = 0.208  95% CI [0.056,0.362]
+[3 resid] rho(S0,DS)-rho(S0,claude46) = 0.165  95% CI [0.024,0.318]
+
+[4 raw] partial corr(student, teacher | S0)  and delta (own - max other)
+  S_gpt4o         raw gpt4o=0.377 claude46=0.187 deepseek_v4=0.469 d=-0.092(deepseek_v4) | partial gpt4o=0.284 claude46=0.072 deepseek_v4=0.264 d=+0.020(deepseek_v4)
+  S_claude46      raw gpt4o=0.226 claude46=0.234 deepseek_v4=0.345 d=-0.111(deepseek_v4) | partial gpt4o=0.134 claude46=0.156 deepseek_v4=0.177 d=-0.022(deepseek_v4)
+  S_deepseek_v4   raw gpt4o=0.322 claude46=0.142 deepseek_v4=0.504 d=+0.182(gpt4o) | partial gpt4o=0.211 claude46=0.009 deepseek_v4=0.298 d=+0.086(gpt4o)
+
+[4 resid] partial corr(student, teacher | S0)  and delta (own - max other)
+  S_gpt4o         raw gpt4o=0.284 claude46=0.114 deepseek_v4=0.307 d=-0.023(deepseek_v4) | partial gpt4o=0.260 claude46=0.064 deepseek_v4=0.224 d=+0.036(deepseek_v4)
+  S_claude46      raw gpt4o=0.158 claude46=0.193 deepseek_v4=0.245 d=-0.052(deepseek_v4) | partial gpt4o=0.129 claude46=0.155 deepseek_v4=0.169 d=-0.014(deepseek_v4)
+  S_deepseek_v4   raw gpt4o=0.222 claude46=0.063 deepseek_v4=0.356 d=+0.134(gpt4o) | partial gpt4o=0.190 claude46=0.001 deepseek_v4=0.265 d=+0.075(gpt4o)
+
+[5] OLS standardized betas: student_pooled ~ S0 + gpt4o + claude46 + deepseek_v4 (raw r)
+  S_gpt4o         with S0: S0=0.367 gpt=0.194 cl=0.000 ds=0.190 | without S0: gpt=0.204 cl=0.046 ds=0.370
+  S_claude46      with S0: S0=0.259 gpt=0.053 cl=0.120 ds=0.156 | without S0: gpt=0.061 cl=0.152 ds=0.284
+  S_deepseek_v4   with S0: S0=0.394 gpt=0.116 cl=-0.045 ds=0.253 | without S0: gpt=0.127 cl=0.005 ds=0.448
+
+[6] teacher hubness: corr with mean of other two teachers (raw / resid)
+  gpt4o: raw 0.453  resid 0.380
+  claude46: raw 0.297  resid 0.241
+  deepseek_v4: raw 0.396  resid 0.305
+
+[7] share teacher p_sym in [0.1,0.9]: {'claude46': 0.07, 'deepseek_v4': 0.353, 'gpt4o': 0.106}
+  gpt4o           share of sum r^2 from cells |r|>0.25: 0.730; nonzero cells(|r|>.02) 0.203
+  claude46        share of sum r^2 from cells |r|>0.25: 0.728; nonzero cells(|r|>.02) 0.185
+  deepseek_v4     share of sum r^2 from cells |r|>0.25: 0.530; nonzero cells(|r|>.02) 0.547
+  S0              share of sum r^2 from cells |r|>0.25: 0.196; nonzero cells(|r|>.02) 0.730
+  S_gpt4o         share of sum r^2 from cells |r|>0.25: 0.589; nonzero cells(|r|>.02) 0.344
+  S_claude46      share of sum r^2 from cells |r|>0.25: 0.420; nonzero cells(|r|>.02) 0.266
+  S_deepseek_v4   share of sum r^2 from cells |r|>0.25: 0.772; nonzero cells(|r|>.02) 0.379
+  S_random        share of sum r^2 from cells |r|>0.25: 0.000; nonzero cells(|r|>.02) 0.000
+
+[8] per-seed partial (raw) delta own-max other | S0
+  qwen3-4b.claude46_O_s1       raw d=-0.060 nearest=deepseek_v4 | partial d=+0.036 nearest=claude46
+  qwen3-4b.claude46_O_s2       raw d=-0.154 nearest=deepseek_v4 | partial d=-0.078 nearest=deepseek_v4
+  qwen3-4b.claude46_O_s3       raw d=-0.152 nearest=deepseek_v4 | partial d=-0.067 nearest=deepseek_v4
+  qwen3-4b.claude46_O_s4       raw d=-0.085 nearest=deepseek_v4 | partial d=-0.013 nearest=deepseek_v4
+  qwen3-4b.claude46_O_s5       raw d=-0.056 nearest=deepseek_v4 | partial d=+0.020 nearest=claude46
+  qwen3-4b.deepseek_v4_O_s1    raw d=+0.157 nearest=deepseek_v4 | partial d=+0.068 nearest=deepseek_v4
+  qwen3-4b.deepseek_v4_O_s2    raw d=+0.170 nearest=deepseek_v4 | partial d=+0.075 nearest=deepseek_v4
+  qwen3-4b.deepseek_v4_O_s3    raw d=+0.194 nearest=deepseek_v4 | partial d=+0.100 nearest=deepseek_v4
+  qwen3-4b.deepseek_v4_O_s4    raw d=+0.155 nearest=deepseek_v4 | partial d=+0.062 nearest=deepseek_v4
+  qwen3-4b.deepseek_v4_O_s5    raw d=+0.194 nearest=deepseek_v4 | partial d=+0.104 nearest=deepseek_v4
+  qwen3-4b.gpt4o_O_s1          raw d=-0.071 nearest=deepseek_v4 | partial d=+0.040 nearest=gpt4o
+  qwen3-4b.gpt4o_O_s2          raw d=-0.133 nearest=deepseek_v4 | partial d=-0.038 nearest=deepseek_v4
+  qwen3-4b.gpt4o_O_s3          raw d=-0.044 nearest=deepseek_v4 | partial d=+0.070 nearest=gpt4o
+  qwen3-4b.gpt4o_O_s4          raw d=-0.066 nearest=deepseek_v4 | partial d=+0.041 nearest=gpt4o
+  qwen3-4b.gpt4o_O_s5          raw d=-0.132 nearest=deepseek_v4 | partial d=-0.036 nearest=deepseek_v4

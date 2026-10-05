@@ -165,3 +165,44 @@ Mac 侧在 7dc06f6（2026-10-04 23:00）把 `readout.dtype` 改成 float32，早
 诊断在 fp32 下复算，变化 ≤ 0.01：训练标签复现 98.5% / 98.5% / 99.5%；S_0（放宽 0.9）与 DeepSeek 的 profile 相关 0.494；suggestibility 学生 0.168 / 0.121 / 0.051 vs teacher 0.140 / 0.077 / 0.056。上一段的结论与三个待决选项不变。
 
 BLOCKED: 同上一段，E1 决策规则在 dev 未过（fp32 下相同），等 Mac 侧决定；test 未评估。
+
+### 2026-10-05 dev 结果的解读（探索性，只用 dev）+ 两处更正
+
+用户要求解释结果对论文的意义。我做了一次 25 个 agent 的只读分析：4 个分析视角、对 8 条核心论断各做 1–2 个对抗性核查、对新数字做独立复算、最后综合。全部只用 dev，没有打开任何 test 文件，也没有改仓库代码。结论在 `results/e1_dev_diag/interpretation.md`，完整记录在 `interpretation_record.json`，脚本在 `wf/`。
+
+**更正我前面写过的两点：**
+
+- **grid permutation 的 p < 1e-4 不成立**（上面两段写过）。同一 teacher 的 5 个 seed 几乎是复制品，可交换的单位只有 3 个 teacher，即 3! = 6 种指派。真实指派在 6 种里排第一，精确 p = 1/6，这也是这个设计能给出的最小值。方向保留，p 值不能引用。
+- **"suggestibility 有继承、teacher 顺序保持"要降级为有条件成立。** 学生的排序（0.174 > 0.123 > 0.052，两两 CI 不含 0）是稳的，但下面三条决定了它不等于"从 teacher 继承"：
+  - dev 上 GPT-4o 与 Claude 两个 teacher 的差 +0.012 [−0.034, 0.057]，本身分不开；
+  - DeepSeek 学生 ≈ 基座（0.174 vs 0.168）；
+  - R 学生也降到 ≈ 0。
+
+  较稳的表述是：SFT 用训练标签里的 framing–标签关联，替换了基座自带的 suggestibility。
+
+**新的探索性结果（均经独立复算）：**
+
+| 量 | 结果 |
+|---|---|
+| 学生 × teacher 的 profile 相关矩阵：对角均值减非对角均值（seed 合并，见过的 framing） | +0.090 [0.040, 0.140]，5/5 seed 为正；T0（未见 framing）上 +0.026，p 0.20 |
+| 争议 cell 上的相对 side-taking：A 的学生比 B 的学生更常站 A | +0.09 / +0.14 / +0.19，CI 都不含 0（gpt4o–claude 一对的下界 0.003） |
+| 控制 S_0（放宽规则）profile 后的 pooled Δρ | gpt4o −0.092 → +0.020，claude −0.111 → −0.022，DeepSeek +0.182 → +0.086，三者 CI 都含 0 |
+| 预注册 Δρ 的 family 置换 null 均值 | gpt4o −0.094、claude −0.090、DeepSeek +0.088（置换保留了 teacher 的 T5 / T6 主效应），所以 "Δρ > 0" 这条门槛在三个 teacher 之间不对称 |
+| 照现规则跑 test 的通过概率（dev 估计当真值，300 个 family 重抽样） | 只有 DeepSeek 通过 ≈ 0.69；≥ 2/3 通过 ≈ 0.01–0.02，把 dev 估计误差也算进去 ≈ 0.09 |
+
+**另外发现的三个问题，留给 Mac 侧：**
+
+- E1 未过时，S_0 的 Δρ 是 NaN，e2_plan §2 的控制条件实际无法检验。
+- scripts/13 在 1/3 通过时打印 "E2 FAIL"，不区分 e2_plan 的"部分成立"和"不成立"。
+- docs/E0_results 已经记了 test 侧 teacher 可靠度（Claude 0.329、DeepSeek 0.466），这会触发 E0 的"两个及以上 teacher 可靠度 < 0.5"门槛。该门槛原本是在 pilot 上定的。
+
+这三点我都没改，只记录。
+
+**推荐（详见 interpretation.md）：**
+
+- E2 原规则保留为 primary，失败如实报告。
+- 在 dev 上只冻结一个预先声明的次级主统计量，例如上表的对角或交互量（限见过的 framing，family bootstrap 给 CI），并披露全部尝试过的版本；grid permutation 改报 teacher 层面的精确 p。
+- 之后 test 只跑一次。
+- 受控的剂量实验或第二个基座属于新实验，要另行预注册。
+
+BLOCKED: 仍等 Mac 侧决定（E1 门槛如何解释、是否改用次级统计量、是否加新实验）；test 未评估，checkpoint 保留。

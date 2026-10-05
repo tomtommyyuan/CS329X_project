@@ -1,0 +1,16 @@
+SFT files (hard labels after order-stable filter), act-rate(T5)-act-rate(T6):
+  gpt4o_O_s1                   n_fam= 1342 T5-T6=0.050 CI [0.039 0.062]  n_items={'T1': 1405, 'T3': 1403, 'T5': 1407, 'T6': 1404}
+  gpt4o_O_s3                   n_fam= 1342 T5-T6=0.050 CI [0.039 0.062]  n_items={'T1': 1405, 'T3': 1403, 'T5': 1407, 'T6': 1404}
+  claude46_O_s1                n_fam= 1342 T5-T6=0.013 CI [0.006 0.019]  n_items={'T1': 1413, 'T3': 1418, 'T5': 1422, 'T6': 1389}
+  claude46_O_s3                n_fam= 1342 T5-T6=0.013 CI [0.006 0.019]  n_items={'T1': 1413, 'T3': 1418, 'T5': 1422, 'T6': 1389}
+  deepseek_v4_O_s1             n_fam=  998 T5-T6=0.038 CI [0.027 0.05 ]  n_items={'T1': 1290, 'T3': 1289, 'T5': 1213, 'T6': 1144}
+  deepseek_v4_O_s3             n_fam=  998 T5-T6=0.038 CI [0.027 0.05 ]  n_items={'T1': 1290, 'T3': 1289, 'T5': 1213, 'T6': 1144}
+  random_R_s1                  n_fam= 1342 T5-T6=-0.036 CI [-0.072  0.   ]  n_items={'T1': 1405, 'T3': 1403, 'T5': 1407, 'T6': 1404}
+
+full teacher train demos (all answered, both orders averaged, no stability filter):
+  gpt4o_all                    n_fam= 1487 T5-T6=0.082 CI [0.07  0.095]  n_items={'T1': 1480, 'T3': 1481, 'T5': 1489, 'T6': 1487}
+     share of items order-unstable (act mean = 0.5) by variant: {'T1': 0.045, 'T3': 0.043, 'T5': 0.046, 'T6': 0.052}
+  claude46_all                 n_fam= 1491 T5-T6=0.037 CI [0.027 0.046]  n_items={'T1': 1490, 'T3': 1488, 'T5': 1491, 'T6': 1491}
+     share of items order-unstable (act mean = 0.5) by variant: {'T1': 0.052, 'T3': 0.04, 'T5': 0.046, 'T6': 0.068}
+  deepseek_v4_all              n_fam= 1493 T5-T6=0.140 CI [0.127 0.153]  n_items={'T1': 1493, 'T3': 1493, 'T5': 1493, 'T6': 1493}
+     share of items order-unstable (act mean = 0.5) by variant: {'T1': 0.136, 'T3': 0.137, 'T5': 0.188, 'T6': 0.234}

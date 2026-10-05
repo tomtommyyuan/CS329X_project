@@ -1,0 +1,12 @@
+pooled Pearson r, seen T1/3/5/6               nfam=139 ncell= 556 obs=+0.090 null_mean=-0.000 null_sd=0.018 p=0.00005 seeds=[+0.106, +0.056, +0.085, +0.095, +0.086] famboot95=[+0.039,+0.140]
+pooled Spearman r, seen                       nfam=139 ncell= 556 obs=+0.077 null_mean=-0.000 null_sd=0.018 p=0.00005 seeds=[+0.079, +0.073, +0.060, +0.090, +0.071] famboot95=[+0.037,+0.117]
+per-seed Pearson averaged, seen               nfam=139 ncell= 556 obs=+0.086 null_mean=+0.000 null_sd=0.020 p=0.00005 seeds=[+0.106, +0.056, +0.085, +0.095, +0.086] famboot95=[+0.036,+0.132]
+pooled Pearson r, T0+seen                     nfam=137 ncell= 685 obs=+0.090 null_mean=-0.000 null_sd=0.018 p=0.00005 seeds=[+0.114, +0.069, +0.082, +0.082, +0.080] famboot95=[+0.057,+0.124]
+pooled Pearson r, T0 cells only (5-var demean) nfam=137 ncell= 137 obs=+0.026 null_mean=-0.000 null_sd=0.016 p=0.05670 seeds=[+0.080, +0.021, +0.022, -0.020, +0.018] famboot95=[-0.032,+0.085]
+pooled Pearson r, T5/T6 cells only            nfam=139 ncell= 278 obs=+0.094 null_mean=+0.000 null_sd=0.019 p=0.00015 seeds=[+0.099, +0.063, +0.086, +0.109, +0.096] famboot95=[+0.043,+0.143]
+/hai/scratch/tomyyc/vcd_diag/wf/verify_Q3_2/q3.py:94: Pandas4Warning: Starting with pandas version 4.0 all arguments of mean will be keyword-only.
+  tc = seen.copy(); tm = tc[TS].mean(1)
+pooled Pearson, teachers minus teacher mean   nfam=139 ncell= 556 obs=+0.126 null_mean=-0.000 null_sd=0.027 p=0.00005 seeds=[+0.146, +0.080, +0.120, +0.130, +0.122] famboot95=[+0.048,+0.200]
+pooled Pearson, residualized on S0_relaxed    nfam=139 ncell= 556 obs=+0.101 null_mean=-0.000 null_sd=0.022 p=0.00005 seeds=[+0.121, +0.059, +0.094, +0.102, +0.091] famboot95=[+0.041,+0.161]
+majority agreement on p_sym, seen             nfam=147 ncell= 575 obs=+0.019 null_mean=-0.000 null_sd=0.005 p=0.00005 seeds=[+0.019, +0.022, +0.016, +0.021, +0.018] famboot95=[+0.006,+0.034]
+-JSD on p_sym, seen                           nfam=147 ncell= 575 obs=+0.018 null_mean=-0.000 null_sd=0.004 p=0.00005 seeds=[+0.020, +0.015, +0.016, +0.020, +0.018] famboot95=[+0.009,+0.028]

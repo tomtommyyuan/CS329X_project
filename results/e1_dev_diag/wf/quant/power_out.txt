@@ -1,0 +1,26 @@
+
+=== (e) power of the pre-registered pooled delta_rho (row delta, raw Pearson), 139 dev families ===
+                        0         1            2
+teacher             gpt4o  claude46  deepseek_v4
+n_fam                 139       139          139
+delta_obs         -0.0917   -0.1107       0.1817
+boot_se_dev        0.0752    0.0759       0.0653
+boot_se_test       0.0532    0.0537       0.0462
+null_mean_dev     -0.0943   -0.0905       0.0876
+null_sd_dev        0.0491    0.0603       0.0471
+p_perm             0.4835    0.6364       0.0214
+thr_test_a.0167   -0.0203    0.0031       0.1573
+mde80_test_a.0167  0.0244    0.0483       0.1962
+thr_test_a.025    -0.0262   -0.0054        0.152
+mde80_test_a.025   0.0186    0.0398       0.1908
+thr_test_a.05     -0.0375   -0.0207       0.1427
+mde80_test_a.05    0.0073    0.0245       0.1816
+p(delta_hat > 0) on test if true delta = dev estimate: {'gpt4o': np.float64(0.042), 'claude46': np.float64(0.02), 'deepseek_v4': np.float64(1.0)}
+
+P(E2 rule passes on test) by simulation (normal approximations; delta true = same value for all 3 teachers unless noted)
+           scenario                  deltas  p_ge2_pass  p_ge1_pass  p_3_pass
+          0.05 each      [0.05, 0.05, 0.05]       0.685       0.969     0.016
+          0.10 each         [0.1, 0.1, 0.1]       0.949       0.999     0.168
+          0.15 each      [0.15, 0.15, 0.15]       0.998       1.000     0.561
+          0.20 each         [0.2, 0.2, 0.2]       1.000       1.000     0.895
+dev point estimates [-0.092, -0.111, 0.182]       0.046       0.714     0.001
