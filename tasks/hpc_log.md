@@ -7,7 +7,7 @@
 | 项 | 状态 | 备注 |
 |---|---|---|
 | 环境（README §0） | 完成 2026-10-04 | ingrai / hai / QoS ingrai 已核实；训练 venv 重建；83 passed 1 skipped |
-| gate run（README §1） | 未开始 | 含 vLLM / transformers 一致性、peak_memory_gib ≤ 70、E0.7 |
+| gate run（README §1） | 完成 2026-10-04 | 显存 / 精度 / 丢弃过；一致性因 bf16 噪声未过 → 评估统一 transformers 后端；E0.7 过 |
 | SFT 文件 O + R | 完成 2026-10-04 | 18 个文件，n 与计划一致；F / C 未建 |
 | E1 18 run | 未开始 | |
 | dev 评估 + 分析 | 未开始 | 冻结点 |
@@ -55,3 +55,42 @@
 - R 的 `ref_sha256` 等于同 seed 的 gpt4o_O 文件，prompt-id 集相同。
 
 下一步：gate run（步骤 2）。
+
+### 2026-10-04 步骤 2：gate run + 2b readout 校验
+
+30 步真模型（`gpt4o_O_s1`，`--max-steps 30`，分配 129037）。全部数字在 `results/e1_gate/gate_summary.json`。
+
+| 检查 | 结果 | 判定 |
+|---|---|---|
+| `peak_memory_gib` | 69.27；Claude 最长 96 条（232–301 token）3 步压力测试 69.5 | 过（≤ 70），不换 adamw_8bit |
+| `precision` / `checkpoint_dtype` | bf16 / bfloat16（7.6 GB） | 过 |
+| `n_dropped_too_long` | 0 | 过 |
+| `steps_per_epoch` | 176（5,619 / 32） | 过 |
+| 速度 | 1.59 s/step，加载约 45 s → 整 run（528 步）约 16 分钟 | — |
+| loss | 0.91 → 0.78（30 步） | — |
+| vLLM vs transformers（200 条 dev） | max ∣ΔP(A)∣ 0.062，mean 0.0055，p95 0.047，3 个 argmax 翻转；mass_AB 差 ≤ 0.002 | **未过**（阈值 0.01） |
+| transformers bf16 vs fp32 | max 0.062，mean 0.0069 | 说明上一行是 bf16 噪声 |
+| vLLM bf16 vs transformers fp32 | max 0.050，mean 0.0065 | 两后端离 fp32 一样远 |
+| transformers bf16 batch 32 vs 64 | 0.0 | 确定、与 batch 无关 |
+| S_0 vLLM vs transformers | max 0.062，mean 0.010；answer 率 0.33 vs 0.28（mass_AB 在 0.9 边界附近） | 同上 |
+
+一致性未过的处理（e1_plan §5 的既定办法）：**E1 / E2 的全部 readout（S_0 和学生，dev 和 test）统一用 transformers 后端**（全词表 softmax，无 top-20 截断，与 batch 无关），dtype 仍是协议的 bf16。`eval.sbatch` 默认 `BACKEND=transformers`，在 `.venv` 里跑；vLLM 只用于 2b 的采样。可选（需 Mac 侧决定，不阻塞）：readout 改 fp32 可去掉约 0.007 的平均 bf16 噪声，代价很小；我没改。
+
+2b readout 校验（`scripts/14_readout_check.py`，新增；first-token p(A) 取 transformers readout，vLLM 采样 T = 1、8 token、`parse_answer`）：
+
+| 模型 | k | mean ∣diff∣ | 纯采样噪声的期望 ∣diff∣ | Pearson | 样本含字母 | 判定（< 0.05） |
+|---|---|---|---|---|---|---|
+| gate 学生 | 20 | 0.031 | 0.037 | 0.995 | 99.5% | 过 |
+| S_0 | 20 | 0.070 | 0.069 | 0.977 | 86.5% | 名义未过 |
+| gate 学生 | 200 | 0.011 | 0.012 | 0.999 | 99.8% | 过 |
+| S_0 | 200 | 0.020 | 0.021 | 0.997 | 91.7% | 过 |
+
+S_0 在 k = 20 时的 0.070 等于二项采样噪声本身（基座的 p(A) 不极端，20 个样本分辨不了）；k = 200 时两模型的差都落在噪声地板上。结论：first-token readout 与采样一致，学生评估**不**改用采样。
+
+修的问题：
+
+- `.venv-vllm` 的 transformers 5.18 让 vLLM 0.8.5 加载失败（`all_special_tokens_extended`）：pin `transformers==4.51.3`（vLLM 0.8.5 对应版本，支持 Qwen3）。两 venv 对 4,500 条 dev + test prompt 的 token id 逐条相同。
+- **checkpoint 兼容性（bug，已修 + 测试）**：transformers 5 存的 `config.json` 只有 `rope_parameters`、没有 `rope_theta`，transformers 4.51 / vLLM 0.8.5 会静默回落到 rope_theta = 10000（Qwen3 是 1e6），`tokenizer_config.json` 的 list 型 `extra_special_tokens` 让 4.51 直接报错。`sft.py` 存盘后调用新函数 `write_legacy_compat` 补上 4.x 写法（不覆盖已有键，幂等；manifest 记 `checkpoint_legacy_compat`）。补丁前后 transformers readout 逐位相同（max ∣ΔP(A)∣ 0.0）。测试：`test_write_legacy_compat` + smoke 断言。
+- 新增 `src/vcd/student/readout_check.py`（纯函数）+ `tests/test_readout_check.py`；pytest **87 passed, 1 skipped**。
+
+下一步：提交 E1 的 18 个 run（步骤 3）。

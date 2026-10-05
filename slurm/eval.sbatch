@@ -1,5 +1,8 @@
 #!/bin/bash
-# Student readout on one run directory with vLLM (docs/05_training_stack.md §4, §7).
+# Student readout on one run directory (docs/05_training_stack.md §4, §7). Default backend: transformers, in the training
+# venv. The 2026-10-04 gate found vLLM and transformers differing by bf16 noise (max |dP(A)| 0.06 > 0.01 on 200 dev
+# prompts; each is equally far from an fp32 readout), so per tasks/e1_plan.md §5 every E1 / E2 readout uses ONE
+# backend: transformers (full softmax, batch-size invariant). BACKEND=vllm still works (it uses .venv-vllm).
 #
 #   sbatch slurm/eval.sbatch <run-dir> <split>            e.g. sbatch slurm/eval.sbatch runs/qwen3-4b/gpt4o_O_s1 test
 #   sbatch --dependency=afterok:$TRAIN_JOB slurm/eval.sbatch runs/qwen3-4b/gpt4o_O_s1 test
@@ -28,12 +31,18 @@ set -euo pipefail
 RUN_DIR="${1:?usage: sbatch slurm/eval.sbatch <run-dir|-> <split>}"
 SPLIT="${2:-test}"
 PROJECT="${PROJECT:-${SLURM_SUBMIT_DIR:-/hai/scratch/$USER/CS329X_Project}}"   # defaults to the dir you ran sbatch from
-BACKEND="${BACKEND:-vllm}"
+BACKEND="${BACKEND:-transformers}"   # see the header: one backend for all E1 / E2 readouts
 BATCH="${BATCH:-64}"
 
 cd "$PROJECT"
 REPO="$PROJECT"
-VENV="${VLLM_VENV:-$REPO/.venv-vllm}"; [ -d "$VENV" ] || VENV="$REPO/.venv"
+# transformers backend -> the training venv (transformers 5.x, reads the checkpoints natively and honours dtype=);
+# vllm backend -> .venv-vllm (vllm 0.8.5.post1 + transformers 4.51, whose from_pretrained rejects the readout's dtype=)
+if [[ "$BACKEND" == "vllm" ]]; then
+  VENV="${VLLM_VENV:-$REPO/.venv-vllm}"; [ -d "$VENV" ] || VENV="$REPO/.venv"
+else
+  VENV="${VENV:-$REPO/.venv}"
+fi
 source "$VENV/bin/activate"
 export HF_HOME="${HF_HOME:-/hai/scratch/$USER/hf}"
 export HF_HUB_OFFLINE=1

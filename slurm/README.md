@@ -27,7 +27,8 @@ deactivate
 uv venv .venv-vllm --python 3.12
 uv pip install --python .venv-vllm/bin/python "vllm==0.8.5.post1"           # built against CUDA 12.4, torch 2.6.0, supports Qwen3
 uv pip install --python .venv-vllm/bin/python -e .                          # the vcd package (no extras)
-.venv-vllm/bin/python -c "import torch, vllm; print(torch.__version__, torch.version.cuda, vllm.__version__)"
+uv pip install --python .venv-vllm/bin/python "transformers==4.51.3"        # vllm 0.8.5 breaks on transformers 5.x (tokenizer API)
+.venv-vllm/bin/python -c "import torch, vllm, transformers; print(torch.__version__, torch.version.cuda, vllm.__version__, transformers.__version__)"
 
 hf download Qwen/Qwen3-4B-Base || huggingface-cli download Qwen/Qwen3-4B-Base   # compute nodes may be offline; HF_HUB_OFFLINE=1 in jobs
 hf download HuggingFaceTB/SmolLM2-135M || huggingface-cli download HuggingFaceTB/SmolLM2-135M
@@ -73,6 +74,13 @@ Gate checks in the smoke manifest: `n_dropped_too_long == 0`, `precision == "bf1
 configs/train.yaml, `uv pip install bitsandbytes`, and re-run the gate before the grid), and the wall time
 (30 steps × 1.15 / 30 × 560 steps ≈ projected run time; the sbatch default is 2 h). The vLLM / transformers
 parity on dev must hold before any test-split eval.
+
+Gate result 2026-10-04 (`results/e1_gate/gate_summary.json`, `tasks/hpc_log.md`): memory 69.27 GiB (69.5 GiB on Claude's
+longest batches), bf16, 0 dropped, ≈ 1.6 s/step. Parity failed on bf16 noise alone (max |dP(A)| 0.06; vLLM and
+transformers are each that far from an fp32 readout), so **every E1 / E2 readout uses the transformers backend**,
+which is now the `eval.sbatch` default (it runs in `.venv`). Checkpoints written by transformers 5 also carry the 4.x
+config / tokenizer keys (`vcd.train.sft.write_legacy_compat`) so `.venv-vllm` can still load them for sampling
+(`scripts/14_readout_check.py`).
 
 ## 2. The 48-run core grid
 
