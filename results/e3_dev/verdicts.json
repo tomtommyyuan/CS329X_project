@@ -1,0 +1,17 @@
+{
+  "rule_zh": "\u6548\u5e94\u5728 \u2265 2 / 3 teacher \u4e0a\u8d85 seed null 95 \u5206\u4f4d\u4e14\u65b9\u5411\u4e00\u81f4\uff1bR \u6709\u800c F / C \u65e0\u5219\u5f52\u56e0\u4e8e\u9690\u6027\u5185\u5bb9\u53d8\u5316",
+  "frozen": "E3 rule pre-specified 2026-10-05 (docs/03 E3 row, tasks/e3_plan.md \u00a73) before any F / C run existed; not yet frozen (freeze line pending in tasks/hpc_log.md)",
+  "split": "dev",
+  "confirmatory": false,
+  "alpha": 0.05,
+  "df": null,
+  "n_required": 3,
+  "primary_rows": [
+    "disagreement F vs C",
+    "consistency change: flip rate",
+    "consistency change: cross-framing JSD",
+    "excess teacher drift (JSD to own teacher)",
+    "inheritance by form: partial delta_rho"
+  ],
+  "verdicts": {}
+}

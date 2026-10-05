@@ -11,7 +11,7 @@
 | SFT 文件 O + R | 完成 2026-10-04 | 18 个文件，n 与计划一致；F / C 未建 |
 | E1 18 run | 完成 2026-10-04 | 18 / 18，0 失败；12 个在 array 129420，6 个在交互分配 |
 | dev 评估 + 分析 | 完成 2026-10-05 | 冻结规则（456b487）重跑 `results/e1_dev`；E1a / E1b 过；dev 判定仅描述 |
-| test 评估 + 分析 | 未开始，等确认 | 只跑一次 |
+| test 评估 + 分析 | 完成 2026-10-05 | `results/e1`（确认性）：E1 PASS，E2 primary FAIL，E2 secondary fail |
 | F / C 改写（Mac 侧） | 进行中 2026-10-04 | 完成后 `data/rewrites_train/` 进仓库，再建 paired O / F / C |
 
 ## 日志
@@ -233,3 +233,44 @@ E1a、E1b 都过，**E1 PASS**，进入 test。E2 在 dev 上的判定（primary
 §8 并行进展：45 个 paired SFT 文件已建（`data/sft_paired/`，5,132 / 4,682 / 4,668，O / F / C 的 prompt 顺序与字母逐行相同，最长 265 token）。训练 array 130120（`STUDENT_SHORT=qwen3-4b-paired DATA_LIST=paired_runs.txt`，`%8`）已开跑，目前无 OOM，peak ≤ 69.7 GiB。
 
 QoS 每人最多 64 个作业，没法给每个 run 单独挂评估作业。所以只挂了 3 个 follower（130129–130131，每个 teacher 一个，`afterany:130120`，脚本在 `/hai/scratch/tomyyc/vcd_diag/eval_paired.sh`），依次跑每个 paired run 的 train 和 dev readout。test readout 只在 `results/e1/summary.md` 已存在时才跑，用来保证"§7 第 5 步之后再做 test"。
+
+### 2026-10-05 e1_plan §7 第 5–6 步：test readout 与确认性分析（只跑一次）
+
+- **第 5 步。** S_0 和 18 个 run 的 test readout 在交互分配 129037 里跑，用同一 `eval.sbatch` 路径，transformers、fp32、batch 64。19 个 `test_responses.jsonl` 各 3,000 行，含 T0。学生 answer 率 ≥ 99.9%；S_0 为 21.3%（0.9 门下）。
+- **第 6 步。** `13 --split test --out results/e1`，n_perm = n_boot = 10,000，用时 2 分钟。13、e1_metrics、profile、readout、`configs/train.yaml` 与 456b487 逐字节相同（之后的 fc54a5c 只加了 E3 的代码）。
+
+**确认性结论（`results/e1/summary.md` 的 Verdicts，原样）：**
+
+| 判定 | test 值 | verdict |
+|---|---|---|
+| E1a | 最低训练标签复现 0.983，最低 answer 率 0.999 | pass |
+| E1b | 争议项最低 ci_lo 0.862 | pass |
+| **E1** | | **PASS** |
+| **E2 primary**（预注册 Δρ） | claude46 −0.155 [−0.307, −0.055]，p_perm 0.973（null 均值 −0.073）；deepseek_v4 +0.127 [0.029, 0.229]，p_perm 0.116（null 均值 +0.082），p_holm 0.348；gpt4o −0.067 [−0.185, 0.054]，p_perm 0.348；0/3 | **FAIL** |
+| **E2 secondary**（D 与 D_specific 守门） | D 0.027 [−0.013, 0.070]，p 0.061；D_specific 0.067 [0.011, 0.125]，D_shared −0.040（290 个 family） | **fail**（D 的 CI 含 0、p > 0.05） |
+
+**E0 门槛（docs/03 §1）。** test 侧 teacher 可靠度 claude46 0.329、deepseek_v4 0.466，均 < 0.5，P2 不成立：RQ1 / E2 / E7 降为 exploratory，主线改为 E2b / E3 / E4 / E5，本项目做 E3。
+
+ρ_own / 上限 sqrt(2r / (1 + r))：
+
+| teacher | ρ_own | 上限 | ρ / 上限 |
+|---|---|---|---|
+| claude46 | 0.085 | 0.704 | 0.12 |
+| deepseek_v4 | 0.444 | 0.797 | 0.56 |
+| gpt4o | 0.374 | 0.904 | 0.41 |
+
+描述项（无判定）：
+
+| 项 | test |
+|---|---|
+| mean ΔρPartial（15 run） | −0.014，teacher 层面精确 p 0.333（6 种重标号中排第 2） |
+| P3（partial Δρ，Holm） | claude46 −0.104（p_holm 0.927）、deepseek_v4 +0.105（0.242）、gpt4o −0.033（0.489） |
+| D，仅 T0（探索） | 0.054 [−0.001, 0.114]，p 0.006 |
+| raw D（探索） | 0.033 [−0.003, 0.071]，p 0.099 |
+| scale-free D（探索） | 0.057 [0.011, 0.104] |
+| S_0 控制 | 最近的 teacher 是 deepseek_v4，ρ 0.380 [0.327, 0.434]，比次近者高 0.100 [0.036, 0.167]：基座训练前就最像 DeepSeek |
+| suggestibility s（290 个 family） | 学生 claude 0.026 / deepseek 0.140 / gpt4o 0.108；teacher 0.045 / 0.113 / 0.063；R 0.001；base prior 0.146 |
+| s 的两两差 | 学生 deepseek − gpt4o +0.032 [0.017, 0.047]，gpt4o − claude +0.082 [0.067, 0.099]；学生 − 自己 teacher：claude −0.019 [−0.042, 0.004]、deepseek +0.027 [0.002, 0.053]、gpt4o +0.045 [0.022, 0.068]；学生 − base prior：claude −0.120、gpt4o −0.038、deepseek −0.006 [−0.030, 0.019] |
+| 剂量反应 slope（s_run 对 s_T） | 1.441（pearson 0.856，顺序保持），teacher 层面精确 p 1/6 |
+
+以上是 E1 / E2 的正式结论，此后不再改任何量。
