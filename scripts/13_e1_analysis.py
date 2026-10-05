@@ -94,7 +94,7 @@ def summary_md(tab: pd.DataFrame, null: pd.DataFrame, grid: dict, teachers: list
     lines += ["## E2 decision (pre-registered): seed-mean profile per teacher, delta_rho > 0 and Holm-adjusted p_perm < 0.05 on >= 2/3 teachers", ""]
     n_pass = 0
     po = pooled[pooled["version"] == "O"] if pooled is not None and not pooled.empty else pd.DataFrame()
-    for _, r in po.sort_values("teacher").iterrows():
+    for _, r in (po.sort_values("teacher") if len(po) else po).iterrows():  # no O runs yet (e.g. only S_0): empty, no columns
         passed = bool(r["delta_rho"] > 0 and r["p_holm"] < 0.05)
         n_pass += int(passed)
         lines.append(f"- {r['teacher']} ({r['n_seeds']} seeds pooled, {r['n_families']} families): delta_rho {_fmt(r['delta_rho'])} "
@@ -106,7 +106,7 @@ def summary_md(tab: pd.DataFrame, null: pd.DataFrame, grid: dict, teachers: list
         lines.append("no O runs with a matching teacher profile yet")
     lines.append("")
     lines += ["### Per-seed view (transparency only, not the decision rule)", ""]
-    core2 = core.dropna(subset=["delta_rho"])
+    core2 = core.dropna(subset=["delta_rho"]) if "delta_rho" in core else core.iloc[0:0]
     for t, gt in core2.groupby("teacher"):
         ok = int(((gt["delta_rho"] > 0) & (gt["p_perm"] < 0.05)).sum())
         lines.append(f"- {t}: mean delta_rho {_fmt(gt['delta_rho'].mean())} (sd {_fmt(gt['delta_rho'].std())}), {ok}/{len(gt)} seeds individually with delta_rho > 0 and p < 0.05")

@@ -244,3 +244,26 @@ def test_analysis_script_cli(world, tmp_path):
         cwd=ROOT, capture_output=True, text=True, check=True,
     )
     assert pd.read_csv(tmp_path / "e1b/agreement.csv").shape == pd.read_csv(out / "agreement.csv").shape
+
+
+def test_analysis_script_cli_base_only(world, tmp_path):
+    """scripts/13 with only the untrained base S_0 (no O runs yet) writes a summary instead of crashing."""
+    from vcd.io import write_jsonl
+
+    d = tmp_path / "runs" / "qwen3-4b" / "base_B_s0" / "eval"
+    d.mkdir(parents=True)
+    write_jsonl(d / "dev_responses.jsonl", [r.model_copy(update={"teacher": "qwen3-4b.base_B_s0"}) for r in world["students"] if r.teacher == "qwen3-4b.alpha_O_s1"])
+    tdir = tmp_path / "teachers"
+    tdir.mkdir()
+    for t in ("alpha", "beta"):
+        write_jsonl(tdir / f"{t}_dev_profile.jsonl", [r for r in world["teachers"] if r.teacher == t])
+    pp = tmp_path / "prompts.jsonl"
+    write_jsonl(pp, world["prompts"].values())
+    out = tmp_path / "e1"
+    subprocess.run(
+        [sys.executable, str(ROOT / "scripts/13_e1_analysis.py"), "--runs-dir", str(tmp_path / "runs"), "--student", "qwen3-4b", "--split", "dev",
+         "--teacher-dir", str(tdir), "--teachers", "alpha,beta", "--prompts", str(pp), "--out", str(out), "--n-perm", "50", "--n-boot", "50"],
+        cwd=ROOT, capture_output=True, text=True, check=True,
+    )
+    md = (out / "summary.md").read_text()
+    assert "qwen3-4b.base_B_s0" in md and "no O runs with a matching teacher profile yet" in md

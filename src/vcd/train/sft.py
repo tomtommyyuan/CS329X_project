@@ -15,6 +15,8 @@ Design (deliberately plain, one file, no Trainer subclassing):
   for Qwen3-4B at step time). Peak GPU memory is recorded in the manifest (`peak_memory_gib`).
 - The checkpoint is saved in bf16 when training ran in bf16 (vLLM / the readout load bf16 anyway; the fp32
   master copy carries nothing the evaluation uses and would double the 8 GB per run). CPU / fp32 runs save fp32.
+- The saved config / tokenizer files also get their transformers-4.x spellings (`write_legacy_compat`) because
+  the vLLM venv runs transformers 4.51 and would otherwise read the wrong rope_theta or fail on the tokenizer.
 - Outputs: `{run_dir}/checkpoint/` (save_pretrained + tokenizer), `train_log.jsonl`, `train_manifest.json`.
 
 Nothing here runs on import; the heavy imports (torch, transformers) happen inside functions so that the
@@ -181,6 +183,47 @@ def resolve_run_identity(run_dir: Path, student_short: str, rows: Sequence[dict]
     return {"run_id": run_id, "teacher": teacher, "version": version, "seed": seed, "protocol_run_id": bool(RUN_ID_RE.match(run_id))}
 
 
+def write_legacy_compat(ckpt: str | Path) -> dict[str, Any]:
+    """Add the transformers-4.x spellings to a checkpoint saved by transformers 5, in place; returns what changed.
+
+    The vLLM venv (vllm 0.8.5.post1 pins transformers 4.51, slurm/README.md §0) must read a student checkpoint
+    exactly like the base model, whose own files use these spellings (and transformers 5 reads them too):
+    - config.json: `rope_theta` / `rope_scaling` from `rope_parameters`. Without them transformers 4.x silently
+      falls back to rope_theta = 10000 (Qwen3 uses 1e6) and vLLM serves a model with the wrong positions.
+      `torch_dtype` from `dtype`.
+    - tokenizer_config.json: a list-valued `extra_special_tokens` becomes `additional_special_tokens`
+      (transformers 4.x expects a dict under that key and fails to load the tokenizer).
+    Keys that already exist are never overwritten, so the function is idempotent.
+    """
+    ckpt = Path(ckpt)
+    changed: dict[str, Any] = {}
+    cfg_path = ckpt / "config.json"
+    if cfg_path.exists():
+        cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+        rp = cfg.get("rope_parameters")
+        if isinstance(rp, dict) and "rope_theta" in rp and "rope_theta" not in cfg:
+            cfg["rope_theta"] = rp["rope_theta"]
+            changed["rope_theta"] = rp["rope_theta"]
+            if "rope_scaling" not in cfg:
+                extra = {k: v for k, v in rp.items() if k != "rope_theta"}
+                cfg["rope_scaling"] = None if extra.get("rope_type", "default") == "default" else extra
+                changed["rope_scaling"] = cfg["rope_scaling"]
+        if "dtype" in cfg and "torch_dtype" not in cfg:
+            cfg["torch_dtype"] = changed["torch_dtype"] = cfg["dtype"]
+        if changed:
+            cfg_path.write_text(json.dumps(cfg, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    tok_path = ckpt / "tokenizer_config.json"
+    if tok_path.exists():
+        tok = json.loads(tok_path.read_text(encoding="utf-8"))
+        extra = tok.get("extra_special_tokens")
+        if isinstance(extra, list):
+            del tok["extra_special_tokens"]
+            tok.setdefault("additional_special_tokens", extra)
+            changed["additional_special_tokens"] = len(extra)
+            tok_path.write_text(json.dumps(tok, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return changed
+
+
 def _load_model(name: str, dtype, attn_implementation: str):
     """AutoModelForCausalLM.from_pretrained with the transformers-5 `dtype` kwarg, falling back to `torch_dtype`."""
     from transformers import AutoModelForCausalLM
@@ -340,6 +383,7 @@ def train_sft(
     model.config.use_cache = True  # restore the inference default for vLLM / transformers loading
     model.save_pretrained(ckpt, safe_serialization=True)
     tokenizer.save_pretrained(ckpt)
+    compat = write_legacy_compat(ckpt)  # the vLLM venv runs transformers 4.51
     finished = datetime.now(timezone.utc)
 
     manifest = {
@@ -398,6 +442,7 @@ def train_sft(
         "finished_at": finished.isoformat(),
         "final_loss": final_loss,
         "checkpoint": str(ckpt),
+        "checkpoint_legacy_compat": compat,
     }
     with open(run_dir / "train_manifest.json", "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2, ensure_ascii=False)

@@ -1,0 +1,128 @@
+{
+  "split": "dev",
+  "n_prompts": 200,
+  "note": "first 200 dev prompts; gate student = 30-step real run on data/sft/gpt4o_O_s1.jsonl",
+  "parity_threshold_max_abs_dP_A": 0.01,
+  "parity": {
+    "gate_student: vllm_bf16 vs transformers_bf16": {
+      "n": 200,
+      "max_abs_dP_A": 0.0622,
+      "mean_abs_dP_A": 0.0055,
+      "p95_abs_dP_A": 0.0465,
+      "argmax_flips": 3,
+      "max_abs_d_mass_AB": 0.0023,
+      "answer_rate": [
+        1.0,
+        1.0
+      ]
+    },
+    "gate_student: transformers_bf16 vs transformers_fp32": {
+      "n": 200,
+      "max_abs_dP_A": 0.062,
+      "mean_abs_dP_A": 0.0069,
+      "p95_abs_dP_A": 0.034,
+      "argmax_flips": 2,
+      "max_abs_d_mass_AB": 0.0012,
+      "answer_rate": [
+        1.0,
+        1.0
+      ]
+    },
+    "gate_student: vllm_bf16 vs transformers_fp32": {
+      "n": 200,
+      "max_abs_dP_A": 0.0502,
+      "mean_abs_dP_A": 0.0065,
+      "p95_abs_dP_A": 0.0302,
+      "argmax_flips": 5,
+      "max_abs_d_mass_AB": 0.0011,
+      "answer_rate": [
+        1.0,
+        1.0
+      ]
+    },
+    "gate_student: transformers_bf16 batch32 vs batch64": {
+      "n": 200,
+      "max_abs_dP_A": 0.0,
+      "mean_abs_dP_A": 0.0,
+      "p95_abs_dP_A": 0.0,
+      "argmax_flips": 0,
+      "max_abs_d_mass_AB": 0.0,
+      "answer_rate": [
+        1.0,
+        1.0
+      ]
+    },
+    "S_0: vllm_bf16 vs transformers_bf16": {
+      "n": 200,
+      "max_abs_dP_A": 0.0622,
+      "mean_abs_dP_A": 0.01,
+      "p95_abs_dP_A": 0.0567,
+      "argmax_flips": 0,
+      "max_abs_d_mass_AB": 0.0368,
+      "answer_rate": [
+        0.33,
+        0.28
+      ]
+    }
+  },
+  "decision": "parity FAIL (bf16 noise, both backends equally far from fp32) -> all E1 / E2 readouts use the transformers backend (tasks/e1_plan.md \u00a75)",
+  "gate_manifest": {
+    "peak_memory_gib": 69.27,
+    "precision": "bf16",
+    "checkpoint_dtype": "bfloat16",
+    "n_dropped_too_long": 0,
+    "steps": 30,
+    "steps_per_epoch": 176,
+    "wall_time_sec": 109.18,
+    "optimizer": "adamw_torch",
+    "optimizer_fused": true,
+    "n_examples": 5619,
+    "n_target_tokens": 279029,
+    "final_loss": 0.778232105076313,
+    "git_commit": "8ba8340dfbf7d3472ce46f406721256889da68e1",
+    "torch_version": "2.6.0+cu124",
+    "transformers_version": "5.18.0"
+  },
+  "stress_claude_longest_96": {
+    "peak_memory_gib": 69.5,
+    "max_total_tokens": 301,
+    "min_total_tokens": 232,
+    "steps": 3
+  },
+  "readout_check_gate_student": {
+    "n": 200,
+    "mean_abs_diff": 0.03065834558877473,
+    "pearson": 0.9951478677079156,
+    "expected_abs_diff_from_sampling_noise": 0.03673328325213268,
+    "share_samples_with_letter": 0.99525,
+    "gate": "ok",
+    "k": 20
+  },
+  "readout_check_base": {
+    "n": 200,
+    "mean_abs_diff": 0.07029936028757622,
+    "pearson": 0.9771029300456517,
+    "expected_abs_diff_from_sampling_noise": 0.06891999048296647,
+    "share_samples_with_letter": 0.86525,
+    "gate": "FAIL",
+    "k": 20
+  },
+  "readout_check_gate_student_k200": {
+    "n": 200,
+    "mean_abs_diff": 0.011111417177610137,
+    "pearson": 0.9989700012048424,
+    "expected_abs_diff_from_sampling_noise": 0.011958624140624017,
+    "share_samples_with_letter": 0.998275,
+    "gate": "ok",
+    "k": 200
+  },
+  "readout_check_base_k200": {
+    "n": 200,
+    "mean_abs_diff": 0.0204412309611818,
+    "pearson": 0.9969266866834112,
+    "expected_abs_diff_from_sampling_noise": 0.020992306677953786,
+    "share_samples_with_letter": 0.916775,
+    "gate": "ok",
+    "k": 200
+  }
+}

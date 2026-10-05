@@ -1,0 +1,20 @@
+{
+  "n": 200,
+  "mean_abs_diff": 0.0204412309611818,
+  "pearson": 0.9969266866834112,
+  "share_no_logit": 0.0,
+  "expected_abs_diff_from_sampling_noise": 0.020992306677953786,
+  "share_samples_with_letter": 0.916775,
+  "share_prompts_no_sampled_letter": 0.0,
+  "diff_max": 0.05,
+  "gate": "ok",
+  "model": "Qwen/Qwen3-4B-Base",
+  "responses": "runs/_smoke/eval_base_tf/dev_responses.jsonl",
+  "split": "dev",
+  "k": 200,
+  "temperature": 1.0,
+  "max_tokens": 8,
+  "seed": 0,
+  "n_prompts": 200,
+  "seconds": 69.6
+}

@@ -1,0 +1,20 @@
+{
+  "n": 200,
+  "mean_abs_diff": 0.03065834558877473,
+  "pearson": 0.9951478677079156,
+  "share_no_logit": 0.0,
+  "expected_abs_diff_from_sampling_noise": 0.03673328325213268,
+  "share_samples_with_letter": 0.99525,
+  "share_prompts_no_sampled_letter": 0.0,
+  "diff_max": 0.05,
+  "gate": "ok",
+  "model": "runs/_smoke/gpt4o_O_s1/checkpoint",
+  "responses": "runs/_smoke/eval_tf/dev_responses.jsonl",
+  "split": "dev",
+  "k": 20,
+  "temperature": 1.0,
+  "max_tokens": 8,
+  "seed": 0,
+  "n_prompts": 200,
+  "seconds": 51.2
+}

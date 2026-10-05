@@ -25,6 +25,7 @@ from vcd.train.sft import (
     tokenize_example,
     tokenize_rows,
     train_sft,
+    write_legacy_compat,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -168,6 +169,30 @@ def test_run_identity():
     assert gate["protocol_run_id"] is False, "a leading underscore must not parse as a protocol run"
 
 
+def test_write_legacy_compat(tmp_path):
+    """transformers-5 checkpoint files get the 4.x keys the vLLM venv needs; existing keys are kept; idempotent."""
+    ckpt = tmp_path / "ckpt"
+    ckpt.mkdir()
+    special = ["<|im_start|>", "<|im_end|>"]
+    (ckpt / "config.json").write_text(json.dumps({"model_type": "qwen3", "dtype": "bfloat16",
+                                                  "rope_parameters": {"rope_theta": 1000000, "rope_type": "default"}}))
+    (ckpt / "tokenizer_config.json").write_text(json.dumps({"eos_token": "<|endoftext|>", "extra_special_tokens": special}))
+    changed = write_legacy_compat(ckpt)
+    cfg = json.loads((ckpt / "config.json").read_text())
+    tok = json.loads((ckpt / "tokenizer_config.json").read_text())
+    assert cfg["rope_theta"] == 1000000 and cfg["rope_scaling"] is None and cfg["torch_dtype"] == "bfloat16"
+    assert cfg["rope_parameters"] == {"rope_theta": 1000000, "rope_type": "default"}, "the 5.x keys stay"
+    assert "extra_special_tokens" not in tok and tok["additional_special_tokens"] == special and tok["eos_token"] == "<|endoftext|>"
+    assert changed == {"rope_theta": 1000000, "rope_scaling": None, "torch_dtype": "bfloat16", "additional_special_tokens": 2}
+    assert write_legacy_compat(ckpt) == {}, "second call changes nothing"
+    # non-default rope types keep their parameters under rope_scaling; keys already present are never overwritten
+    (ckpt / "config.json").write_text(json.dumps({"rope_parameters": {"rope_theta": 5e5, "rope_type": "yarn", "factor": 4.0}}))
+    write_legacy_compat(ckpt)
+    assert json.loads((ckpt / "config.json").read_text())["rope_scaling"] == {"rope_type": "yarn", "factor": 4.0}
+    (ckpt / "config.json").write_text(json.dumps({"rope_theta": 7.0, "rope_parameters": {"rope_theta": 5e5, "rope_type": "default"}}))
+    assert write_legacy_compat(ckpt) == {} and json.loads((ckpt / "config.json").read_text())["rope_theta"] == 7.0
+
+
 def test_tiny_profile_overrides():
     cfg = load_train_config("configs/train.yaml", profile="tiny")
     assert cfg["student_model"] == TINY_MODEL and cfg["student_model_short"] == "smollm2-135m"
@@ -180,7 +205,9 @@ def test_tiny_profile_overrides():
 
 @pytest.mark.slow
 def test_smoke_train_tiny(tmp_path, sft_rows):
-    """2 optimizer steps of SmolLM2-135M on CPU; manifest, log and reloadable checkpoint must exist."""
+    """2 optimizer steps of SmolLM2-135M (CPU, or the GPU when one is visible); manifest, log and reloadable
+    checkpoint must exist."""
+    import torch
     from transformers import AutoModelForCausalLM
 
     data_path = tmp_path / "gpt4o_O_s1.jsonl"
@@ -195,8 +222,13 @@ def test_smoke_train_tiny(tmp_path, sft_rows):
     assert on_disk["n_target_tokens"] > 0 and on_disk["n_total_tokens"] > on_disk["n_target_tokens"]
     assert on_disk["steps"] == 2 and on_disk["epochs"] == 3 and on_disk["effective_batch"] == 4
     assert on_disk["precision"] == "fp32" and on_disk["final_loss"] > 0
-    assert on_disk["checkpoint_dtype"] == "float32" and on_disk["peak_memory_gib"] is None and on_disk["accumulation_group_sizes"] == [1]
-    assert on_disk["optimizer_fused"] is False
+    assert on_disk["checkpoint_dtype"] == "float32" and on_disk["accumulation_group_sizes"] == [1]
+    # the tiny profile is fp32 on any device; on a GPU node it still trains on CUDA, where peak memory is
+    # measured and AdamW uses the fused kernel
+    if torch.cuda.is_available():
+        assert on_disk["device"] == "cuda" and on_disk["peak_memory_gib"] > 0 and on_disk["optimizer_fused"] is True
+    else:
+        assert on_disk["device"] == "cpu" and on_disk["peak_memory_gib"] is None and on_disk["optimizer_fused"] is False
     for key in ("data_sha256", "learning_rate", "lr_scheduler", "warmup_ratio", "max_seq_len", "optimizer",
                 "gradient_checkpointing", "wall_time_sec", "torch_version", "transformers_version", "hostname",
                 "started_at", "finished_at", "seed", "teacher", "version"):
@@ -206,9 +238,14 @@ def test_smoke_train_tiny(tmp_path, sft_rows):
     assert [r["step"] for r in log_rows] == [1, 2] and all(r["loss"] > 0 for r in log_rows)
     assert (run_dir / "checkpoint" / "model.safetensors").exists()
     assert (run_dir / "checkpoint" / "tokenizer_config.json").exists()
+    # transformers-4.x readable (the vLLM venv): rope_theta spelled out, no list-valued extra_special_tokens
+    saved_cfg = json.loads((run_dir / "checkpoint" / "config.json").read_text())
+    if "rope_parameters" in saved_cfg:
+        assert saved_cfg["rope_theta"] == saved_cfg["rope_parameters"]["rope_theta"]
+    assert not isinstance(json.loads((run_dir / "checkpoint" / "tokenizer_config.json").read_text()).get("extra_special_tokens"), list)
+    assert "checkpoint_legacy_compat" in on_disk
     reloaded = AutoModelForCausalLM.from_pretrained(run_dir / "checkpoint")
     assert reloaded.config.model_type == "llama" and reloaded.config.use_cache is True
-    import torch
     from safetensors import safe_open
 
     with safe_open(run_dir / "checkpoint" / "model.safetensors", "pt") as f:

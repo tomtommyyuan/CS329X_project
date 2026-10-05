@@ -11,8 +11,10 @@
 # Each run writes runs/${STUDENT_SHORT}/${teacher}_${version}_s${seed}; a directory that already has
 # train_manifest.json is skipped (safe to resubmit the array after preemption / failures).
 #
-# CONFIRM BEFORE SUBMITTING (HAIC values from 2026-08; may have changed): --account, --partition, QoS
-#   (`sacctmgr show user $USER withassoc format=user,account%20,qos%30`; add --qos=<name> if rejected).
+# Verified 2026-10-04 (sacctmgr / scontrol): account ingrai with QoS ingrai (<= 32 GPUs per user, no --qos needed);
+#   partition hai (7-day limit; gpu:h100 keeps jobs off the B200 node haic-hgx-8, which the cu124 torch cannot drive);
+#   haic-hgx-2 stays excluded (NFS black hole in the 2026-08 HAIC notes, not re-tested). Re-check if a job is rejected:
+#   `sacctmgr show user $USER withassoc format=user,account%20,qos%30`.
 # Submit from the repo root and make sure logs/ exists (README §0): SLURM opens logs/%x-%j.out BEFORE this script
 #   runs, so a missing logs/ fails the job with no log. With no arguments and no --array the job fails inside
 #   the allocation (nothing is printed at submission time); always pass (teacher version seed) or --array.
