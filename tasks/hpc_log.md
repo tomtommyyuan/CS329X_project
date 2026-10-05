@@ -94,3 +94,10 @@ S_0 在 k = 20 时的 0.070 等于二项采样噪声本身（基座的 p(A) 不�
 - 新增 `src/vcd/student/readout_check.py`（纯函数）+ `tests/test_readout_check.py`；pytest **87 passed, 1 skipped**。
 
 下一步：提交 E1 的 18 个 run（步骤 3）。
+
+### 2026-10-04 步骤 3 开始：E1 网格提交
+
+- `sbatch --array=0-4,15-19,30-34,45-47%8 slurm/train.sbatch` → 作业 129420（`hai` 里优先级第 3，预计 23:32 开始）。
+- 为不让交互分配的 H100 空等：取消 array 任务 45–47（R s1–3，`scancel 129420_45 129420_46 129420_47`，先取消再开跑，避免同一 run 目录两个写者），在分配 129037 里用同一脚本 `bash slurm/train.sbatch random R {1,2,3}` 顺序训练。结果与 array 等价（同代码、同数据顺序、同 seed）；manifest 的 `slurm_job_id` 是 129037。
+- S_0 dev readout（transformers）：1,500 行，answer 25% / malformed 75%，mean mass_AB 0.875；完整 family（四个 variant 两种顺序都过 0.9）只有 5 个，S_0 作为参照很薄（协议所致，不放宽阈值）。
+- 修 `scripts/13_e1_analysis.py`：只有 S_0、还没有 O run 时 `summary_md` 两处崩溃（空 pooled 表无 `teacher` 列；`core` 无 `delta_rho` 列）。加了 `test_analysis_script_cli_base_only`；pytest 88 passed 1 skipped。
