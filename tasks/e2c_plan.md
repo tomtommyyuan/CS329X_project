@@ -1,6 +1,6 @@
 # E2c 预注册：争议增强训练池（Contested-Enriched Training Pool）
 
-> 状态：**四源 + mc_low 全部过门：moral_stories 第四轮抽检（seed 20261008，`results/e2c/handcheck_round4_report.md`）二人称 93 / 两行动 99 / 无裁决 100，盲审 25/25。非 MS 四源 Wave 1（1,610 族）+ 2b（1,600 族）筛选完成：新 contested 930 + 层 0 356 = 1,286；moral_stories wave 1（493 族）+ 2a（1,515 族）于 f73f097 之后筛完（rate 10.0%，+199）→ **E2c-C = 1,485、E2c-K = 1,485**（§8 行 4；缺 15，层 3 不启用）；T3 / T5 / T6 示范调用中。分析脚本 `19_e2c_analysis.py` 已于 115027a 提交并在 E1 run 上冒烟复现（2026-10-05）**。本文件 §0–§10 连同代码必须在任何筛选文件被打开前提交（§9）。付费筛选只对已过门的三源 + mc_low 开跑（`data/prompts/contested_pool_T1_wave1_noms.jsonl`，1,610 族 → `data/teacher_e2c/*_pool_screen.jsonl`）；moral_stories wave 1 + 2a 待第四轮（最后一轮）过门后追加（§11 D）。上游：[docs/02](../docs/02_models_and_datasets.md) §3–5、[docs/03](../docs/03_experiments.md) §1–3、[e1_plan](e1_plan.md) §0、[e2_plan](e2_plan.md) §1–2（冻结于 456b487）。付费 API 只在 Mac 侧；本阶段不修改 `data/families/families.jsonl` 与 `data/prompts/{pilot,train,dev,test}_prompts_v2.jsonl`。
+> 状态：**四源 + mc_low 全部过门：moral_stories 第四轮抽检（seed 20261008，`results/e2c/handcheck_round4_report.md`）二人称 93 / 两行动 99 / 无裁决 100，盲审 25/25。非 MS 四源 Wave 1（1,610 族）+ 2b（1,600 族）筛选完成：新 contested 930 + 层 0 356 = 1,286；moral_stories wave 1（493 族）+ 2a（1,515 族）于 f73f097 之后筛完（rate 10.0%，+199）→ **E2c-C = 1,485、E2c-K = 1,485**（§8 行 4；缺 15，层 3 不启用）；T3 / T5 / T6 示范已采集、30 个 SFT 已建（§8 行 5）。分析脚本 `19_e2c_analysis.py` 已于 115027a 提交并在 E1 run 上冒烟复现（2026-10-05）。**2026-10-06：3 epoch 的 30 run 训完，E2c-E1 门在 claude46 C 上未过（E1a 0.902–0.912）→ 修订 1（§12）：E2c 配方改为 5 epoch（`configs/train_e2c.yaml`），先试训一个 run，过了再重训 30 个；§6 的 test 判定规则不变**。本文件 §0–§10 连同代码必须在任何筛选文件被打开前提交（§9）。付费筛选只对已过门的三源 + mc_low 开跑（`data/prompts/contested_pool_T1_wave1_noms.jsonl`，1,610 族 → `data/teacher_e2c/*_pool_screen.jsonl`）；moral_stories wave 1 + 2a 待第四轮（最后一轮）过门后追加（§11 D）。上游：[docs/02](../docs/02_models_and_datasets.md) §3–5、[docs/03](../docs/03_experiments.md) §1–3、[e1_plan](e1_plan.md) §0、[e2_plan](e2_plan.md) §1–2（冻结于 456b487）。付费 API 只在 Mac 侧；本阶段不修改 `data/families/families.jsonl` 与 `data/prompts/{pilot,train,dev,test}_prompts_v2.jsonl`。
 
 ## 0. 问题
 
@@ -92,7 +92,7 @@ E1 在 dev 上显示：三个 aligned teacher 的训练标签两两一致 93–9
 |---|---|
 | 评估数据 | dev 150 / test 300 family 与 `data/prompts/{dev,test}_prompts_v2.jsonl`（含 T0）；E2c 的学生只在这两套上评 |
 | framing 与 template | `framings.py` v2 stems、`vcd.train.data` template 与 `ASSISTANT_PREFIX`、prompt 格式 |
-| 训练 | `configs/train.yaml` 全部超参、`stable_one`、`order_seed`、变体 T1 / T3 / T5 / T6 |
+| 训练 | `configs/train.yaml` 全部超参、`stable_one`、`order_seed`、变体 T1 / T3 / T5 / T6。**修订 1（§12）**：E2c 的 C / K 改用 `configs/train_e2c.yaml`，与 train.yaml 只差 `num_epochs` 3 → 5（测试 `tests/test_train_e2c_config.py` 钉住） |
 | readout | transformers 后端、fp32、0.9 质量门 |
 | teacher | 同三个 snapshot，demo T = 0 |
 | 规则 | E1a / E1b（e1_plan §0）；E2 primary / secondary **原样**（456b487）；`13_e1_analysis.py` 默认值 |
@@ -104,7 +104,7 @@ E1 在 dev 上显示：三个 aligned teacher 的训练标签两两一致 93–9
 
 | 判定 | 规则 | 预测 |
 |---|---|---|
-| **E2c-E1 门** | E2c-C 每个 O run E1a ≥ 0.95；E1b 六对 ci_lo > 0.5；不过则先修训练，不看下面 | 过 |
+| **E2c-E1 门** | E2c-C 每个 O run E1a ≥ 0.95；E1b 六对 ci_lo > 0.5；不过则先修训练，不看下面。**澄清（修订 1）**：K 只要求 E1a（共识集的两两冲突 item 仅 23–38 个，E1b 无信息） | 过 |
 | **E2c primary（own > other）** | E2c-C 上 ≥ 2/3 teacher：gap_T > seed-pair null q95 **且** family bootstrap 95% CI 下界 > 0 → **PASS**；1/3 PARTIAL；0/3 FAIL | PASS；E1 原 train 的 gap：dev 0.000 / 0.017 / 0.018，test 0.002 / 0.020 / 0.009（gpt4o / claude46 / deepseek_v4，`19` 在 E1 的 15 个 O run 上复算，与 results/e1* 逐行一致） |
 | **E2c 归因（对照）** | 每 teacher：gap_T(C) − gap_T(K) 的 family bootstrap CI 下界 > 0，≥ 2/3 → 效应归于争议性而非换源 | 成立；E2c-K 的 gap ≈ 0 |
 | **E2 primary / secondary（冻结规则）** | 对 E2c-C 的 15 run 照 e2_plan §2 跑 13，如实报 | D(C) > D(E1)；Δρ 方向改善，不预测必过 |
@@ -131,7 +131,7 @@ E1 在 dev 上显示：三个 aligned teacher 的训练标签两两一致 93–9
 | 3 | Mac | 三 teacher 筛选 Wave 1（§11 D） | `data/teacher_e2c/*_pool_screen.jsonl` | **已完成**：已过门三源 + mc_low（Wave 1，1,610 族，`contested_pool_T1_wave1_noms.jsonl`）+ 2b（hendrycks 1,600 族，`contested_pool_T1_wave2b.jsonl`），每 teacher 6,420 行；非答 7 + 0。moral_stories wave 1（493 族，`contested_pool_T1_wave1_ms.jsonl`）+ 2a（1,515 族，`contested_pool_T1_wave2a.jsonl`）**已完成**（4,016 条 × 3 teacher，$9.6；每 teacher 10,436 行；MS 非答 15） |
 | 4 | Mac | 18（§11 E）：分源 rate、校准复现 356、按 §1 触发 2a / 2b / 层 3 | `screen_report.md`；contested_selected ≥ 1,500 或记录缺口 | 校准复现 356 / 1,113 / 24；分源 rate：scruples 37.5%、aita 30.0%、hendrycks wave 1 36.3% / 2b 36.6%、mc_low 0.4%；新 contested 930（majority_differ 261、uncertain_band 702、claude_order_split 200、flip_only 372）；**合计 1,286**（`results/e2c/screen_report_wave1_2b.md`）。**偏离记录**：2b 在 2a 之前开跑——2a 全部为 moral_stories，被步 B 的门卡住，而 §1 的 2a → 2b 只是按来源可用量排的顺序，成员均已钉死（seed 20261002），不影响选择规则。MS 试筛 6.1% → 实际 10.0%（199 / 1,993；wave 1 48 / 493，2a 156 / 1,505）。**最终 E2c-C = 1,485**（层 0 356 + 新 1,129 = hendrycks 695、scruples 217、moral_stories 199、aita 15、层 0 DD 245 / MC 114；缺 15，未达 1,144 新增故全取不抽样）；**K = 1,485**，按来源精确匹配（consensus 池 5,180）；`results/e2c/screen_report.md`。理由构成：仅 uncertain_band 683、含 majority_differ 510、仅 claude_order_split 138；flip_only 553（灵敏度集 = 932）。**簿记偏离**：hendrycks 的 `meta.wave` 在第三轮重建时被重抽（当时无钉波，RNG 流随 MS 变动），与实际筛选所用 prompt 文件相差 47 族（标 2b 未筛 44、标 reserve 已筛 47、标 wave 1 未筛 3）；筛选覆盖 1,900 / 1,948，选择全取、K 按来源抽，波次标签不参与，结果不受影响 |
 | 5 | Mac | E2c-C / E2c-K 文件（步 E 一并产出）；T3 / T5 / T6 demo；`10` 建 `data/sft_e2c/`；提交 family id 列表与 meta | 30 个 SFT 文件 + meta | **完成**（2026-10-06）：示范 41,904 次（$36；新示范非答 C 3 / K 0）；`17b assemble` 每 teacher 11,880 / 11,880 无缺；`10`（`stable_one`，`order_seed` 20261002）→ 30 个文件，meta（含 sha256）与 runs.txt 已提交，jsonl 由 HPC 用 §11 I 同一命令重建后核对 sha256。n_examples（= 顺序稳定 item 数，5 seed 同一集合）：**C** gpt4o 4,964（1,451 族，稳定率 0.836）/ claude46 4,838（1,455，0.815）/ **deepseek_v4 2,497（1,112，0.42）**；**K** gpt4o 5,874 / claude46 5,836 / deepseek_v4 5,370（均 1,485 族，0.90–0.99）；E1 原 train 5,619 / 5,642 / 4,936。DeepSeek 的 C 集被 `stable_one` 砍半是 §10 预见的耦合（uncertain band 正是它顺序不稳的 item）：按 teacher 报 n_examples；规模混杂对假设方向保守（例子更少 → own-agreement 更低） |
-| 6 | HPC | 在 compute 分配里用 §11 I 的命令重建 `data/sft_e2c/`、`data/sft_e2ck/`（sha256 对 meta）；C：`STUDENT_SHORT=qwen3-4b-e2c DATA_LIST=data/sft_e2c/runs.txt sbatch --array=0-14%8 slurm/train.sbatch`；K：`STUDENT_SHORT=qwen3-4b-e2ck DATA_LIST=data/sft_e2ck/runs.txt …`（run id 前缀随 STUDENT_SHORT，不与 E1 撞名）；readout train（`12 --split train`，E1a / E1b 用）/ dev；**S_0**：把已提交的 `runs/qwen3-4b/base_B_s0/eval/` 复制到 `runs/qwen3-4b-e2c/base_B_s0/eval/` 与 `runs/qwen3-4b-e2ck/base_B_s0/eval/`（同一模型、同一 prompt、fp32 确定性 readout，不重跑；13 只在 `runs/{student}/` 下找 version B 的 run）；13 对两个 student 目录各跑 `--split dev --sft-dir data/sft_e2c`（K：`data/sft_e2ck`）`--out results/e2c_dev/{C,K}`；`19 --split dev --out results/e2c_dev`（描述） | E1a / E1b 过 | **待 HPC**（步 5 已完成） |
+| 6 | HPC | 在 compute 分配里用 §11 I 的命令重建 `data/sft_e2c/`、`data/sft_e2ck/`（sha256 对 meta）；C：`STUDENT_SHORT=qwen3-4b-e2c DATA_LIST=data/sft_e2c/runs.txt sbatch --array=0-14%8 slurm/train.sbatch`；K：`STUDENT_SHORT=qwen3-4b-e2ck DATA_LIST=data/sft_e2ck/runs.txt …`（run id 前缀随 STUDENT_SHORT，不与 E1 撞名）；readout train（`12 --split train`，E1a / E1b 用）/ dev；**S_0**：把已提交的 `runs/qwen3-4b/base_B_s0/eval/` 复制到 `runs/qwen3-4b-e2c/base_B_s0/eval/` 与 `runs/qwen3-4b-e2ck/base_B_s0/eval/`（同一模型、同一 prompt、fp32 确定性 readout，不重跑；13 只在 `runs/{student}/` 下找 version B 的 run）；13 对两个 student 目录各跑 `--split dev --sft-dir data/sft_e2c`（K：`data/sft_e2ck`）`--out results/e2c_dev/{C,K}`；`19 --split dev --out results/e2c_dev`（描述） | E1a / E1b 过 | **3 epoch 版未过门**（2026-10-06，hpc_log）：claude46 C E1a 0.902–0.912（0/5），gpt4o 0.950–0.956、deepseek_v4 0.956–0.970（各 5/5），E1b 六对全过；K E1a 0.995–0.998。→ 按 §12 修订 1 重训 |
 | 7 | HPC | test readout 一次；13 `--split test`（`--out results/e2c/{C,K}`）；`19 --split test --out results/e2c --frozen-commit f73f097`（gap_T、seed-pair null、配对 family bootstrap、C − K 归因；已于 115027a 写好，E1 run 上冒烟复现 results/e1*） | `results/e2c/e2c_summary.md` | 等步 6 |
 | 8 | Mac | 论文表：E1 原 train vs E2c-C vs E2c-K | — | — |
 
@@ -168,3 +168,17 @@ E1 在 dev 上显示：三个 aligned teacher 的训练标签两两一致 93–9
 | I SFT 文件 | `python scripts/10_build_sft_data.py --teacher $t --versions O --prompts data/prompts/e2c_C_prompts.jsonl --demos data/teacher_e2c/${t}_e2c_C_demo.jsonl --out-dir data/sft_e2c`；K：`--prompts data/prompts/e2c_K_prompts.jsonl --demos data/teacher_e2c/${t}_e2c_K_demo.jsonl --out-dir data/sft_e2ck`；`ls data/sft_e2c/*.jsonl > data/sft_e2c/runs.txt`（K 同理）。`stable_one`、`order_seed` 不变；jsonl 不入库，只提交 `.meta.json`（含 sha256）与 runs.txt，HPC 侧同一命令重建后核对 sha256 | `data/sft_e2c{,k}/{teacher}_O_s{1..5}.jsonl` + meta | 否 |
 
 未决（需 Mac 侧定，不影响冻结）：(1) Moral Stories 的 x 恒为 normative action，`positive_act` 取 x 为 focus，T5 / T6 只围绕 normative 行动问；(2) 2a 第四轮重建后为 1,515 条正向 norm（第二轮后 2,424、原设想 4,400），负向 norm 的 reserve 不动；(3) E2c 不建 T0（dev / test 的 T0 已冻结，训练集不需要）。
+
+## 12. 修订记录（看筛选 / dev 之后的改动，逐条如实披露）
+
+### 修订 1（2026-10-06）：E2c 训练配方 3 → 5 epoch
+
+| 项 | 内容 |
+|---|---|
+| 触发 | §6 的 E2c-E1 门：E2c-C 的 claude46 五个 run 训练标签复现 E1a = 0.902–0.912 < 0.95；gpt4o（0.950–0.956）、deepseek_v4（0.956–0.970）过；E1b 六对全过；K 三 teacher E1a 0.995–0.998 |
+| HPC 侧诊断（hpc_log 2026-10-06，独立复核） | 不是管线错（数据 sha256、readout、超参、模板均核对）；整段目标 loss 曲线与 E1 claude46 相同，欠拟合的只是答案字母（训练集字母 NLL 0.227 vs E1 0.042，88% 为 p(target) ≥ 0.1 的软错）；集合层面效应：同一批 tier-0 item 在 claude46 C 集里错误率 0.086 vs E1 0.055，gpt4o / deepseek 不变；与目标长度（五档 0.052 → 0.143）和训练顺序位置相关 |
+| 决定 | 按 §6 "不过则先修训练"：最小、对称的改法，E2c 的 C 与 K 一律改用 `configs/train_e2c.yaml`（唯一差别 `num_epochs: 5`）。E1 / E3 的参照 run 仍是 3 epoch，论文须说明 E2c 配方与 E1 不同 |
+| 已看到的 | 3 epoch 版的 dev 描述（`results/e2c_dev-3ep/`）：C primary PARTIAL（仅 claude46：gap 0.049 [0.012, 0.088]），C − K 归因 2/3（claude46 +0.043、deepseek_v4 +0.054），K 与 E1 的 gap ≈ 0。修订只依据门的结果；这些数字不得影响 §6 规则，且须在论文中披露"修订前已见 dev" |
+| 不变 | §6 全部判定规则与 `19`；§4 训练集（SFT 文件 sha256 不变）；readout；dev / test |
+| 程序 | (1) 试训：`data/sft_e2c/claude46_O_s1.jsonl` 以 `STUDENT_SHORT=qwen3-4b-e2c-pilot5 CONFIG=configs/train_e2c.yaml` 训 1 run，train readout（`EXTRA_ARGS="--prompts data/prompts/e2c_C_prompts.jsonl"`），算 E1a；≥ 0.95 → (3)。(2) 阶梯只有一级：仍 < 0.95 则把 `train_e2c.yaml` 的 `num_epochs` 改为 6 再试一次（HPC agent 改并提交、写明）；6 仍不过 → 停，写 BLOCKED，不再调任何别的量。(3) 归档 3 epoch 版：`git mv runs/qwen3-4b-e2c runs/qwen3-4b-e2c-3ep`、`git mv runs/qwen3-4b-e2ck runs/qwen3-4b-e2ck-3ep`、`git mv results/e2c_dev results/e2c_dev-3ep`，删其 checkpoint；重新复制 S_0 到新目录。(4) 全部 30 run 以 `CONFIG=configs/train_e2c.yaml` 重训（§8 行 6 命令加 CONFIG），train / dev readout，13（C 加 `--prompts-train data/prompts/e2c_C_prompts.jsonl`，K 同理）与 19 dev，复核门：C 15 run E1a ≥ 0.95 且 E1b 六对过，K 15 run E1a ≥ 0.95。(5) 过门后 §8 行 7 的 test 只跑一次，`19 --frozen-commit` 填本修订的提交 hash |
+
