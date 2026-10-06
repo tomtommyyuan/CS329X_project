@@ -11,8 +11,9 @@
 | SFT 文件 O + R | 完成 2026-10-04 | 18 个文件，n 与计划一致；F / C 未建 |
 | E1 18 run | 完成 2026-10-04 | 18 / 18，0 失败；12 个在 array 129420，6 个在交互分配 |
 | dev 评估 + 分析 | 完成 2026-10-05 | 冻结规则（456b487）重跑 `results/e1_dev`；E1a / E1b 过；dev 判定仅描述 |
-| test 评估 + 分析 | 未开始，等确认 | 只跑一次 |
-| F / C 改写（Mac 侧） | 进行中 2026-10-04 | 完成后 `data/rewrites_train/` 进仓库，再建 paired O / F / C |
+| test 评估 + 分析 | 完成 2026-10-05 | `results/e1`（确认性）：E1 PASS，E2 primary FAIL，E2 secondary fail |
+| F / C 改写（Mac 侧） | 完成 2026-10-05 | 三个 teacher 已进仓库 |
+| E3 paired 网格 45 run | 完成 2026-10-05 | train / dev / test readout 齐；E3 冻结于 5e98fe3；`results/e3`：12 inconclusive、1 no effect、0 effect |
 
 ## 日志
 
@@ -233,3 +234,132 @@ E1a、E1b 都过，**E1 PASS**，进入 test。E2 在 dev 上的判定（primary
 §8 并行进展：45 个 paired SFT 文件已建（`data/sft_paired/`，5,132 / 4,682 / 4,668，O / F / C 的 prompt 顺序与字母逐行相同，最长 265 token）。训练 array 130120（`STUDENT_SHORT=qwen3-4b-paired DATA_LIST=paired_runs.txt`，`%8`）已开跑，目前无 OOM，peak ≤ 69.7 GiB。
 
 QoS 每人最多 64 个作业，没法给每个 run 单独挂评估作业。所以只挂了 3 个 follower（130129–130131，每个 teacher 一个，`afterany:130120`，脚本在 `/hai/scratch/tomyyc/vcd_diag/eval_paired.sh`），依次跑每个 paired run 的 train 和 dev readout。test readout 只在 `results/e1/summary.md` 已存在时才跑，用来保证"§7 第 5 步之后再做 test"。
+
+### 2026-10-05 e1_plan §7 第 5–6 步：test readout 与确认性分析（只跑一次）
+
+- **第 5 步。** S_0 和 18 个 run 的 test readout 在交互分配 129037 里跑，用同一 `eval.sbatch` 路径，transformers、fp32、batch 64。19 个 `test_responses.jsonl` 各 3,000 行，含 T0。学生 answer 率 ≥ 99.9%；S_0 为 21.3%（0.9 门下）。
+- **第 6 步。** `13 --split test --out results/e1`，n_perm = n_boot = 10,000，用时 2 分钟。13、e1_metrics、profile、readout、`configs/train.yaml` 与 456b487 逐字节相同（之后的 fc54a5c 只加了 E3 的代码）。
+
+**确认性结论（`results/e1/summary.md` 的 Verdicts，原样）：**
+
+| 判定 | test 值 | verdict |
+|---|---|---|
+| E1a | 最低训练标签复现 0.983，最低 answer 率 0.999 | pass |
+| E1b | 争议项最低 ci_lo 0.862 | pass |
+| **E1** | | **PASS** |
+| **E2 primary**（预注册 Δρ） | claude46 −0.155 [−0.307, −0.055]，p_perm 0.973（null 均值 −0.073）；deepseek_v4 +0.127 [0.029, 0.229]，p_perm 0.116（null 均值 +0.082），p_holm 0.348；gpt4o −0.067 [−0.185, 0.054]，p_perm 0.348；0/3 | **FAIL** |
+| **E2 secondary**（D 与 D_specific 守门） | D 0.027 [−0.013, 0.070]，p 0.061；D_specific 0.067 [0.011, 0.125]，D_shared −0.040（290 个 family） | **fail**（D 的 CI 含 0、p > 0.05） |
+
+**E0 门槛（docs/03 §1）。** test 侧 teacher 可靠度 claude46 0.329、deepseek_v4 0.466，均 < 0.5，P2 不成立：RQ1 / E2 / E7 降为 exploratory，主线改为 E2b / E3 / E4 / E5，本项目做 E3。
+
+ρ_own / 上限 sqrt(2r / (1 + r))：
+
+| teacher | ρ_own | 上限 | ρ / 上限 |
+|---|---|---|---|
+| claude46 | 0.085 | 0.704 | 0.12 |
+| deepseek_v4 | 0.444 | 0.797 | 0.56 |
+| gpt4o | 0.374 | 0.904 | 0.41 |
+
+描述项（无判定）：
+
+| 项 | test |
+|---|---|
+| mean ΔρPartial（15 run） | −0.014，teacher 层面精确 p 0.333（6 种重标号中排第 2） |
+| P3（partial Δρ，Holm） | claude46 −0.104（p_holm 0.927）、deepseek_v4 +0.105（0.242）、gpt4o −0.033（0.489） |
+| D，仅 T0（探索） | 0.054 [−0.001, 0.114]，p 0.006 |
+| raw D（探索） | 0.033 [−0.003, 0.071]，p 0.099 |
+| scale-free D（探索） | 0.057 [0.011, 0.104] |
+| S_0 控制 | 最近的 teacher 是 deepseek_v4，ρ 0.380 [0.327, 0.434]，比次近者高 0.100 [0.036, 0.167]：基座训练前就最像 DeepSeek |
+| suggestibility s（290 个 family） | 学生 claude 0.026 / deepseek 0.140 / gpt4o 0.108；teacher 0.045 / 0.113 / 0.063；R 0.001；base prior 0.146 |
+| s 的两两差 | 学生 deepseek − gpt4o +0.032 [0.017, 0.047]，gpt4o − claude +0.082 [0.067, 0.099]；学生 − 自己 teacher：claude −0.019 [−0.042, 0.004]、deepseek +0.027 [0.002, 0.053]、gpt4o +0.045 [0.022, 0.068]；学生 − base prior：claude −0.120、gpt4o −0.038、deepseek −0.006 [−0.030, 0.019] |
+| 剂量反应 slope（s_run 对 s_T） | 1.441（pearson 0.856，顺序保持），teacher 层面精确 p 1/6 |
+
+以上是 E1 / E2 的正式结论，此后不再改任何量。
+
+### 2026-10-05 §7 第 8 步清理 + E3（e1_plan §8 / e3_plan §4）进度与交接
+
+- **E1 清理。** 18 个 E1 run 的 train / dev / test readout 齐全，checkpoint 已删（`runs/qwen3-4b` 现在 107 MB）。
+- **paired 训练。** array 130120 的 45 个任务全部 COMPLETED、exit 0，peak 最高 69.91 GiB，没有 OOM，optimizer 统一。45 个 manifest 与 train log 已提交。
+- **paired train / dev readout。** follower 130174–130176 在跑（每个 teacher 一个）。
+- **E3 阶段 2 检查**（`results/e3_dev` 的 `content_check.csv` / `register_separation.csv`，已提交）：
+  - F / C 与 O 的字母一致率 1.0，六项 judge check 全为 1.0；claude46 C 的 `letter_matches_rewrite` 0.9998，是 e3_plan 列出的那 1 条已知项。
+  - F–C register 分离三个 teacher 都 pass：LOO 0.921 / 0.927 / 0.907，logistic 0.959 / 0.952 / 0.942，与 e3_plan 的冒烟数字一致。
+  - O–F 只有约 0.60 可分（描述项）。
+
+**交接。** 交互分配 129037 约 2026-10-05 18:30 PDT 到期，本 session 随之结束。若下面几步没做完，新 session 从这里接：
+
+1. 确认 130174–130176 都结束：每个 paired run 有 `eval/train_responses.jsonl` 和 `dev_responses.jsonl`；train 的行数 = manifest `n_examples`，dev 为 1,500 行。脚本在 `/hai/scratch/tomyyc/vcd_diag/eval_paired.sh`，跑缺的 run 时用 `sbatch slurm/eval.sbatch runs/qwen3-4b-paired/<run> {train,dev}`。
+2. e1_plan §8 第 4 步：`python scripts/13_e1_analysis.py --runs-dir runs --student qwen3-4b-paired --split dev --out results/e3_dev_e1tables`。
+3. e3_plan §4 第 2–3 步：`python scripts/15_e3_analysis.py --runs-dir runs --student qwen3-4b-paired --split dev --out results/e3_dev` → 在本文件写 13 行 verdict 和一行 `E3 规则冻结于 <HEAD>` → 加 `--frozen-commit <HEAD>` 重出一次 → 提交。
+4. e3_plan §4 第 4 步（冻结之后才做）：每个 teacher 一个作业跑 45 个 paired test readout，`sbatch ... /hai/scratch/tomyyc/vcd_diag/test_paired.sh <teacher>`。脚本没找到冻结行就拒绝运行。
+5. 第 5–7 步：`15 --split test --out results/e3 --frozen-commit <HEAD>` → 提交 → 删除 paired checkpoint。
+
+### 2026-10-05 E3：paired readout、dev 分析、冻结（e1_plan §8 第 3–4 步，e3_plan §4 第 2–3 步）
+
+- **paired readout。** follower 130174–130176 全部 COMPLETED（约 1 小时），90 个 readout 都 exit 0。45 个 run 的 train readout 行数 = `n_examples`、`sft_sha256` = `data_sha256`；dev 各 1,500 行；全部 fp32。
+- **e1_plan §8 第 4 步。** `13 --student qwen3-4b-paired --split dev --out results/e3_dev_e1tables` 已出。
+- **e3_plan §4 第 2 步。** `15 --split dev --out results/e3_dev`：run inventory 每个 teacher n_O = n_F = n_C = 5、paired 5 / 5；13 行 verdict 都已出、没有 pending；头部为 "not yet frozen"、"dev = freeze split"。
+
+dev 上的 verdict 只是描述，不当结果报：
+
+| 行 | tier | 各 teacher（claude46 / deepseek_v4 / gpt4o）的 stat | q95 | 过 / TOST | verdict |
+|---|---|---|---|---|---|
+| 分歧率 F vs C | primary | −0.006 / −0.000 / +0.005 | 0.011 | 0/3 / 0/3 | inconclusive |
+| 分歧率 O vs F | secondary | −0.026 / −0.016 / −0.016 | 0.011 | 0/3 / 0/3 | inconclusive |
+| 分歧率 O vs C | secondary | −0.006 / +0.002 / +0.003 | 0.011 | 0/3 / 0/3 | inconclusive |
+| flip rate F − O | primary | −0.007 / +0.001 / −0.005 | 0.016 | 0/3 / 0/3 | inconclusive |
+| 跨 framing JSD F − O | primary | +0.001 / −0.002 / −0.003 | 0.006 | 0/3 / 1/3 | inconclusive |
+| agreement F − O | secondary | −0.002 / −0.001 / +0.003 | 0.011 | 0/3 / 0/3 | inconclusive |
+| excess drift F − O | primary | +0.001 / +0.001 / −0.001 | 0.005 | 0/3 / 0/3 | inconclusive |
+| ΔρPartial F − O | primary | +0.001 / −0.031 / −0.004 | 0.052 | 0/3 / 0/3 | inconclusive |
+| flip rate C − O | primary | −0.005 / +0.000 / −0.006 | 0.016 | 0/3 / 0/3 | inconclusive |
+| 跨 framing JSD C − O | primary | −0.001 / −0.006* / −0.006 | 0.006 | 1/3 / 1/3 | inconclusive |
+| agreement C − O | secondary | −0.004 / +0.000 / +0.005 | 0.011 | 0/3 / 0/3 | inconclusive |
+| excess drift C − O | primary | −0.003 / −0.004 / −0.005 | 0.005 | 0/3 / 0/3 | inconclusive |
+| ΔρPartial C − O | primary | −0.039 / +0.011 / +0.031 | 0.052 | 0/3 / 0/3 | inconclusive |
+
+注：分歧率 O vs F 三个 teacher 都为负，也就是同 seed 的 F / O 学生比两个不同 seed 的 O 学生更像。原因是同 seed 的一对共享初始化和数据顺序，e3_plan §3 已说明它会让 null 偏保守。只记录，不改。
+
+**E3 规则冻结于 5e98fe3。** 15 和 e3_metrics 自 fc54a5c 起未改；之后不改 15 的默认值和 e3_metrics 的阈值；test 只跑一次。
+
+### 2026-10-05 E3 test readout 进行中（e3_plan §4 第 4 步，冻结 5e98fe3 之后）+ 交接更新
+
+- **e1_plan §8 第 4 步重出。** `results/e3_dev_e1tables` 加了 `--sft-dir data/sft_paired` 后重出。§8 原命令没带这个参数，13 默认用全集 `data/sft/` 当 E1a 目标，O run 因此出现 487 / 960 / 268 条"missing"，判为 fail，F / C 则找不到目标。这是输入错误，不是规则改动。重出后 paired 的 E1a pass（最低 0.981）、E1b pass（最低 ci_lo 0.841）。
+- **paired 的 13 表里 E2 secondary D 是 NaN**（0 个 family）：13 只在本 namespace 里找 base run，`runs/qwen3-4b-paired` 下没有。按版本的 D 由 15 的 `joint_D_by_version` 负责（它用 `qwen3-4b.base_B_s0`），所以这里不处理。
+- **paired test readout。** 6 / 45 已完成（三个 teacher 的 O s1、O s2，各 3,000 行）。剩下 39 个拆成 15 个互不重叠的作业（每个 ≤ 3 个 run），脚本 `/hai/scratch/tomyyc/vcd_diag/test_runs.sh <run...>`，找不到 E3 冻结行就拒绝运行；作业 id 在 `/hai/scratch/tomyyc/vcd_diag/paired_test_ids.txt`。交互分配上的 `steal_pending.sh` 从队尾取仍在 PD 的作业，先 scancel 再在本地跑它的 run，保证每个 run 只有一个写者。
+
+**交接（若本 session 在交互分配 18:30 到期前没做完）：**
+
+1. 检查 45 个 `runs/qwen3-4b-paired/*/eval/test_responses.jsonl` 是否都在且都是 3,000 行。缺的或行数不对的（删掉坏文件后）用 `sbatch --account=ingrai --partition=hai --gres=gpu:h100:1 -c 8 --mem=64G -t 00:45:00 --exclude=haic-hgx-2 -J vcd-test-paired -o logs/%x-%j.out /hai/scratch/tomyyc/vcd_diag/test_runs.sh <run ...>` 补，先确认没有同一 run 的作业仍在跑。
+2. `python scripts/15_e3_analysis.py --runs-dir runs --student qwen3-4b-paired --split test --out results/e3 --frozen-commit 5e98fe3`。Verdicts 表即 E3 的确认性结论，effect / no effect / inconclusive 如实报。
+3. 提交 `runs/qwen3-4b-paired/*/eval results/e3 tasks/hpc_log.md`，然后对 dev / train / test 都齐的 paired run 执行 `rm -rf runs/qwen3-4b-paired/<run>/checkpoint`。
+
+### 2026-10-05 E3 test：readout 与确认性分析（e3_plan §4 第 4–5 步，只跑一次）
+
+- **readout。** 45 个 paired run 的 test readout 齐全，各 3,000 行。分工如下，每个 run 只有一个写者：
+  - 6 个由最初的三条流完成；
+  - 7 个在交互分配上跑，从队列里先 scancel 再接手；
+  - 32 个由互不重叠的 sbatch 作业完成。
+- **分析。** `15 --split test --out results/e3 --frozen-commit 5e98fe3`。15 和 e3_metrics 与 5e98fe3 逐字节相同；inventory 每个 teacher O / F / C 各 5 个，paired 5 / 5。
+
+**确认性结论（`results/e3/summary.md` 的 Verdicts）：13 行中 12 行 inconclusive、1 行 no effect、0 行 effect。**
+
+| 行 | tier | 过 q95 | TOST 过 | 方向 | verdict |
+|---|---|---|---|---|---|
+| 分歧率 F vs C | primary | 1/3（deepseek +0.008，2.9 null sd） | 0/3 | + | inconclusive |
+| 分歧率 O vs F | secondary | 0/3 | 0/3 | — | inconclusive |
+| 分歧率 O vs C | secondary | 1/3（claude +0.007） | 0/3 | + | inconclusive |
+| flip rate F − O | primary | 0/3 | 0/3 | — | inconclusive |
+| 跨 framing JSD F − O | primary | 0/3 | 2/3（claude、gpt4o） | — | **no effect** |
+| agreement F − O | secondary | 0/3 | 0/3 | — | inconclusive |
+| excess drift F − O | primary | 0/3 | 0/3 | — | inconclusive |
+| ΔρPartial F − O | primary | 2/3（deepseek +0.035、gpt4o −0.034，符号相反） | 0/3 | mixed | inconclusive |
+| flip rate C − O | primary | 0/3 | 0/3 | — | inconclusive |
+| 跨 framing JSD C − O | primary | 0/3 | 1/3 | — | inconclusive |
+| agreement C − O | secondary | 1/3（gpt4o +0.008） | 0/3 | + | inconclusive |
+| excess drift C − O | primary | 0/3 | 0/3 | — | inconclusive |
+| ΔρPartial C − O | primary | 1/3（deepseek +0.054，5.3 null sd） | 0/3 | + | inconclusive |
+
+以上是 E3 的正式结论，此后不再改任何量。
+- **清理（e3_plan §4 第 7 步）。** 45 个 paired run 的 train / dev / test 都已齐，checkpoint 已删；`runs/qwen3-4b-paired` 现为 248 MB。所有 checkpoint 都已清除，scratch 用量回到 2.1 TB。
+- **剩余。** 本轮 HPC 任务（e1_plan §7、§8，e3_plan §4）已全部完成，没有 BLOCKED。`/hai/scratch/tomyyc/.venv-broken-20261004` 确认不再需要后可以删除。

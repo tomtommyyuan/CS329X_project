@@ -1,0 +1,29 @@
+{
+  "n": 1500,
+  "category_counts": {
+    "answer": 1500
+  },
+  "category_rates": {
+    "answer": 1.0
+  },
+  "mean_mass_AB": 0.9999726859623032,
+  "top1_histogram": [
+    {
+      "token": " A",
+      "count": 755
+    },
+    {
+      "token": " B",
+      "count": 745
+    }
+  ],
+  "backend": "transformers",
+  "seconds": 61.514978647232056,
+  "run_id": "qwen3-4b.gpt4o_C_s4",
+  "model": "runs/qwen3-4b-paired/gpt4o_C_s4/checkpoint",
+  "split": "dev",
+  "prompts_path": "/hai/scratch/tomyyc/CS329X_project/data/prompts/dev_prompts_v2.jsonl",
+  "answer_mass_min": 0.9,
+  "dtype": "float32",
+  "batch_size": 64
+}

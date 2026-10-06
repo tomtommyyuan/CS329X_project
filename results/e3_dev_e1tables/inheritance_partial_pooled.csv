@@ -1,0 +1,1 @@
+run_id,teacher,version,n_seeds,seeds,variant,n_families,n_cells,rho_own,spearman_own,rho_other_max,other_argmax,delta_rho,p_perm,p_holm,perm_null_mean,perm_null_sd,ci_lo,ci_hi,rho__claude46,rho__deepseek_v4,rho__gpt4o,control,rho_base
