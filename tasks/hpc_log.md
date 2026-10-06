@@ -12,7 +12,8 @@
 | E1 18 run | 完成 2026-10-04 | 18 / 18，0 失败；12 个在 array 129420，6 个在交互分配 |
 | dev 评估 + 分析 | 完成 2026-10-05 | 冻结规则（456b487）重跑 `results/e1_dev`；E1a / E1b 过；dev 判定仅描述 |
 | test 评估 + 分析 | 完成 2026-10-05 | `results/e1`（确认性）：E1 PASS，E2 primary FAIL，E2 secondary fail |
-| F / C 改写（Mac 侧） | 进行中 2026-10-04 | 完成后 `data/rewrites_train/` 进仓库，再建 paired O / F / C |
+| F / C 改写（Mac 侧） | 完成 2026-10-05 | 三个 teacher 已进仓库 |
+| E3 paired 网格 45 run | 完成 2026-10-05 | train / dev / test readout 齐；E3 冻结于 5e98fe3；`results/e3`：12 inconclusive、1 no effect、0 effect |
 
 ## 日志
 
@@ -360,3 +361,5 @@ dev 上的 verdict 只是描述，不当结果报：
 | ΔρPartial C − O | primary | 1/3（deepseek +0.054，5.3 null sd） | 0/3 | + | inconclusive |
 
 以上是 E3 的正式结论，此后不再改任何量。
+- **清理（e3_plan §4 第 7 步）。** 45 个 paired run 的 train / dev / test 都已齐，checkpoint 已删；`runs/qwen3-4b-paired` 现为 248 MB。所有 checkpoint 都已清除，scratch 用量回到 2.1 TB。
+- **剩余。** 本轮 HPC 任务（e1_plan §7、§8，e3_plan §4）已全部完成，没有 BLOCKED。`/hai/scratch/tomyyc/.venv-broken-20261004` 确认不再需要后可以删除。
