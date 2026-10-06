@@ -1,0 +1,18 @@
+{
+  "seen_partial": {},
+  "T0_partial": {},
+  "seen_raw": {},
+  "verdict": "pending (no base readout for the covariate r_0, or fewer than 2 teachers with O runs)",
+  "alpha": 0.05,
+  "rule": "pre-declared secondary: D > 0, family-bootstrap 95% CI of D excludes 0, family-permutation p < alpha, and the student-specific part D_specific (D = D_shared + D_specific) has a family-bootstrap CI above 0 (seen framings, partial given r_0)",
+  "reliability_split_half_r": {
+    "gpt4o": 0.675,
+    "claude46": 0.383,
+    "deepseek_v4": 0.515
+  },
+  "ceiling_sqrt_spearman_brown": {
+    "gpt4o": 0.8977584024968696,
+    "claude46": 0.7442233549308864,
+    "deepseek_v4": 0.8245410764775033
+  }
+}

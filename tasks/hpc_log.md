@@ -320,3 +320,15 @@ dev 上的 verdict 只是描述，不当结果报：
 注：分歧率 O vs F 三个 teacher 都为负，也就是同 seed 的 F / O 学生比两个不同 seed 的 O 学生更像。原因是同 seed 的一对共享初始化和数据顺序，e3_plan §3 已说明它会让 null 偏保守。只记录，不改。
 
 **E3 规则冻结于 5e98fe3。** 15 和 e3_metrics 自 fc54a5c 起未改；之后不改 15 的默认值和 e3_metrics 的阈值；test 只跑一次。
+
+### 2026-10-05 E3 test readout 进行中（e3_plan §4 第 4 步，冻结 5e98fe3 之后）+ 交接更新
+
+- **e1_plan §8 第 4 步重出。** `results/e3_dev_e1tables` 加了 `--sft-dir data/sft_paired` 后重出。§8 原命令没带这个参数，13 默认用全集 `data/sft/` 当 E1a 目标，O run 因此出现 487 / 960 / 268 条"missing"，判为 fail，F / C 则找不到目标。这是输入错误，不是规则改动。重出后 paired 的 E1a pass（最低 0.981）、E1b pass（最低 ci_lo 0.841）。
+- **paired 的 13 表里 E2 secondary D 是 NaN**（0 个 family）：13 只在本 namespace 里找 base run，`runs/qwen3-4b-paired` 下没有。按版本的 D 由 15 的 `joint_D_by_version` 负责（它用 `qwen3-4b.base_B_s0`），所以这里不处理。
+- **paired test readout。** 6 / 45 已完成（三个 teacher 的 O s1、O s2，各 3,000 行）。剩下 39 个拆成 15 个互不重叠的作业（每个 ≤ 3 个 run），脚本 `/hai/scratch/tomyyc/vcd_diag/test_runs.sh <run...>`，找不到 E3 冻结行就拒绝运行；作业 id 在 `/hai/scratch/tomyyc/vcd_diag/paired_test_ids.txt`。交互分配上的 `steal_pending.sh` 从队尾取仍在 PD 的作业，先 scancel 再在本地跑它的 run，保证每个 run 只有一个写者。
+
+**交接（若本 session 在交互分配 18:30 到期前没做完）：**
+
+1. 检查 45 个 `runs/qwen3-4b-paired/*/eval/test_responses.jsonl` 是否都在且都是 3,000 行。缺的或行数不对的（删掉坏文件后）用 `sbatch --account=ingrai --partition=hai --gres=gpu:h100:1 -c 8 --mem=64G -t 00:45:00 --exclude=haic-hgx-2 -J vcd-test-paired -o logs/%x-%j.out /hai/scratch/tomyyc/vcd_diag/test_runs.sh <run ...>` 补，先确认没有同一 run 的作业仍在跑。
+2. `python scripts/15_e3_analysis.py --runs-dir runs --student qwen3-4b-paired --split test --out results/e3 --frozen-commit 5e98fe3`。Verdicts 表即 E3 的确认性结论，effect / no effect / inconclusive 如实报。
+3. 提交 `runs/qwen3-4b-paired/*/eval results/e3 tasks/hpc_log.md`，然后对 dev / train / test 都齐的 paired run 执行 `rm -rf runs/qwen3-4b-paired/<run>/checkpoint`。
