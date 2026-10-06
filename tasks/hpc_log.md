@@ -469,3 +469,12 @@ dev 上的 verdict 只是描述，不当结果报：
 **不做的事：** 没有跑 test readout，没有动 `configs/train.yaml`、阈值或任何规则。30 个 checkpoint 全部保留（每个 7.6 GB，scratch 合计约 2.1 TB）：Mac 侧若决定不重训就直接用于 test，若重训则会被替换。
 
 BLOCKED: E2c-E1 门（e2c_plan §6）在 C 上未过——claude46 C 五个 run 的 E1a 为 0.902–0.912（< 0.95），gpt4o / deepseek_v4 C 都过，E1b 六对都过；§6 规定"不过则先修训练，不看下面"，而"修训练"必然改动冻结的协议常量（configs/train.yaml 或训练集），按 CLAUDE.md 需要 Mac 侧书面决定。请 Mac 侧在 e2c_plan 里写明下一步（例如：改 E2c 训练配方并重新冻结后重训 C 与 K / 如实报告门未过并停在 dev / 其他），以及 K 是否也要过 E1b；在此之前 HPC 侧不跑 test、不删 checkpoint。
+
+### 2026-10-06 E2c 修订 1（e2c_plan §12）：5 epoch 试训已提交
+
+- 已 `git pull --rebase` 到 1421b1f。新配置 `configs/train_e2c.yaml` 与 train.yaml 只差 `num_epochs` 5，由 `tests/test_train_e2c_config.py` 钉住。
+- **试训** run 为 `runs/qwen3-4b-e2c-pilot5/claude46_O_s1`。命令：`STUDENT_SHORT=qwen3-4b-e2c-pilot5 CONFIG=configs/train_e2c.yaml DATA_LIST=… sbatch --array=0 slurm/train.sbatch`，HF_HOME 为 `/hai/scratch/tomyyc/hf`。
+  - **作业**：训练 array **131068**；train readout **131069**（`afterok:131068_0`，`EXTRA_ARGS="--prompts data/prompts/e2c_C_prompts.jsonl"`）。
+  - DATA_LIST 放在共享盘 `/hai/scratch/tomyyc/vcd_diag/pilot5.txt`，内容即 `data/sft_e2c/claude46_O_s1.jsonl` 一行。没用 `/tmp/pilot5.txt` 是因为 /tmp 是节点本地盘，作业可能落在别的节点上读不到。
+- **下一步**：131069 结束后，用与上次相同的方法算 E1a（readout `letter` 对 SFT `letter`，n_missing 必须为 0）。≥ 0.95 则归档 3 epoch 版并重训 30 run；< 0.95 则按 §12 的唯一一级阶梯改 6 epoch 再试训一次。
+- **交互分配 130319 约 20:10 到期**，此后所有步骤都用 sbatch 提交。
