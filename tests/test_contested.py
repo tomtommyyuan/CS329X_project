@@ -55,7 +55,7 @@ BERKELEY_ROWS = [
 ]
 
 MORAL_STORIES = [
-    {"ID": "M1", "norm": "It's kind to wait for people.", "situation": "Josh drives Penelope to work every day and is waiting outside her house, but there's no sign of her.", "intention": "Josh needs to get to work.", "moral_action": "Josh continues to sit outside Penelope's house until she walks out the door a few minutes later.", "moral_consequence": "Penelope thanks him.", "immoral_action": "Josh shrugs his shoulders and drives away to work after sitting around a moment.", "immoral_consequence": "Penelope is late."},
+    {"ID": "M1", "norm": "It's kind to wait for people.", "situation": "Josh drives his neighbor Penelope to work every day and is waiting outside her house with his coffee, but there's no sign of her.", "intention": "Josh needs to get to work.", "moral_action": "Josh continues to sit outside Penelope's house until she walks out the door a few minutes later.", "moral_consequence": "Penelope thanks him.", "immoral_action": "Josh shrugs his shoulders and drives his car away to work after sitting around a moment.", "immoral_consequence": "Penelope is late."},
     {"ID": "M2", "norm": "It's wrong to become addicted to gambling.", "situation": "Kevin bet on the Kentucky Derby and won big, so now he wants to make horse races his new hobby.", "intention": "Kevin wants to place more wagers.", "moral_action": "Kevin decides to place a wager once every weekend.", "moral_consequence": "Kevin enjoys his hobby.", "immoral_action": "Kevin places several bets a day at an increasing rate.", "immoral_consequence": "Kevin loses everything."},
     {"ID": "M3", "norm": "It's rude to ask people how much they weigh.", "situation": "Kevin has not been meeting any new women lately, so he decided to try online dating.", "intention": "Kevin wants to find out more about the women before he goes on a date.", "moral_action": "Kevin talks to the women about their hobbies.", "moral_consequence": "They like him.", "immoral_action": "Kevin asks the women how much they weigh.", "immoral_consequence": "They block him."},
 ]
@@ -359,6 +359,153 @@ def test_round2_hard_flags_and_identical_actions(src_dir):
     assert is_rule_clean(fams["R4"]) and fams["R4"].action_x == "Order a beer with your own money." and fams["R4"].situation == "You are at a bar and you are thirsty. You want a drink."
 
 
+# ---- round 4 (results/e2c/handcheck_round3_report.md, verifier items 1-7): Moral Stories second-person failures -----
+
+# source rows of the round-3 failures (data/annotation/e2c_handcheck_round3/e2c_handcheck_moral_stories.csv), looked up
+# in moral_stories_full.jsonl by the family_id suffix, plus clean controls
+ROUND4_ROWS = [
+    {"ID": "3TXMY6UCAFMHLA1A2B4NHYXMAWDQCO", "norm": "You shouldn't steal your roommate's things.", "situation": "Jill notices that her roommate has a really cute shirt in her closet.", "intention": "Jill wants to wear the shirt when she goes out.", "moral_action": "Jill compliments her roommate on the shirt and asks to borrow it for a night.", "immoral_action": "Jill takes the shirt and fails to return it."},
+    {"ID": "3IAS3U3I0GEHJM7JM0IRAWT1E4FB24", "norm": "Is wrong to make somebody feel self-conscious", "situation": "Reina and her friend Kate are going out to dance and Reina shows up wearing an expensive new dress.", "intention": "Kate wants to greet Reina.", "moral_action": "Kate looks at Reina and exclaims that she looks amazing in the new dress.", "immoral_action": "Kate looks at Reina and remarks on the new dress, saying that she thinks it's a bit short."},
+    {"ID": "3180JW2OT5AF02OISBX66RFQ4EN5JG", "norm": "You should discuss issues calmly with others.", "situation": "Faris and Emile disagree on how to do a group project.", "intention": "Faris wants to convince Emile his way is better.", "moral_action": "Faris calmly lays out all the reasons he believes his approach is best.", "immoral_action": "Faris berates Emile and shouts down his ideas for being inferior."},
+    {"ID": "3H7Z272LX85PO2U1FBIXKCXZZTMPLX", "norm": "It's kind to share your extra belongings with others.", "situation": "Lloyd, who is barehanded, and Harry, who is wearing two pairs of gloves are around a fire in the freezing cold winter when Lloyd remarks how cold his hands are.", "intention": "Harry wants to respond to Lloyd's statement.", "moral_action": "Harry tells Lloyd that he is actually wearing two pairs of gloves and asks Lloyd if he would like to wear his extra pair.", "immoral_action": "Harry tells Lloyd that he should have brought gloves with him since he knew he was going to be in the cold mountaints."},
+    {"ID": "3E47SOBEYRU44CDRP3ZE8W60LAZICU", "norm": "No one respects a disloyal friend.", "situation": "Greg was hanging out with his friends at the mall when a popular jock asked him to come with his friends instead.", "intention": "Greg has to pick who he wants to hang out with.", "moral_action": "Greg tells the jocks that he's hanging out with his friends, so he's not leaving.", "immoral_action": "Greg decides to hang out with the jocks and leaves his friends."},
+    {"ID": "3570Y55XZQH3BO81V7H0KBL39WWYGJ", "norm": "It's wrong to abuse a martial partner.", "situation": "Sean was in an MMA fight, and he is a lot better than his opponent.", "intention": "Sean wants to win his match.", "moral_action": "Sean take it easy on his opponent and works to beat him by getting a choke in.", "immoral_action": "Sean wants to teach his opponent a lesson and doesn't hold back."},
+    {"ID": "3QAVNHZ3EN2I1YOZQS00UH840E3LA8", "norm": "Leaving your sister on read is disrespectful.", "situation": "Jen has a sister who messaged about a problem but also has a serious a work deadline.", "intention": "Jen wants to get her work done on time.", "moral_action": "Jen replies quickly explaining her work deadline that she will make sure to get back to her ASAP.", "immoral_action": "Jen sees the message but ignores it and focuses on her work."},
+    {"ID": "3QRYMNZ7FZFD4UQT857W2E2LT44NTP", "norm": "It's wrong to fight with your family.", "situation": "Mary is having dinner with her family.", "intention": "Mary wants to tell her sister shes mad at her.", "moral_action": "Mary waits until after dinner then talks to her sister calmly.", "immoral_action": "Mary starts yelling at her sister at the dinner table."},
+    {"ID": "354P56DE9L1NM9LR3YLHWCK9R907SU", "norm": "It's rude to take a soda from someone else.", "situation": "Jacob was at a diner with all of his friends, but he ran out of his drink.", "intention": "Jacob wants something to drink.", "moral_action": "Jacob calls the waitress over to order himself another drink.", "immoral_action": "Jacob takes a sip of soda that his best friend had ordered for himself."},
+    {"ID": "3Z4AIRP3C7BH74SO8SAVUAAO5M7X16", "norm": "Declining an invitation can be considered rude.", "situation": "Kate invites Jane to her party but it's such a long drive to get there.", "intention": "Jane has to decide whether to go to the party or not.", "moral_action": "Jane decides to face the long trips and go to Kate's party.", "immoral_action": "Jane decides not to go to save on gas money and wear and tear on her car."},
+    {"ID": "37Z929RLGA6AK7IYG1OI18CRI88TSF", "norm": "It's good to reward proper behavior.", "situation": "When Jenna got home from work, she saw that her daughter had done her homework and cleaned the house.", "intention": "Jenna wants to encourage this behavior in the future.", "moral_action": "Jenna tells her daughter, \"You worked so hard that I'll make brownies to go with dinner\".", "immoral_action": "Jenna tells her daughter, \"You didn't mess up, so I won't hit you\"."},
+    {"ID": "3L2IS5HSFBGS475I8AX67AONC4CUNW", "norm": "It is not good to disturb others with loud noise.", "situation": "Dan is in his apartment while cleaning his house.", "intention": "Dan wants to listen to music to keep him motivated.", "moral_action": "Dan listens to music loudly while wearing headphones.", "immoral_action": "Dan plays his music really loudly over his big speakers."},
+    {"ID": "3W8CV64QJ3X2AJV471726U4DFOMH9C", "norm": "It's good to cook dinner for others.", "situation": "Jane's parents have flown in to visit her, and they haven't eaten since before boarding the plan.", "intention": "Jane wants to feed her parents.", "moral_action": "Jane cooks something that they used to eat often as a family.", "immoral_action": "Jane orders food from one of the restaurants in her area."},
+    {"ID": "31EUONYN2W1AZ7UUEF7OILQBH3FVOR", "norm": "It's bad to commit suicide.", "situation": "Brendan's found out his girlfriend died of a freak accident and Brendan and his friends are devastated.", "intention": "Brendan wants to end his emotional pain.", "moral_action": "Brendan decides to find a new girlfriend through his friend network.", "immoral_action": "Brendan decides to hill himself to end the pain."},
+    {"ID": "3QAVNHZ3EN2I1YOZQS00UH840MELAZ", "norm": "You should not expect others to pay for your drinks.", "situation": "John is invited by his coworkers to go to the bar after work, but he has no money left at the end of the month.", "intention": "John wants to respond to the invitation.", "moral_action": "John decides not to join their coworkers but agrees to join them next time.", "immoral_action": "John thinks that his manager who also joins them will pay the bill."},
+    {"ID": "3R2PKQ87NX6HDYPI2STSBSBCDKNIMM", "norm": "It's bad to stare at young girls.", "situation": "Sam is a high school teacher who has recently gone through a messy divorce.", "intention": "Sam wants to alleviate his loneliness.", "moral_action": "Sam is only around young girls all day, so he joins a dating site for people his age.", "immoral_action": "Sam comments suggestively on the tightness of one of his female student's pants."},
+    # controls that must stay in the pool
+    {"ID": "C1", "norm": "x", "situation": "Kevin bet on the Kentucky Derby and won big, so now he wants to make horse races his new hobby.", "intention": "Kevin wants to place more wagers.", "moral_action": "Kevin decides to place a wager once every weekend.", "immoral_action": "Kevin places several bets a day at an increasing rate."},
+    {"ID": "C2", "norm": "x", "situation": "Ronald is very unhappy with the current governor of his state.", "intention": "Ronald wants to do something to get the governor out.", "moral_action": "Ronald decides to vote for the governor's opponent in the next election.", "immoral_action": "Ronald decides to tweet at the governor on Twitter all day, and nothing else."},
+    {"ID": "C3", "norm": "x", "situation": "Peter's grandfather had died in the past month, and Peter was missing him.", "intention": "Peter wanted to go to the cemetery.", "moral_action": "Peter goes to the cemetery after work and brings flowers to his grandfather's grave.", "immoral_action": "Peter goes to the cemetery at night and drinks a six pack of beer at his grandfather's grave."},
+]
+
+
+def _round4(src_dir):
+    path = src_dir / "ms_round4.jsonl"
+    write_jsonl(path, ROUND4_ROWS)
+    return {f.source_id: f for f in load_moral_stories(path)}
+
+
+def test_round4_same_gender_guard_is_name_list_independent(src_dir):
+    # (1) a role noun or ANY capitalised non-actor name before an actor-gender pronoun -> hard drop, never a rewrite
+    fams = _round4(src_dir)
+    for sid in ["3TXMY6UCAFMHLA1A2B4NHYXMAWDQCO", "3IAS3U3I0GEHJM7JM0IRAWT1E4FB24", "3180JW2OT5AF02OISBX66RFQ4EN5JG", "3H7Z272LX85PO2U1FBIXKCXZZTMPLX", "3E47SOBEYRU44CDRP3ZE8W60LAZICU", "3570Y55XZQH3BO81V7H0KBL39WWYGJ", "3QAVNHZ3EN2I1YOZQS00UH840E3LA8", "3QRYMNZ7FZFD4UQT857W2E2LT44NTP", "354P56DE9L1NM9LR3YLHWCK9R907SU", "3Z4AIRP3C7BH74SO8SAVUAAO5M7X16", "37Z929RLGA6AK7IYG1OI18CRI88TSF"]:
+        assert "pronoun_same_gender_other" in fams[sid].needs_review and not is_rule_clean(fams[sid]), sid
+    # the other party's pronoun is never rewritten: the kept text still says 'her closet' / 'his ideas' / 'his hands'
+    assert "in her closet" in fams["3TXMY6UCAFMHLA1A2B4NHYXMAWDQCO"].situation
+    assert "shouts down his ideas" in fams["3180JW2OT5AF02OISBX66RFQ4EN5JG"].action_y.lower() or "shout down his ideas" in fams["3180JW2OT5AF02OISBX66RFQ4EN5JG"].action_y.lower()
+    assert "how cold his hands are" in fams["3H7Z272LX85PO2U1FBIXKCXZZTMPLX"].situation
+    # a kept object pronoun with nobody else in the row is a sloppy reflexive: hard flag, no guess
+    assert "pronoun_ambiguous" in fams["3L2IS5HSFBGS475I8AX67AONC4CUNW"].needs_review
+    # ... and the row-level guard: 'Jen has a sister' in the situation blocks 'that she will ... get back to her' in the action
+    assert "get back to her ASAP" in fams["3QAVNHZ3EN2I1YOZQS00UH840E3LA8"].action_x
+    # negative controls: brand / event capitals, 'the governor of his state', a different-gender other, a predicate noun
+    assert is_rule_clean(fams["C1"]) and fams["C1"].situation.startswith("You bet on the Kentucky Derby and won big, so now you want to make horse races your new hobby.")
+    assert is_rule_clean(fams["C2"]) and fams["C2"].situation.startswith("You are very unhappy with the current governor of your state.")
+    assert is_rule_clean(fams["3R2PKQ87NX6HDYPI2STSBSBCDKNIMM"]) and fams["3R2PKQ87NX6HDYPI2STSBSBCDKNIMM"].situation == "You are a high school teacher who has recently gone through a messy divorce. You want to alleviate your loneliness."
+    assert _ms("Ted asks his sister to go with him to the movies.", "Ted", "m", imperative=True) == "You ask your sister to go with you to the movies."
+    assert _ms("Josh drives his neighbor Penelope to work and is waiting outside her house with his coffee.", "Josh", "m") == "You drive your neighbor Penelope to work and are waiting outside her house with your coffee."
+    assert _ms("Greg, an accountant, is hitting on a woman in a bar, and she asks him what he does for a living.", "Greg", "m") == "You, an accountant, are hitting on a woman in a bar, and she asks you what you do for a living."
+    fl = []
+    _ms("Jill notices that her roommate has a really cute shirt in her closet.", "Jill", "f", flags=fl)
+    assert "pronoun_same_gender_other" in fl
+    fl = []
+    _ms("Faris berates Emile and shouts down his ideas for being inferior.", "Faris", "m", imperative=True, flags=fl)
+    assert "pronoun_same_gender_other" in fl
+
+
+def test_round4_singular_their_for_the_actor(src_dir):
+    # (2) 'their' as a determiner on the actor's relation noun, actor as the clause subject, no plural around -> 'your'
+    from vcd.data.load_contested_sources import _RowCtx, _person_pass
+
+    fams = _round4(src_dir)
+    assert fams["3QAVNHZ3EN2I1YOZQS00UH840MELAZ"].action_x == "Decide not to join your coworkers but agree to join them next time."
+    assert is_rule_clean(fams["3QAVNHZ3EN2I1YOZQS00UH840MELAZ"])
+    fl: list[str] = []
+    assert _person_pass("tell their friend that asthma is no big deal", "Trevor", "m", set(), {}, fl, "y_", imperative=True) == "tell your friend that asthma is no big deal" and "y_singular_their" in fl
+    # a plural before it, or a different subject, keeps 'their'
+    assert _person_pass("invite your friends and their partners", "Tom", "m", set(), {}, [], "x_", imperative=True) == "invite your friends and their partners"
+    assert _person_pass("tell the kids to call their parents", "Tom", "m", set(), {}, [], "x_", imperative=True) == "tell the kids to call their parents"
+    assert _person_pass("join their coworkers", "John", "m", set(), {}, [], "x_", imperative=True, ctx=_RowCtx(True, frozenset(), frozenset({"friends"}))) == "join their coworkers"  # another plural in the situation: ambiguous, left for plural_refers_to_actor
+    # (6) they + 'as a family' / 'together' after a second-person subject = actor plus others
+    assert "plural_refers_to_actor" in fams["3W8CV64QJ3X2AJV471726U4DFOMH9C"].needs_review
+    assert plural_refers_to_actor("Your parents have flown in to visit you, and they haven't eaten since boarding the plane. You want to feed your parents.", ["Cook something that they used to eat often as a family.", "Order food from a restaurant."])
+    assert plural_refers_to_actor("You are home with your wife. You want to relax.", ["Suggest that they watch a movie together.", "Go out alone."])
+    assert not plural_refers_to_actor("Your parents are visiting. You want to feed them.", ["Tell your parents that they should cook together.", "Order food."])
+    assert not plural_refers_to_actor("Your coworkers are loud. You want quiet.", ["Ask them to be quieter.", "Yell at them."])
+
+
+def test_round4_contractions_subject_name_and_possessive_check(src_dir):
+    from vcd.data.load_contested_sources import _ms_clean_field, _possessive_without_noun
+
+    # (3) unapostrophised contractions, case-insensitive
+    assert _ms_clean_field("Mary wants to tell her sister shes mad at her.") == "Mary wants to tell her sister she's mad at her."
+    assert _ms_clean_field("Shes late and hes mad, theyre not youre friends, im sure, dont ask.") == "She's late and he's mad, they're not you're friends, I'm sure, don't ask."
+    assert _ms(_ms_clean_field("Sam is tired because hes been working all day."), "Sam", "m") == "You are tired because you've been working all day."
+    fams = _round4(src_dir)
+    assert "sister she's mad at her" in fams["3QRYMNZ7FZFD4UQT857W2E2LT44NTP"].situation or "pronoun_same_gender_other" in fams["3QRYMNZ7FZFD4UQT857W2E2LT44NTP"].needs_review
+    # (4) an actor name in subject position is 'You' ('<Actor>'s found out' = has found out), never 'Your'
+    assert fams["31EUONYN2W1AZ7UUEF7OILQBH3FVOR"].situation.startswith("You have found out your girlfriend died of a freak accident and you and your friends are devastated.")
+    assert _ms("Brendan's found out his girlfriend died.", "Brendan", "m") == "You have found out your girlfriend died."
+    assert _ms("Elaine's connecting flight is delayed.", "Elaine", "f") == "Your connecting flight is delayed."
+    # post-check: every 'your' needs a noun phrase, no 'yours' takes a noun
+    assert _possessive_without_noun("Your found out your girlfriend died.")
+    assert _possessive_without_noun("You want to add security to yours back yard.")
+    assert _possessive_without_noun("Brag about yours 3 dollar win.")
+    assert _possessive_without_noun("Give it to your.")
+    assert not _possessive_without_noun("Order a beer with your own money and keep yours.")
+    assert not _possessive_without_noun("Say that your friend should go get their inhaler just in case; it is rightfully yours.")
+    assert not _possessive_without_noun("Tell your first boss about your ASAP request.")
+    assert "possessive_without_noun" in HARD_FLAGS
+    # 'his back yard' is a determiner, not a standalone 'his'
+    assert _ms("Kent wants to add security to his back yard.", "Kent", "m") == "You want to add security to your back yard."
+
+
+def test_round4_stative_heads_and_coordinated_vbz(src_dir):
+    from vcd.data.load_contested_sources import _ms_action_to_imperative
+
+    def imp(a, actor, g, flags=None):
+        return _ms_action_to_imperative(a, actor, g, set(), {}, [] if flags is None else flags, "x_")
+
+    # (5) a stative main clause is never imperativised: the 'so / and then' clause carries the action, else drop
+    assert imp("Sam is only around young girls all day, so he joins a dating site for people his age.", "Sam", "m") == "Join a dating site for people your age."
+    fams = _round4(src_dir)
+    assert fams["3R2PKQ87NX6HDYPI2STSBSBCDKNIMM"].action_x == "Join a dating site for people your age."
+    fl: list[str] = []
+    assert imp("Sam is in the kitchen all day.", "Sam", "m", fl) is None and "action_stative_verb" in fl
+    fl = []
+    assert imp("Sam has a lot of money and buys a new car.", "Sam", "m", fl) == "Buy a new car." and "x_stative_head_clause" in fl
+    assert imp("Sam knows that safety matters and powers through the day.", "Sam", "m") == "Power through the day."
+    fl = []
+    assert imp("Sam feels guilty about it.", "Sam", "m", fl) is None and "action_stative_verb" in fl
+    fl = []
+    assert imp("Sam is invited to the party.", "Sam", "m", fl) is None and "action_stative_verb" in fl  # a passive is a state
+    # ... but an adjectival complement is a fine imperative, and a progressive head is lemmatised as before
+    assert imp("Sam is honest with his boss and tells him the truth.", "Sam", "m") == "Be honest with your boss and tell him the truth."
+    assert imp("Sam is there for his friend.", "Sam", "m") == "Be there for your friend."
+    assert imp("Sam is very careful on the ice.", "Sam", "m") == "Be very careful on the ice."
+    assert imp("Tyler is going to tell his friend the truth.", "Tyler", "m") == "Tell your friend the truth."
+    # (7) a VBZ right after and / then / but is the actor's when the clause before it is the imperative, PP or not
+    assert imp("Peter goes to the cemetery after work and brings flowers to his grandfather's grave.", "Peter", "m") == "Go to the cemetery after work and bring flowers to your grandfather's grave."
+    assert fams["C3"].action_x == "Go to the cemetery after work and bring flowers to your grandfather's grave."
+    assert imp("Mary waits until after dinner then talks to her sister calmly.", "Mary", "f") == "Wait until after dinner then talk to your sister calmly."
+    assert imp("Ian stays in the living room with his family and talks about silly things.", "Ian", "m") == "Stay in the living room with your family and talk about silly things."
+    assert imp("Mia says that she's doing just fine and has plenty of cash.", "Mia", "f") == "Say that you're doing just fine and have plenty of cash."
+    assert imp("Alan acts up and is disruptive in class.", "Alan", "m") == "Act up and be disruptive in class."
+    assert imp("Ben decides to wait until his next paycheck to buy the game and pays the bill now.", "Ben", "m") == "Decide to wait until your next paycheck to buy the game and pay the bill now."
+    # a subordinate clause with its own subject keeps its verbs
+    assert imp("Sam waits until the dog falls asleep and stops barking.", "Sam", "m") == "Wait until the dog falls asleep and stops barking."
+    assert imp("Tom tells his girlfriend the food tastes wonderful and is perfectly cooked.", "Tom", "m") == "Tell your girlfriend the food tastes wonderful and is perfectly cooked."
+    assert _ms("Kim, who lives with family, just arrived home late after a long day at work and wants to do something fun.", "Kim", "f") == "You, who live with family, just arrived home late after a long day at work and want to do something fun."
+
+
 # ---- loaders -----------------------------------------------------------------------------------------------------
 
 
@@ -567,7 +714,7 @@ def _run(args: list[str]) -> subprocess.CompletedProcess:
 def test_cli_build_prompts_select(src_dir, tmp_path):
     pool = tmp_path / "pool.jsonl"
     report = tmp_path / "pool_report.md"
-    r = _run(["scripts/16_build_contested_pool.py", "--no-hf", "--families", str(src_dir / "families.jsonl"), "--out", str(pool), "--report", str(report), "--scruples-files", str(src_dir / "scruples.jsonl"), "--berkeley-file", str(src_dir / "berkeley.csv"), "--moral-stories-file", str(src_dir / "moral_stories.jsonl"), "--ethics-files", str(src_dir / "justice.csv"), "--ms-wave1", "2", "--ethics-wave1", "1", "--berkeley-retrospective", "--berkeley-retro-pilot", "1", "--ms-wave2", "1", "--ethics-wave2", "1", "--handcheck-dir", str(tmp_path / "hc"), "--handcheck-n", "2"])
+    r = _run(["scripts/16_build_contested_pool.py", "--no-hf", "--families", str(src_dir / "families.jsonl"), "--out", str(pool), "--report", str(report), "--scruples-files", str(src_dir / "scruples.jsonl"), "--berkeley-file", str(src_dir / "berkeley.csv"), "--moral-stories-file", str(src_dir / "moral_stories.jsonl"), "--ethics-files", str(src_dir / "justice.csv"), "--ms-wave1", "2", "--ethics-wave1", "1", "--berkeley-retrospective", "--berkeley-retro-pilot", "1", "--ms-wave2", "1", "--ethics-wave2", "1", "--handcheck-dir", str(tmp_path / "hc"), "--handcheck-n", "2", "--handcheck-sources", "all", "--handcheck-waves", "", "--handcheck-exclude", ""])
     assert r.returncode == 0, r.stderr
     fams = load_models(pool, Family)
     by_src = {}
@@ -590,6 +737,16 @@ def test_cli_build_prompts_select(src_dir, tmp_path):
     assert len(rows) == 2 and {"family_id", "situation", "action_x", "action_y", "pass_second_person", "pass_two_exclusive_actions", "pass_no_verdict_in_situation", "note"} <= set(rows[0])
     # the existing file is untouched
     assert [f.family_id for f in load_models(src_dir / "families.jsonl", Family)] == ["dd_0001", "mc_L_001", "mc_H_001"]
+    # round 4: a rebuild pins every surviving family to the wave of the previous pool file (default --pin-waves auto = --out)
+    # even when the draw parameters change, and the hand-check sample can be stratified by wave
+    pinned_before = {f.family_id: f.meta["wave"] for f in fams}
+    r = _run(["scripts/16_build_contested_pool.py", "--no-hf", "--families", str(src_dir / "families.jsonl"), "--out", str(pool), "--report", str(report), "--scruples-files", str(src_dir / "scruples.jsonl"), "--berkeley-file", str(src_dir / "berkeley.csv"), "--moral-stories-file", str(src_dir / "moral_stories.jsonl"), "--ethics-files", str(src_dir / "justice.csv"), "--ms-wave1", "1", "--ethics-wave1", "2", "--berkeley-retrospective", "--berkeley-retro-pilot", "1", "--ms-wave2", "0", "--ethics-wave2", "0", "--seed", "7", "--handcheck-dir", str(tmp_path / "hc2"), "--handcheck-sources", "moral_stories", "--handcheck-waves", "1:1,reserve:1", "--handcheck-exclude", ""])
+    assert r.returncode == 0, r.stderr
+    assert {f.family_id: f.meta["wave"] for f in load_models(pool, Family)} == pinned_before
+    assert "pinned to" in report.read_text()
+    with open(tmp_path / "hc2" / "e2c_handcheck_moral_stories.csv", newline="") as fh:
+        hc_rows = list(csv.DictReader(fh))
+    assert sorted(r["wave"] for r in hc_rows) == ["1", "reserve"] and sorted(p.name for p in (tmp_path / "hc2").glob("*.csv")) == ["e2c_handcheck_moral_stories.csv"]
 
     # default of script 17 since round 1: wave "1" only (no 1_pilot)
     r = _run(["scripts/17_contested_prompts.py", "--families", str(pool), "--out", str(tmp_path / "w1_only.jsonl")])

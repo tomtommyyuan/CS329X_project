@@ -16,10 +16,16 @@ Waves (§1): meta.wave is "1" for everything screened first, "2a" (Moral Stories
 plan is amended). Berkeley retrospective posts are excluded by default since the round-1 hand check (their
 "1_pilot" / "1_gated" waves exist only with --berkeley-retrospective).
 
-Hand check (§1 / §11 B): --handcheck-dir writes a 100-row sample per new source for the human pass, seeded with
---handcheck-seed (round 1 used 20261002, round 2 20261006, round 3 20261007); rows already judged in the directories
-of --handcheck-exclude (comma list) are never re-sampled, and --handcheck-sources limits the sheets that are rewritten
-(round 3 regenerates only moral_stories: the other three sources passed round 2 and their judged sheets stay).
+Wave pinning: the waves were drawn once (seed 20261002). A rebuild reads the previous pool (--pin-waves, default: the
+--out file if it exists) and keeps every surviving family's meta.wave; families new to the pool go to "reserve"
+(Moral Stories / ETHICS) or to their source's fixed wave. Pass --pin-waves '' to draw afresh.
+
+Hand check (§1 / §11 B): --handcheck-dir writes a sample per new source for the human pass, seeded with
+--handcheck-seed (round 1 used 20261002, round 2 20261006, round 3 20261007, round 4 20261008); rows already judged
+in the directories of --handcheck-exclude (comma list) are never re-sampled, --handcheck-sources limits the sheets
+that are rewritten (round 3 on: only moral_stories; the other three sources passed round 2 and their judged sheets
+stay), and --handcheck-waves stratifies the sample by meta.wave ("1:50,2a:50" = 50 wave-1 + 50 2a rows, reserve
+excluded; default '' = --handcheck-n rows from every wave).
 
 Example (defaults read the Hugging Face cache; pass --no-hf with explicit files to work offline):
   python scripts/16_build_contested_pool.py
@@ -106,6 +112,27 @@ def assign_waves(fams: list[Family], args, rng: random.Random) -> None:
         f.meta["wave"] = "2b"
 
 
+def pinned_waves(path: str | None) -> dict[str, str]:
+    """family_id -> meta.wave of the previous pool file (the pinned draw); {} when there is none."""
+    if not path or not Path(path).is_file():
+        return {}
+    return {f.family_id: str(f.meta.get("wave", "")) for f in load_models(path, Family) if f.meta.get("wave")}
+
+
+def apply_pinned_waves(fams: list[Family], pinned: dict[str, str]) -> tuple[int, int]:
+    """Surviving families keep their pinned wave; Moral Stories / ETHICS families that were not in the previous pool go to
+    reserve (never screened unless the plan is amended). Returns (kept, new_to_reserve)."""
+    kept = new = 0
+    for f in fams:
+        if f.family_id in pinned:
+            f.meta["wave"] = pinned[f.family_id]
+            kept += 1
+        elif f.source in ("moral_stories", "hendrycks_ethics"):
+            f.meta["wave"] = "reserve"
+            new += 1
+    return kept, new
+
+
 def judged_ids(exclude_dirs: str) -> set[str]:
     """family_ids of earlier hand-check sheets (comma-separated archive directories, e.g. rounds 1 and 2): never
     re-sampled."""
@@ -121,9 +148,10 @@ def judged_ids(exclude_dirs: str) -> set[str]:
     return ids
 
 
-def write_handcheck(pool: list[Family], out_dir: Path, n: int, seed: int, exclude: set[str] = frozenset(), sources: set[str] | None = None) -> list[tuple[str, int]]:
+def write_handcheck(pool: list[Family], out_dir: Path, n: int, seed: int, exclude: set[str] = frozenset(), sources: set[str] | None = None, waves: dict[str, int] | None = None) -> list[tuple[str, int]]:
     """One CSV per new source (or per source in `sources`): a seeded sample of n rows with empty `pass` / `note`
-    columns for the human; rows in `exclude` (already judged in an earlier round) are skipped."""
+    columns for the human; rows in `exclude` (already judged in an earlier round) are skipped. With `waves`
+    ({wave: rows}) the sample is stratified by meta.wave and other waves are left out."""
     import csv
 
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -132,8 +160,16 @@ def write_handcheck(pool: list[Family], out_dir: Path, n: int, seed: int, exclud
         if sources is not None and src not in sources:
             continue
         rows = sorted([f for f in pool if f.source == src and f.family_id not in exclude], key=lambda f: f.family_id)
-        random.Random(seed).shuffle(rows)
-        rows = rows[:n]
+        if waves:
+            picked = []
+            for wave, k in waves.items():
+                stratum = [f for f in rows if str(f.meta.get("wave", "")) == wave]
+                random.Random(seed).shuffle(stratum)
+                picked += stratum[:k]
+            rows = picked
+        else:
+            random.Random(seed).shuffle(rows)
+            rows = rows[:n]
         path = out_dir / f"e2c_handcheck_{src}.csv"
         with open(path, "w", encoding="utf-8", newline="") as fh:
             w = csv.writer(fh)
@@ -165,9 +201,11 @@ def main() -> None:
     ap.add_argument("--ethics-wave2", type=int, default=1600, help="wave 2b: ETHICS beyond wave 1 (pinned)")
     ap.add_argument("--handcheck-dir", default="data/annotation", help="where the per-source hand-check CSVs go ('' to skip)")
     ap.add_argument("--handcheck-n", type=int, default=100)
-    ap.add_argument("--handcheck-seed", type=int, default=20261007, help="seed of the hand-check sample (round 1: 20261002, round 2: 20261006, round 3: 20261007)")
-    ap.add_argument("--handcheck-exclude", default="data/annotation/e2c_handcheck_round1,data/annotation/e2c_handcheck_round2", help="comma list of directories of earlier judged sheets whose family_ids are not re-sampled ('' for none)")
-    ap.add_argument("--handcheck-sources", default="all", help="comma list of Family.source values whose sheets are (re)written, or 'all'; round 3 uses moral_stories")
+    ap.add_argument("--handcheck-seed", type=int, default=20261008, help="seed of the hand-check sample (round 1: 20261002, round 2: 20261006, round 3: 20261007, round 4: 20261008)")
+    ap.add_argument("--handcheck-exclude", default="data/annotation/e2c_handcheck_round1,data/annotation/e2c_handcheck_round2,data/annotation/e2c_handcheck_round3", help="comma list of directories of earlier judged sheets whose family_ids are not re-sampled ('' for none)")
+    ap.add_argument("--handcheck-sources", default="moral_stories", help="comma list of Family.source values whose sheets are (re)written, or 'all'; rounds 3-4 use moral_stories (the other sources' judged sheets stay)")
+    ap.add_argument("--handcheck-waves", default="1:50,2a:50", help="stratify the sample by meta.wave, 'wave:rows,...' ('' = --handcheck-n rows from all waves); round 4: 1:50,2a:50")
+    ap.add_argument("--pin-waves", default="auto", help="previous pool file whose meta.wave is kept for surviving families ('auto' = --out if it exists, '' = draw afresh)")
     ap.add_argument("--keep-flagged", action="store_true", help="keep rows with HARD_FLAGS instead of dropping them")
     ap.add_argument("--threshold", type=float, default=0.9, help="situation cosine for leakage and within-pool dedup")
     ap.add_argument("--seed", type=int, default=20261002)
@@ -214,8 +252,11 @@ def main() -> None:
     pool, dup_pairs = dedup_within_pool(pool, threshold=args.threshold)
     pool, aita_pairs = dedup_aita_titles(pool, threshold=args.threshold)
 
-    # 4. waves and provenance bookkeeping
+    # 4. waves (pinned to the previous draw when there is one) and provenance bookkeeping
+    pin_path = args.out if args.pin_waves == "auto" else args.pin_waves
+    pinned = pinned_waves(pin_path)
     assign_waves(pool, args, rng)
+    pin_kept, pin_new = apply_pinned_waves(pool, pinned) if pinned else (0, 0)
     for f in pool:
         f.split = "pool_contested"
         f.meta.setdefault("provenance", f.source)
@@ -223,7 +264,8 @@ def main() -> None:
     n = write_jsonl(args.out, pool)
     print(f"wrote {n} families -> {args.out}")
     hc_sources = None if args.handcheck_sources == "all" else {s for s in args.handcheck_sources.split(",") if s}
-    handcheck = write_handcheck(pool, Path(args.handcheck_dir), args.handcheck_n, args.handcheck_seed, judged_ids(args.handcheck_exclude), hc_sources) if args.handcheck_dir else []
+    hc_waves = {w: int(k) for w, k in (x.split(":") for x in args.handcheck_waves.split(",") if x)} or None
+    handcheck = write_handcheck(pool, Path(args.handcheck_dir), args.handcheck_n, args.handcheck_seed, judged_ids(args.handcheck_exclude), hc_sources, hc_waves) if args.handcheck_dir else []
 
     # 5. report
     by_src = Counter(f.source for f in pool)
@@ -237,7 +279,7 @@ def main() -> None:
         pool_dups = sum(1 for a, _, _ in dup_pairs + aita_pairs if a.startswith(prefix[name]))
         per_source.append([name, s["loaded"], s["rule_clean"], leak_drops, pool_dups, by_src.get(src_name[name], 0)])
     lines += ["## Per source", "", md_table(["source", "loaded", "rule-clean", "leak drops", "pool dups", "kept"], per_source), ""]
-    lines += ["## Waves", "", md_table(["source", "wave", "families"], [[s, w, c] for (s, w), c in sorted(by_wave.items())]), ""]
+    lines += ["## Waves", "", (f"pinned to `{pin_path}`: {pin_kept} surviving families keep their wave, {pin_new} new families -> reserve" if pinned else "fresh draw (no previous pool to pin to)"), "", md_table(["source", "wave", "families"], [[s, w, c] for (s, w), c in sorted(by_wave.items())]), ""]
     lines += ["## Hard flags (rows dropped before the pool)", "", md_table(["source", "flag", "rows"], [[name, fl, c] for name, s in stats.items() for fl, c in sorted(s["hard_flags"].items())]), ""]
     lines += ["## All review flags among loaded rows (informational flags stay in needs_review)", "", md_table(["source", "flag", "rows"], [[src, fl, c] for src, cnt in sorted(all_flags.items()) for fl, c in cnt.most_common()]), ""]
     lines += ["## Leakage vs existing families (situation cosine, char_wb 3-5 TF-IDF)", "", f"vectorizer fitted on: {leak.fit_corpus}. re-used on purpose (same family_id, sanity split): {len(leak.reused)}; dropped: {len(leak.drop)}; review band [0.7, 0.9): {len(leak.review)}; source-item conflicts: {len(leak.source_item_conflicts)}", "", md_table(["max cosine bin (vs all existing, re-used rows excluded)", "pool rows"], [[b, c] for b, c in leak.sim_histogram()]), ""]
@@ -258,7 +300,7 @@ def main() -> None:
     if dup_pairs or aita_pairs:
         lines += [md_table(["dropped", "kept", "cosine"], [[a, b, s] for a, b, s in (dup_pairs + aita_pairs)[:50]]), ""]
     if handcheck:
-        lines += [f"## Hand-check samples (seed {args.handcheck_seed}, rows judged in `{args.handcheck_exclude}` excluded, sources `{args.handcheck_sources}`, for the human pass of plan §11 B)", "", md_table(["file", "rows"], [[a, b] for a, b in handcheck]), ""]
+        lines += [f"## Hand-check samples (seed {args.handcheck_seed}, rows judged in `{args.handcheck_exclude}` excluded, sources `{args.handcheck_sources}`, waves `{args.handcheck_waves or 'all'}`, for the human pass of plan §11 B)", "", md_table(["file", "rows"], [[a, b] for a, b in handcheck]), ""]
     lines += ["## Licenses (meta.license)", "", md_table(["source", "license"], [[src, lic] for src, lic in sorted({(f.source, str(f.meta.get("license", ""))) for f in pool})]), ""]
     Path(args.report).parent.mkdir(parents=True, exist_ok=True)
     Path(args.report).write_text("\n".join(lines), encoding="utf-8")
