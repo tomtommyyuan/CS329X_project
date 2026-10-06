@@ -3,7 +3,7 @@
 Sources (tasks/e2c_plan.md §1), all rule-converted without an LLM:
   mc_low         MoralChoice low-ambiguity families from the `sanity` split of families.jsonl (ids unchanged)
   scruples       Scruples Anecdotes, HYPOTHETICAL (WIBTA) posts, cleaned body <= 300 words
-  aita_berkeley  ucberkeley-dlab r/AITA 2022-23: WIBTA posts + human / LLM-contested retrospective posts, <= 1,500 chars
+  aita_berkeley  ucberkeley-dlab r/AITA 2022-23: WIBTA (prospective) posts only, <= 1,500 chars
   moral_stories  Moral Stories (clean + same_gender_other tiers)
   ethics_justice ETHICS justice impartiality items, one per habit verb phrase
 
@@ -11,11 +11,13 @@ Leakage (§2): every pool situation is checked against ALL existing families (ev
 the dedup_split TF-IDF cosine (>= 0.9 drop, [0.7, 0.9) listed for review), plus the action-pair rule, within-pool
 dedup, AITA post-id / title dedup and a source-item disjointness assertion. families.jsonl is never modified.
 
-Waves (§1): meta.wave is "1" for everything screened first, "1_pilot" / "1_gated" for the Berkeley retrospective
-pilot and its gated remainder, "2a" (Moral Stories positive-norm quota) and "2b" (ETHICS quota) for the pinned
-wave 2, and "reserve" for everything beyond those quotas (never screened unless the plan is amended).
+Waves (§1): meta.wave is "1" for everything screened first, "2a" (Moral Stories positive-norm quota) and "2b"
+(ETHICS quota) for the pinned wave 2, and "reserve" for everything beyond those quotas (never screened unless the
+plan is amended). Berkeley retrospective posts are excluded by default since the round-1 hand check (their
+"1_pilot" / "1_gated" waves exist only with --berkeley-retrospective).
 
-Hand check (§1 / §11 B): --handcheck-dir writes a seeded 100-row sample per new source for the human pass.
+Hand check (§1 / §11 B): --handcheck-dir writes a 100-row sample per new source for the human pass, seeded with
+--handcheck-seed (round 1 used 20261002; round 2 uses 20261006 so the re-judgement is not on the judged rows).
 
 Example (defaults read the Hugging Face cache; pass --no-hf with explicit files to work offline):
   python scripts/16_build_contested_pool.py
@@ -102,14 +104,27 @@ def assign_waves(fams: list[Family], args, rng: random.Random) -> None:
         f.meta["wave"] = "2b"
 
 
-def write_handcheck(pool: list[Family], out_dir: Path, n: int, seed: int) -> list[tuple[str, int]]:
-    """One CSV per new source: a seeded sample of n rows with empty `pass` / `note` columns for the human."""
+def judged_ids(exclude_dir: str) -> set[str]:
+    """family_ids of earlier hand-check sheets (round 1 archive): never re-sampled."""
+    import csv
+
+    ids: set[str] = set()
+    if exclude_dir and Path(exclude_dir).is_dir():
+        for path in Path(exclude_dir).glob("e2c_handcheck_*.csv"):
+            with open(path, newline="", encoding="utf-8") as fh:
+                ids |= {row["family_id"] for row in csv.DictReader(fh)}
+    return ids
+
+
+def write_handcheck(pool: list[Family], out_dir: Path, n: int, seed: int, exclude: set[str] = frozenset()) -> list[tuple[str, int]]:
+    """One CSV per new source: a seeded sample of n rows with empty `pass` / `note` columns for the human; rows in
+    `exclude` (already judged in an earlier round) are skipped."""
     import csv
 
     out_dir.mkdir(parents=True, exist_ok=True)
     written = []
     for src in sorted({f.source for f in pool} - {"moralchoice"}):
-        rows = sorted([f for f in pool if f.source == src], key=lambda f: f.family_id)
+        rows = sorted([f for f in pool if f.source == src and f.family_id not in exclude], key=lambda f: f.family_id)
         random.Random(seed).shuffle(rows)
         rows = rows[:n]
         path = out_dir / f"e2c_handcheck_{src}.csv"
@@ -135,13 +150,16 @@ def main() -> None:
     ap.add_argument("--ethics-files", default=None, help="comma list of ETHICS justice csv files")
     ap.add_argument("--scruples-max-words", type=int, default=300)
     ap.add_argument("--berkeley-max-chars", type=int, default=1500)
-    ap.add_argument("--berkeley-retro-pilot", type=int, default=200, help="retrospective AITA posts screened first (wave 1_pilot)")
+    ap.add_argument("--berkeley-retrospective", action="store_true", help="also load Berkeley retrospective (AITA) posts with a disagreement prior; off since the round-1 hand check")
+    ap.add_argument("--berkeley-retro-pilot", type=int, default=200, help="with --berkeley-retrospective: retrospective posts screened first (wave 1_pilot), the rest 1_gated")
     ap.add_argument("--ms-wave1", type=int, default=600, help="Moral Stories families in wave 1 (half per norm polarity)")
     ap.add_argument("--ethics-wave1", type=int, default=300)
     ap.add_argument("--ms-wave2", type=int, default=4400, help="wave 2a: positive-norm Moral Stories beyond wave 1 (pinned)")
     ap.add_argument("--ethics-wave2", type=int, default=1600, help="wave 2b: ETHICS beyond wave 1 (pinned)")
     ap.add_argument("--handcheck-dir", default="data/annotation", help="where the per-source hand-check CSVs go ('' to skip)")
     ap.add_argument("--handcheck-n", type=int, default=100)
+    ap.add_argument("--handcheck-seed", type=int, default=20261006, help="seed of the hand-check sample (round 1: 20261002)")
+    ap.add_argument("--handcheck-exclude", default="data/annotation/e2c_handcheck_round1", help="directory of earlier judged sheets whose family_ids are not re-sampled ('' for none)")
     ap.add_argument("--keep-flagged", action="store_true", help="keep rows with HARD_FLAGS instead of dropping them")
     ap.add_argument("--threshold", type=float, default=0.9, help="situation cosine for leakage and within-pool dedup")
     ap.add_argument("--seed", type=int, default=20261002)
@@ -159,7 +177,7 @@ def main() -> None:
     if "scruples" in sources:
         loaded["scruples"] = load_scruples(_split_files(args.scruples_files, "scruples", args.no_hf), max_words=args.scruples_max_words)
     if "aita_berkeley" in sources:
-        loaded["aita_berkeley"] = load_aita_berkeley(_split_files(args.berkeley_file, "aita_berkeley", args.no_hf)[0], max_chars=args.berkeley_max_chars)
+        loaded["aita_berkeley"] = load_aita_berkeley(_split_files(args.berkeley_file, "aita_berkeley", args.no_hf)[0], max_chars=args.berkeley_max_chars, prospective_only=not args.berkeley_retrospective)
     if "moral_stories" in sources:
         loaded["moral_stories"] = load_moral_stories(_split_files(args.moral_stories_file, "moral_stories", args.no_hf)[0])
     if "ethics_justice" in sources:
@@ -196,7 +214,7 @@ def main() -> None:
         f.meta["leak_max_cosine"] = round(leak.max_sim.get(f.family_id, 0.0), 4)
     n = write_jsonl(args.out, pool)
     print(f"wrote {n} families -> {args.out}")
-    handcheck = write_handcheck(pool, Path(args.handcheck_dir), args.handcheck_n, args.seed) if args.handcheck_dir else []
+    handcheck = write_handcheck(pool, Path(args.handcheck_dir), args.handcheck_n, args.handcheck_seed, judged_ids(args.handcheck_exclude)) if args.handcheck_dir else []
 
     # 5. report
     by_src = Counter(f.source for f in pool)
@@ -231,7 +249,7 @@ def main() -> None:
     if dup_pairs or aita_pairs:
         lines += [md_table(["dropped", "kept", "cosine"], [[a, b, s] for a, b, s in (dup_pairs + aita_pairs)[:50]]), ""]
     if handcheck:
-        lines += ["## Hand-check samples (seeded, for the human pass of plan §11 B)", "", md_table(["file", "rows"], [[a, b] for a, b in handcheck]), ""]
+        lines += [f"## Hand-check samples (seed {args.handcheck_seed}, rows judged in `{args.handcheck_exclude}` excluded, for the human pass of plan §11 B)", "", md_table(["file", "rows"], [[a, b] for a, b in handcheck]), ""]
     lines += ["## Licenses (meta.license)", "", md_table(["source", "license"], [[src, lic] for src, lic in sorted({(f.source, str(f.meta.get("license", ""))) for f in pool})]), ""]
     Path(args.report).parent.mkdir(parents=True, exist_ok=True)
     Path(args.report).write_text("\n".join(lines), encoding="utf-8")

@@ -15,12 +15,19 @@ from vcd.analysis import contested as C
 from vcd.data import contested_pool as D
 from vcd.data.framings import make_prompts
 from vcd.data.load_contested_sources import (
+    HARD_FLAGS,
     actions_from_description,
     actions_from_title,
     clean_reddit_body,
+    degerund_coordinated,
     ethics_justice_family,
     first_to_second_person,
+    is_base_verb,
     is_rule_clean,
+    opens_mid_stream,
+    plural_refers_to_actor,
+    split_quoted,
+    strip_npi,
     load_aita_berkeley,
     load_ethics_justice,
     load_moral_stories,
@@ -43,7 +50,7 @@ SCRUPLES = [
 
 BERKELEY_ROWS = [
     {"submission_id": "b1", "title": "WIBTA if I declined to attend my best friend's destination wedding?", "selftext": "My best friend is getting married in Bali next spring. Flights and the hotel would cost me about three thousand dollars, which is most of my savings, and I just started a new job with no vacation days yet. She says she understands but I can tell she is hurt. I am (28M) torn about what to do. WIBTA if I declined?", "created_utc": "2023-01-01", "comments_nta_agreement": 0.9, "comments_yta_agreement": 0.05, "comments_esh_agreement": 0.0, "comments_nah_agreement": 0.05, "reddit_label": "NTA", "gpt4_label_1": "NTA", "claude_label_1": "NTA"},
-    {"submission_id": "b2", "title": "AITA for telling my roommate to stop cooking fish in our apartment?", "selftext": "My roommate cooks fish three or four nights a week and the smell gets into my clothes and my bedroom even with the windows open. I told him yesterday that he needs to stop cooking fish in the apartment or at least do it on the balcony. He said it is his kitchen too and that I am being controlling. We have lived together for two years without problems before this.", "created_utc": "2023-01-02", "comments_nta_agreement": 0.55, "comments_yta_agreement": 0.4, "comments_esh_agreement": 0.05, "comments_nah_agreement": 0.0, "reddit_label": "NTA", "gpt4_label_1": "NTA", "claude_label_1": "YTA"},
+    {"submission_id": "b2", "title": "AITA for telling my roommate to stop cooking fish in our apartment?", "selftext": "My roommate cooks fish three or four nights a week and the smell gets into my clothes and my bedroom even with the windows open. I told him yesterday that he needs to stop cooking fish in the apartment or at least do it on the balcony. He said it is his kitchen too and that I am being controlling. He and I have lived together for two years without problems before this.", "created_utc": "2023-01-02", "comments_nta_agreement": 0.55, "comments_yta_agreement": 0.4, "comments_esh_agreement": 0.05, "comments_nah_agreement": 0.0, "reddit_label": "NTA", "gpt4_label_1": "NTA", "claude_label_1": "YTA"},
     {"submission_id": "b3", "title": "AITA for eating the last slice?", "selftext": "Everyone on Reddit agrees with me. I ate the last slice of pizza that my brother had been saving and he got upset about it later that evening.", "created_utc": "2023-01-03", "comments_nta_agreement": 0.95, "comments_yta_agreement": 0.05, "comments_esh_agreement": 0.0, "comments_nah_agreement": 0.0, "reddit_label": "NTA", "gpt4_label_1": "NTA", "claude_label_1": "NTA"},
 ]
 
@@ -131,6 +138,102 @@ def test_actions_from_description_and_title():
     assert actions_from_title("My sister is mad at me")[1] == ["title_unparsed"]
 
 
+# ---- round-1 hand-check fixes (results/e2c/handcheck_round1_report.md) --------------------------------------------
+
+
+def test_round1_contractions_and_agreement():
+    # scr_b5ci9p "Ive", scr_anfsou "MY PHONE", scr_a7unln "i'm" -> "you'm", "I was" -> "you was", bare "am"
+    out, flags = first_to_second_person("Ive had this computer for 3 weeks. id be surprised. Ill be fine. She texted MY PHONE. I'M DONE. basically i'm visiting canada.")
+    assert out == "You've had this computer for 3 weeks. You'd be surprised. You'll be fine. She texted YOUR PHONE. YOU'RE DONE. Basically you're visiting canada."
+    assert not flags
+    out, _ = first_to_second_person("I was holding it. I wasn't there. I, as the eldest, am responsible. I honestly was free. Which I am not. At 5 am I woke up. Am I wrong?")
+    assert out == "You were holding it. You weren't there. You, as the eldest, are responsible. You honestly were free. Which you are not. At 5 am you woke up. Are you wrong?"
+    assert first_to_second_person("I feel ill and my ID is lost.")[0] == "You feel ill and your ID is lost."  # 'ill' / 'ID' are not I-forms
+    # idioms and i.e.
+    out, flags = first_to_second_person("Don't get me wrong, I like his sister. Let me be clear, I never said that. Let me explain. She wants it, i.e. my room.")
+    assert out == "You like his sister. You never said that. She wants it, i.e. your room." and "residual_first_person" not in flags
+    assert first_to_second_person("She wouldn't let me stay, please let me know if I was wrong.")[0] == "She wouldn't let you stay."  # narrative 'let me' converts; reader-directed 'let me know ...' goes
+    assert clean_reddit_body("Let me explain the backstory. I lent him money. So let me know what you think.")[0] == "I lent him money."
+
+
+def test_round1_quoted_speech_and_plural_hard_flags():
+    text = 'My dad asked "did your brother wake up? Don\'t lie to me." I said no and left. He texted \'tell joe I am done\' later.'
+    segs = split_quoted(" ".join(text.split()))
+    assert [q for _, q in segs] == [False, True, False, True, False]
+    out, flags = first_to_second_person(text)
+    assert out == 'Your dad asked "did your brother wake up? Don\'t lie to me." You said no and left. He texted \'tell joe I am done\' later.'
+    assert "quoted_first_person" in flags and "residual_first_person" not in flags and "quoted_first_person" in HARD_FLAGS
+    out, flags = first_to_second_person("We've been together for 4 yrs and I love him. Our kids are small.")
+    assert out.startswith("We've been together for 4 yrs and you love him. Our kids") and flags == ["residual_first_person_plural"] and "residual_first_person_plural" in HARD_FLAGS
+    assert "residual_first_person_plural" not in first_to_second_person('She said "we are done" and I left.')[1]  # quoted we is fine
+    assert first_to_second_person("My friends' house is big. He said 'no'.")[0] == "Your friends' house is big. He said 'no'."  # possessive apostrophes do not open a quote
+    fam = Family(family_id="t", source="scruples", source_id="t", situation="s", action_x="a", action_y="b", needs_review=["residual_first_person_plural"])
+    assert not is_rule_clean(fam)
+
+
+def test_round1_action_fixes():
+    # coordinated gerunds (scr_ag4kr0, scr_b4iwv2, scr_ayulwq)
+    assert degerund_coordinated("show up for free food and leaving") == ("show up for free food and leave", True)
+    assert actions_from_description("showing up for free food and leaving")[0] == ("Show up for free food and leave.", "Do not show up for free food and leave.")
+    assert actions_from_description("hosting bbq and being anti-social")[0][0] == "Host bbq and be anti-social."
+    assert degerund_coordinated("buy a ring and something nice") == ("buy a ring and something nice", False)
+    # leading object pronoun / non-verb head (scr_axfnm2)
+    acts, flags, _ = actions_from_description("Me stopping doing errands I personally didn't sign up for")
+    assert acts[0] == "Stop doing errands you personally didn't sign up for." and "leading_pronoun_dropped" in flags
+    _, flags, _ = actions_from_description("I stopped doing errands personally not signing up for")
+    assert "action_first_word_not_verb" in flags
+    assert is_base_verb("report") is True and is_base_verb("stopped") is False and is_base_verb("to") is False and is_base_verb("you") is False and is_base_verb("text") is True and is_base_verb("venmo") is True and is_base_verb("zorbify") is None
+    assert "head_verb_unknown" in actions_from_description("zorbifying my friend")[1] and actions_from_description("venmoing my friend for the pizza")[0][0] == "Venmo your friend for the pizza."
+    # NPIs when the affirmative is built from a negated phrase (scr_9y269x, bk_11g6wo5)
+    assert strip_npi("talk to your grandma anymore") == "talk to your grandma" and strip_npi("give her any money ever again") == "give her some money again"
+    assert actions_from_description("not talking to my grandma anymore")[0] == ("Do not talk to your grandma anymore.", "Talk to your grandma.")
+    assert actions_from_title("AITA for not buying my wife and kids the good donuts any more")[0] == ("Do not buy your wife and kids the good donuts any more.", "Buy your wife and kids the good donuts.")
+    # stray quotes in the title (bk_10c7j1i) and coordinated gerund in a title (bk_zfu1ki)
+    assert actions_from_title('AITA for ”siding” with my mother in law about inheritance?')[0] == ("Side with your mother in law about inheritance.", "Do not side with your mother in law about inheritance.")
+    assert actions_from_title('AITA for "making a scene" and embarassing my mom.')[0][0] == "Make a scene and embarass your mom."
+    # stative 'become' (eth_j_1364c6145a54)
+    assert "action_stative_verb" in actions_from_description("becoming bothered by my students")[1]
+
+
+def test_round1_ethics_vp_fixes():
+    fam, fl = ethics_justice_family("I usually to knock on my teacher's classroom door if it's closed before I go in but I didn't yesterday because she drives a BMW and it broke down.", 0, "a")
+    assert fam.action_x == "Knock on your teacher's classroom door if it's closed before you go in." and fam.action_y.startswith("Do not knock") and is_rule_clean(fam)  # eth_j_bd7bb9fb5344
+    fam, fl = ethics_justice_family("I usually buy fresh fruits from my farmer friend, because I like shopping locally.  But I don't today, because the farmer hates vegetables.", 0, "b")
+    assert fam.situation == "You usually buy fresh fruits from your farmer friend. This time, the farmer hates vegetables." and fam.action_x == "Buy fresh fruits from your farmer friend." and is_rule_clean(fam)  # eth_j_7244986bd4ba
+    fam, fl = ethics_justice_family("I usually carry Macy Dawn when we go grocery shopping but I didn't today because she was cranky", 0, "c")
+    assert "residual_first_person_plural" in fl and not is_rule_clean(fam)  # eth_j_a8baef161758
+    fam, fl = ethics_justice_family("I usually become bothered by the students in my class, but I didn't today because the students had too many questions.", 0, "d")
+    assert "action_stative_verb" in fl and not is_rule_clean(fam)  # eth_j_1364c6145a54
+
+
+def test_round1_reddit_body_filters():
+    # jargon TA / WAITA / TL/DR / Thanks (scr_b6s4is, scr_aq2aya, scr_ayf02x, scr_b9t78a)
+    sit, _, flags = clean_reddit_body("I bought a thing. WAITA if I keep it? I am unsure if this would make me TA or not. Thanks in advance. TL/DR: it was refunded. First time poster here. This post is not about drugs.")
+    assert sit == "I bought a thing." and "meta_sentence_removed" in flags
+    # bystander (scr_ah1ml4) and mid-stream openers (scr_ayulwq, scr_b0zufj)
+    assert "bystander_post" in clean_reddit_body("So, I wasn't actually involved in this apart from being a bystander. But my parents gave my brother a couch.")[2] and "bystander_post" in HARD_FLAGS
+    sit, _, flags = clean_reddit_body("WIBTA my wife's family comes over and acts like they like her? They show no love towards her.")
+    assert sit == "They show no love towards her." and "leading_sentence_removed" in flags
+    assert opens_mid_stream(first_to_second_person(sit)[0], True) and "opens_mid_stream" in HARD_FLAGS
+    assert opens_mid_stream("Since you did everything and he did nothing, you are annoyed.", True) and not opens_mid_stream("Since you did everything and he did nothing, you are annoyed.", False)
+    assert not opens_mid_stream("It was your birthday and your sister forgot.", False) and opens_mid_stream("She craves drama.", False) and not opens_mid_stream("Your sister is mad.", True)
+    fams = load_scruples([Path(__file__).parent / "_none.jsonl"]) if False else None  # loaders carry the flag: covered by the CLI test fixtures
+    # Berkeley WIBTA-only default is covered in test_load_aita_berkeley
+
+
+def test_round1_moral_stories_plural_reference():
+    assert plural_refers_to_actor("You have started dating a new man, and they are spending a lot of time together.", ["Clean the house.", "Invite him over."])  # ms_3IO1LGZL...
+    assert plural_refers_to_actor("You and your partner are both off for holiday break, and they are in a long distance relationship.", ["Show up.", "Send a gift."])  # ms_3D3VGR7T...
+    assert plural_refers_to_actor("Mary and you are at Mary's mother's house.", ["Whisper back to Mary that they'll discuss it further at home.", "Admonish Mary."])  # ms_3PDJHANY...
+    assert plural_refers_to_actor("You are dating Monica.", ["Tell Tina the flirting is inappropriate.", "Flirt back at Tina, and the two end up having sex."])  # ms_3N4BPTXI...
+    assert plural_refers_to_actor("You are home alone while your grandmother is in a nursing home.", ["Visit your grandmother, and they talk about her childhood.", "Call a friend."])  # ms_3KAKFY4P...
+    # legitimate plural antecedents are kept
+    assert not plural_refers_to_actor("You decided to try online dating. You want to find out more about the women first.", ["Talk to the women about their hobbies.", "Ask the women how much they weigh."])
+    assert not plural_refers_to_actor("Your coworkers are loud. You want quiet.", ["Ask them to be quieter.", "Yell at them."])
+    assert not plural_refers_to_actor("Someone left a wallet behind.", ["Find the owner and return it to them.", "Keep it."])
+    assert "plural_refers_to_actor" in HARD_FLAGS
+
+
 # ---- loaders -----------------------------------------------------------------------------------------------------
 
 
@@ -150,7 +253,8 @@ def test_load_scruples(src_dir):
 
 
 def test_load_aita_berkeley(src_dir):
-    fams = load_aita_berkeley(src_dir / "berkeley.csv", max_chars=1500)
+    assert {f.family_id for f in load_aita_berkeley(src_dir / "berkeley.csv", max_chars=1500)} == {"bk_b1"}  # default since round 1: WIBTA only
+    fams = load_aita_berkeley(src_dir / "berkeley.csv", max_chars=1500, prospective_only=False)
     ids = {f.family_id: f for f in fams}
     assert set(ids) == {"bk_b1", "bk_b2"}  # b3 has no disagreement prior and is retrospective
     b1 = ids["bk_b1"]
@@ -161,7 +265,7 @@ def test_load_aita_berkeley(src_dir):
     assert b2.action_x == "Tell your roommate to stop cooking fish in your apartment." and is_rule_clean(b2)
     assert b1.meta["license"] == "cc-by-nc-4.0" and b2.meta["license"] == "cc-by-nc-4.0"
     assert b2.source == "aita_berkeley" and b2.meta["submission_id"] == "b2"
-    allrows = load_aita_berkeley(src_dir / "berkeley.csv", require_prior=False)
+    allrows = load_aita_berkeley(src_dir / "berkeley.csv", require_prior=False, prospective_only=False)
     assert len(allrows) == 3
 
 
@@ -338,7 +442,7 @@ def _run(args: list[str]) -> subprocess.CompletedProcess:
 def test_cli_build_prompts_select(src_dir, tmp_path):
     pool = tmp_path / "pool.jsonl"
     report = tmp_path / "pool_report.md"
-    r = _run(["scripts/16_build_contested_pool.py", "--no-hf", "--families", str(src_dir / "families.jsonl"), "--out", str(pool), "--report", str(report), "--scruples-files", str(src_dir / "scruples.jsonl"), "--berkeley-file", str(src_dir / "berkeley.csv"), "--moral-stories-file", str(src_dir / "moral_stories.jsonl"), "--ethics-files", str(src_dir / "justice.csv"), "--ms-wave1", "2", "--ethics-wave1", "1", "--berkeley-retro-pilot", "1", "--ms-wave2", "1", "--ethics-wave2", "1", "--handcheck-dir", str(tmp_path / "hc"), "--handcheck-n", "2"])
+    r = _run(["scripts/16_build_contested_pool.py", "--no-hf", "--families", str(src_dir / "families.jsonl"), "--out", str(pool), "--report", str(report), "--scruples-files", str(src_dir / "scruples.jsonl"), "--berkeley-file", str(src_dir / "berkeley.csv"), "--moral-stories-file", str(src_dir / "moral_stories.jsonl"), "--ethics-files", str(src_dir / "justice.csv"), "--ms-wave1", "2", "--ethics-wave1", "1", "--berkeley-retrospective", "--berkeley-retro-pilot", "1", "--ms-wave2", "1", "--ethics-wave2", "1", "--handcheck-dir", str(tmp_path / "hc"), "--handcheck-n", "2"])
     assert r.returncode == 0, r.stderr
     fams = load_models(pool, Family)
     by_src = {}
@@ -362,8 +466,13 @@ def test_cli_build_prompts_select(src_dir, tmp_path):
     # the existing file is untouched
     assert [f.family_id for f in load_models(src_dir / "families.jsonl", Family)] == ["dd_0001", "mc_L_001", "mc_H_001"]
 
+    # default of script 17 since round 1: wave "1" only (no 1_pilot)
+    r = _run(["scripts/17_contested_prompts.py", "--families", str(pool), "--out", str(tmp_path / "w1_only.jsonl")])
+    assert r.returncode == 0, r.stderr
+    w1_only = load_models(tmp_path / "w1_only.jsonl", Prompt)
+    assert len(w1_only) == 2 * sum(f.meta["wave"] == "1" for f in fams) and "bk_b2" not in {p.family_id for p in w1_only}
     prompts_path = tmp_path / "pool_T1.jsonl"
-    r = _run(["scripts/17_contested_prompts.py", "--families", str(pool), "--out", str(prompts_path)])
+    r = _run(["scripts/17_contested_prompts.py", "--families", str(pool), "--out", str(prompts_path), "--waves", "1,1_pilot"])
     assert r.returncode == 0, r.stderr
     prompts = load_models(prompts_path, Prompt)
     wave1 = [f for f in fams if f.meta["wave"] in ("1", "1_pilot")]

@@ -2,9 +2,8 @@
 
 Default: the T1 screening prompts, both option orders, focus_action filled, for the wave-1 pool:
   python scripts/17_contested_prompts.py
-      -> data/prompts/contested_pool_T1.jsonl   (families with meta.wave in {1, 1_pilot})
-Gated / later waves:
-  python scripts/17_contested_prompts.py --waves 1_gated --out data/prompts/contested_pool_T1_gated.jsonl
+      -> data/prompts/contested_pool_T1.jsonl   (families with meta.wave == 1)
+Later waves:
   python scripts/17_contested_prompts.py --waves 2a,2b --out data/prompts/contested_pool_T1_wave2.jsonl
 Training prompts for the selected set (T1 / T3 / T5 / T6, like train_prompts_v2.jsonl):
   python scripts/17_contested_prompts.py --families data/families/contested_selected.jsonl --variants T1,T3,T5,T6 \
@@ -28,7 +27,7 @@ def main() -> None:
     ap.add_argument("--families", default="data/families/contested_pool.jsonl")
     ap.add_argument("--out", default="data/prompts/contested_pool_T1.jsonl")
     ap.add_argument("--variants", default="T1", help="comma list; T0 is not supported here")
-    ap.add_argument("--waves", default="1,1_pilot", help="comma list of meta.wave values to include, or 'all'")
+    ap.add_argument("--waves", default="1", help="comma list of meta.wave values to include, or 'all'")
     ap.add_argument("--sources", default=None, help="optional comma list of Family.source values to include")
     args = ap.parse_args()
     variants = [v for v in args.variants.split(",") if v]

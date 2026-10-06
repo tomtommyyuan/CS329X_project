@@ -47,6 +47,12 @@ HARD_FLAGS = {
     "gender_unknown",
     "habit_discontinued",  # ETHICS 'I used to VP but ...': the habit has stopped, no decision to make
     "pronoun_residue",  # "<X> and you's" that the rewrite could not repair
+    # added after the round-1 hand check (results/e2c/handcheck_round1_report.md)
+    "residual_first_person_plural",  # we / our / us / ours / ourselves left outside quoted speech
+    "quoted_first_person",  # I / me / my inside quoted speech: the speaker would become unrecoverable
+    "opens_mid_stream",  # first sentence starts with a pronoun whose antecedent was in the stripped title / question
+    "bystander_post",  # narrator judges somebody else's act
+    "plural_refers_to_actor",  # Moral Stories: they / their / the two standing for the actor plus someone
 }
 
 # License of each source as read from its Hugging Face card / upstream repo (tasks/e2c_plan.md §10).
@@ -67,53 +73,120 @@ def is_rule_clean(fam: Family) -> bool:
 
 _QUOTES = str.maketrans({"\u2019": "'", "\u2018": "'", "\u201c": '"', "\u201d": '"'})
 
+# Case-insensitive contraction / agreement table (round-1 hand check: "i'm" -> "you'm", "Ive", "id", "MY",
+# "I was" -> "you was" were the singular residue). Replacements are lower-case; `_match_case` restores the
+# source casing and the sentence-initial pass capitalises.
 _1_TO_2 = [
-    (r"\bI'm\b", "you're"),
-    (r"\b[Ii]m\b", "you're"),  # Reddit spelling of I'm
-    (r"\bi\b", "you"),  # lower-case I
-    (r"\bI am\b", "you are"),
-    (r"\bI was\b", "you were"),
-    (r"\bI've\b", "you've"),
-    (r"\bI'll\b", "you'll"),
-    (r"\bI'd\b", "you'd"),
-    (r"\bam I\b", "are you"),
-    (r"\bAm I\b", "Are you"),
-    (r"\bwas I\b", "were you"),
-    (r"\bWas I\b", "Were you"),
-    (r"\bmyself\b", "yourself"),
-    (r"\bMyself\b", "Yourself"),
-    (r"\bmine\b", "yours"),
-    (r"\bMine\b", "Yours"),
-    (r"\bmy\b", "your"),
-    (r"\bMy\b", "Your"),
-    (r"\bme\b", "you"),
-    (r"\bMe\b", "You"),
-    (r"\bI\b", "you"),
+    (re.compile(r"\bI'm\b", re.IGNORECASE), "you're"),
+    (re.compile(r"\b[Ii]m\b"), "you're"),  # Reddit spelling of I'm; upper-case IM is kept
+    (re.compile(r"\bI am\b", re.IGNORECASE), "you are"),
+    (re.compile(r"\bI was not\b", re.IGNORECASE), "you were not"),
+    (re.compile(r"\bI wasn't\b", re.IGNORECASE), "you weren't"),
+    (re.compile(r"\bI was\b", re.IGNORECASE), "you were"),
+    (re.compile(r"\bI've\b", re.IGNORECASE), "you've"),
+    (re.compile(r"\b[Ii]ve\b"), "you've"),
+    (re.compile(r"\bI'd\b", re.IGNORECASE), "you'd"),
+    (re.compile(r"\b[Ii]d\b"), "you'd"),  # 'id' (Reddit I'd); upper-case ID is kept
+    (re.compile(r"\bI'll\b", re.IGNORECASE), "you'll"),
+    (re.compile(r"\bIll\b"), "you'll"),  # capital I only: 'ill' is an adjective
+    (re.compile(r"(?<!\d)(?<!\d )\bam I\b", re.IGNORECASE), "are you"),  # not clock times: "at 5 am I ..."
+    (re.compile(r"\bwasn't I\b", re.IGNORECASE), "weren't you"),
+    (re.compile(r"\bwas I\b", re.IGNORECASE), "were you"),
+    (re.compile(r"\bmyself\b", re.IGNORECASE), "yourself"),
+    (re.compile(r"\bmine\b", re.IGNORECASE), "yours"),
+    (re.compile(r"\bmy\b", re.IGNORECASE), "your"),
+    (re.compile(r"\bme\b", re.IGNORECASE), "you"),
+    (re.compile(r"\bI\b|\bi\b"), "you"),
 ]
-_FIRST_PERSON_RESIDUAL = re.compile(r"\b(I|me|my|myself|mine|I'm|I've|I'd|I'll)\b")
+# Fixed expressions whose 'me' / 'I' is not the decision-maker's narrative: removed before conversion.
+_IDIOMS = re.compile(
+    r"\b(?:(?:don'?t|do not) get me wrong|bear with me|hear me out|believe me|trust me|mind you|"
+    r"let me (?:just )?(?:be clear|explain|clarify|preface (?:this|it)(?: by saying)?|start (?:off )?(?:by saying|by|with)|say|add|"
+    r"get this straight|put it this way|give (?:you )?(?:some|a (?:little|bit of)) (?:background|context))(?: that)?|"
+    r"if you ask me|if (?:I'm|I am) (?:being )?honest|as far as I (?:know|can tell)|for what it's worth|"
+    r"(?:I'll|I will|Ill) (?:try to )?(?:keep|make) (?:this|it) (?:as )?(?:very |really )?(?:short|brief|quick)(?: as possible)?|"
+    r"(?:I'll|I will|Ill) start (?:off )?(?:with|by saying)(?: that)?)\b[,.!;:]?\s*|"
+    r"\b(?:please )?let me know (?:if|what|whether|how|in the comments|below|your)\b[^.!?]*",
+    re.IGNORECASE,
+)
+_IE = re.compile(r"\bi\.e\.", re.IGNORECASE)
+_IE_TOKEN = "\x00IE\x00"
+_ADVS_BETWEEN = r"(?:\s+(?:\w+ly|still|also|just|never|always|then|now|too|both|not|only|even|already|kinda|sorta|very|so|really|definitely|probably|obviously|certainly|usually|often|sometimes|genuinely|truly|seriously|totally|completely|absolutely|basically|literally|personally|honestly|actually))*"
+_YOU_BE = re.compile(rf"\b(you)({_ADVS_BETWEEN})\s+(am|was not|wasn't|was)\b", re.IGNORECASE)
+_BE_MAP = {"am": "are", "was": "were", "wasn't": "weren't", "was not": "were not"}
+_BARE_AM = re.compile(r"(?<![\d.:])(?<!\d )\b[Aa]m\b")  # 'am' is first person only, except clock times
+_FIRST_PERSON_RESIDUAL = re.compile(r"\b(I|me|my|myself|mine|I'm|I've|I'd|I'll|im|ive)\b", re.IGNORECASE)
+_FIRST_PERSON_SINGULAR = re.compile(r"\b(I|me|my|myself|mine|I'm|I've|I'd|I'll|Im|Ive)\b")  # inside quotes: case-sensitive
 _SECOND_PERSON_SRC = re.compile(r"\b(you|your|yours|yourself|you're|you've|you'll|you'd)\b", re.IGNORECASE)
 _WE = re.compile(r"\b(we|us|our|ours|ourselves|we're|we've|we'll|we'd)\b", re.IGNORECASE)
+# Quoted speech: "..." (typographic quotes already translated) and '...' opened after a non-word character and
+# closed by a quote not followed by a letter (so possessives like friends' do not open or close a span).
+_QUOTE_SPAN = re.compile(r"\"[^\"]{1,400}\"|(?<![A-Za-z0-9])'(?=[A-Za-z\"])[^\n]{1,300}?'(?![A-Za-z])")
 
 
-def first_to_second_person(text: str) -> tuple[str, list[str]]:
-    """Author narrative -> addressed to 'you'. Flags: source_has_second_person (generic 'you' in the original
-    becomes ambiguous), residual_first_person, first_person_plural (we / our left as is)."""
-    flags: list[str] = []
-    out = " ".join(text.translate(_QUOTES).split())
-    if _SECOND_PERSON_SRC.search(out):
-        flags.append("source_has_second_person")
+def _match_case(src: str, rep: str) -> str:
+    if len(src) > 1 and src.isupper():
+        return rep.upper()
+    if src[:1].isupper() and src.lower() not in ("i", "i'm", "im", "i've", "ive", "i'd", "id", "i'll", "ill", "i am", "i was", "i wasn't", "i was not"):
+        return _cap(rep)
+    return rep
+
+
+def split_quoted(text: str) -> list[tuple[str, bool]]:
+    """[(segment, is_quoted)] in order; quoted segments include their quote marks."""
+    out: list[tuple[str, bool]] = []
+    pos = 0
+    for m in _QUOTE_SPAN.finditer(text):
+        if m.start() > pos:
+            out.append((text[pos : m.start()], False))
+        out.append((m.group(0), True))
+        pos = m.end()
+    if pos < len(text):
+        out.append((text[pos:], False))
+    return out
+
+
+def _convert_segment(seg: str) -> str:
+    out = _IE.sub(_IE_TOKEN, seg)
+    out = _IDIOMS.sub("", out)
     # "my SO and I's anniversary" -> "your and your SO's anniversary" (before the pronoun pass)
     out = re.sub(r"\b([Mm]y|[Oo]ur) ([A-Za-z-]+(?: [A-Za-z-]+)?) and I's\b", lambda m: ("Your" if m.group(1)[0].isupper() else "your") + f" and your {m.group(2)}'s", out)
     for pat, rep in _1_TO_2:
-        out = re.sub(pat, rep, out)
-    out = re.sub(r"(^|[.!?]\s+)([a-z])", lambda m: m.group(1) + m.group(2).upper(), out)
-    if _FIRST_PERSON_RESIDUAL.search(out):
+        out = pat.sub(lambda m, rep=rep: _match_case(m.group(0), rep), out)
+    out = _YOU_BE.sub(lambda m: f"{m.group(1)}{m.group(2)} {_match_case(m.group(3), _BE_MAP[m.group(3).lower()])}", out)
+    out = _BARE_AM.sub(lambda m: _match_case(m.group(0), "are"), out)
+    return out.replace(_IE_TOKEN, "i.e.")
+
+
+def first_to_second_person(text: str) -> tuple[str, list[str]]:
+    """Author narrative -> addressed to 'you', outside quoted speech. Flags: source_has_second_person (generic
+    'you' in the original becomes ambiguous), residual_first_person (hard), quoted_first_person (hard: a quoted
+    speaker says I / me, the conversion would make the speaker unrecoverable), residual_first_person_plural (hard:
+    we / our / us left outside quotes), pronoun_residue (hard)."""
+    flags: list[str] = []
+    text = " ".join(text.translate(_QUOTES).split())
+    parts: list[str] = []
+    for seg, quoted in split_quoted(text):
+        if quoted:
+            if _FIRST_PERSON_SINGULAR.search(seg):
+                flags.append("quoted_first_person")
+            parts.append(seg)
+            continue
+        if _SECOND_PERSON_SRC.search(seg):
+            flags.append("source_has_second_person")
+        parts.append(_convert_segment(seg))
+    out = " ".join("".join(parts).split())
+    out = re.sub(r"\s+([,.!?;:])", r"\1", out)
+    out = re.sub(r"[,;:]\s*([.!?])", r"\1", out)  # ', .' left by a removed idiom
+    out = re.sub(r"(^|(?<!i\.e)(?<!e\.g)[.!?][\"']?\s+)([a-z])", lambda m: m.group(1) + m.group(2).upper(), out)
+    unquoted = _IE.sub("", " ".join(seg for seg, quoted in split_quoted(out) if not quoted))
+    if _FIRST_PERSON_RESIDUAL.search(unquoted):
         flags.append("residual_first_person")
-    if re.search(r"\byou's\b", out):
+    if re.search(r"\byou's\b", unquoted):
         flags.append("pronoun_residue")
-    if _WE.search(out):
-        flags.append("first_person_plural")
-    return out, flags
+    if _WE.search(unquoted):
+        flags.append("residual_first_person_plural")
+    return out, sorted(set(flags))
 
 
 _WE_TO_YOU = [(r"\bwe're\b", "you're"), (r"\bwe've\b", "you've"), (r"\bwe'll\b", "you'll"), (r"\bwe'd\b", "you'd"), (r"\bwe\b", "you"), (r"\bus\b", "you"), (r"\bour\b", "your"), (r"\bours\b", "yours"), (r"\bourselves\b", "yourselves")]
@@ -132,12 +205,28 @@ def plural_to_second_person(text: str) -> tuple[str, bool]:
 _TAIL_RE = re.compile(r"(?ims)^\s*(?:\*+)?\s*(edit|edited|update|updated|eta|tl;?dr|tldr)\b.*\Z")  # edit block on its own line
 _TAIL_INLINE_RE = re.compile(r"(?s)\b(EDIT|UPDATE|ETA|TL;?DR|Edit|Update|Tl;?dr)\s*\d*\s*[:\-\u2013].*\Z")  # 'EDIT: ...' mid-paragraph
 _AITA_SENT = re.compile(
-    r"\b(aita|wibta|aitah|wibtah|asshole|a-hole|the ah\b|an ah\b|the a\b|ta\?|tldr|tl;dr|reddit|upvote|downvote|"
-    r"throwaway|on mobile|mobile user|formatting|first post|long post|english is not|english isn't|"
-    r"not a native speaker|this sub)",
+    r"\b(aita|wibta|waita|aitah|wibtah|ass ?hole|a-? ?hole|the ah\b|an ah\b|the a\b|ta\?|tl\s*[;/:.]?\s*dr|reddit|upvote|downvote|"
+    r"throw-?away|on mobile|mobile user|formatting|first post|long post|english is not|english isn't|"
+    r"not a native speaker|this sub|first[- ]time poster|poster\b|this post|post (?:this|here|your|it)|(?:re)?post(?:ed|ing)? (?:this|here|it)|"
+    r"don'?t (?:re)?post|legal advice|advice (?:is )?(?:also )?welcome|make this (?:very |really )?(?:short|brief|quick)|"
+    r"unbiased opinion|outside (?:opinion|perspective)|strangers'? opinions?|what do you (?:guys|all|people) think|thanks? (?:you )?(?:all |everyone |guys )?in advance|"
+    r"^thanks?\b|^thank you\b|opinions\?|^(?:(?:so|but|and|also|ok|okay|anyway|anyways)\W+)?let me\b)",
     re.IGNORECASE,
 )
-_AITA_VERDICT = re.compile(r"\b(NTA|YTA|ESH|NAH|WNBTA|YWBTA|YWNBTA)\b")  # case-sensitive verdict acronyms
+_AITA_VERDICT = re.compile(r"\b(NTA|YTA|ESH|NAH|WNBTA|YWBTA|YWNBTA|TA|AH|AITA|WAITA|WIBTA)\b")  # case-sensitive verdict / jargon acronyms
+_BYSTANDER = re.compile(r"\b(?:(?:wasn'?t|was not|am not|not|never) (?:\w+ )?involved\b|bystander|not about me\b|asking for (?:a|my) friend\b|on behalf of (?:a|my) friend)", re.IGNORECASE)
+_THIRD_PERSON_OPENER = {"he", "she", "they", "him", "her", "them", "his", "their", "hers", "theirs", "himself", "herself", "themselves", "he's", "she's", "they're", "they've", "he'd", "she'd", "they'd", "he'll", "she'll", "they'll"}
+_CONNECTIVE_OPENER = {"it", "it's", "this", "that", "these", "those", "since", "but", "and", "because", "however", "which", "yet", "still", "either", "neither", "otherwise", "therefore", "instead"}
+
+
+def opens_mid_stream(situation: str, leading_sentence_removed: bool) -> bool:
+    """True when the first word is a third-person pronoun, or a connective / 'it' after a removed leading sentence
+    (the antecedent or the topic lived in the stripped title / question)."""
+    words = re.findall(r"[A-Za-z']+", situation)
+    if not words:
+        return False
+    w0 = words[0].lower()
+    return w0 in _THIRD_PERSON_OPENER or (leading_sentence_removed and w0 in _CONNECTIVE_OPENER)
 _LABEL_PREFIX = re.compile(r"^(backstory|background|context|story|situation|so basically|basically|ok so|okay so|so)\s*[:,\-]\s*", re.IGNORECASE)
 _AGE_TAG = re.compile(r"\(\s*\d{2}\s*[MFmf]\s*\)|\(\s*[MFmf]\s*\d{2}\s*\)|\b[MFmf]\s?\(\d{2}\)")  # parenthetical: removed
 _AGE_TAG_BARE = re.compile(r"\b(\d{2})\s?[MF]\b|\b[MF](\d{2})\b")  # 'I'm 24F' -> 'I'm 24': the age stays, the gender letter goes
@@ -172,17 +261,21 @@ def clean_reddit_body(body: str) -> tuple[str, str, list[str]]:
     b = _LABEL_PREFIX.sub("", b)
     b = _GREETING.sub("", b)
     b = _LABEL_PREFIX.sub("", b)
+    if _BYSTANDER.search(b):
+        flags.append("bystander_post")
     sents = [s for s in _SENT_SPLIT.split(b) if s.strip()]
     kept = []
-    for s in sents:
+    for k, s in enumerate(sents):
         if _AITA_SENT.search(s) or _AITA_VERDICT.search(s):
             flags.append("meta_sentence_removed")
+            if k == 0 or not kept:
+                flags.append("leading_sentence_removed")
             continue
         s = re.sub(r"\s+([,.!?;:])", r"\1", s).strip()
         if not re.search(r"[.!?]$", s):
             s += "."
         kept.append(s)
-    text = " ".join(kept)
+    text = _cap(_GREETING.sub("", _LABEL_PREFIX.sub("", " ".join(kept))))
     situation, question = split_trailing_question(text)
     if "?" in situation:
         flags.append("inner_question")
@@ -191,9 +284,72 @@ def clean_reddit_body(body: str) -> tuple[str, str, list[str]]:
 
 # ---- actions ------------------------------------------------------------------------------------------------
 
-_STATIVE = {"want", "wanting", "be", "being", "feel", "feeling", "think", "thinking", "wish", "wishing", "hope", "hoping", "like", "liking", "need", "needing", "hate", "hating", "love", "loving", "believe", "believing", "prefer", "preferring", "consider", "considering", "expect", "expecting", "have", "having"}
-_NEG_HEAD = re.compile(r"^(not|don't|do not|didn't|did not|won't|will not|never|refusing to|refuse to)\s+", re.IGNORECASE)
+_STATIVE = {"want", "wanting", "be", "being", "feel", "feeling", "think", "thinking", "wish", "wishing", "hope", "hoping", "like", "liking", "need", "needing", "hate", "hating", "love", "loving", "believe", "believing", "prefer", "preferring", "consider", "considering", "expect", "expecting", "have", "having", "become", "becoming", "seem", "seeming", "remain", "remaining", "know", "knowing", "dislike", "disliking", "resent", "resenting", "deserve", "deserving", "understand", "understanding", "realize", "realizing", "realise", "realising", "regret", "regretting", "appreciate", "appreciating"}
+_NEG_HEAD = re.compile(r"^(not|don't|dont|do not|didn't|didnt|did not|won't|wont|will not|never|refusing to|refuse to)\s+", re.IGNORECASE)
 _PAST_RE = re.compile(r"^[a-z]+(ed|t)$")
+_LEAD_PRONOUN = {"me", "us", "my", "our", "myself", "i", "you", "your"}
+_COORD_GERUND = re.compile(r"\b(and|or|then|but)(\s+not|\s+then|\s+also|\s+still)?\s+([A-Za-z]+ing)\b")
+_NPI = [(re.compile(r"\s+any ?more\b", re.I), ""), (re.compile(r"\s+ever\b", re.I), ""), (re.compile(r"\s+at all\b", re.I), ""), (re.compile(r"\s+yet\b", re.I), ""), (re.compile(r"\banything\b", re.I), "something"), (re.compile(r"\banyone\b", re.I), "someone"), (re.compile(r"\banybody\b", re.I), "somebody"), (re.compile(r"\banywhere\b", re.I), "somewhere"), (re.compile(r"\bany\b", re.I), "some"), (re.compile(r"\beither\b", re.I), "too")]
+# Function words and other tokens that lemminflect does not know as verbs but may head a garbled phrase.
+_NOT_VERB_HEAD = {"to", "you", "your", "me", "my", "i", "we", "our", "us", "he", "she", "it", "they", "them", "his", "her", "their", "the", "a", "an", "this", "that", "these", "those", "some", "any", "no", "not", "and", "or", "but", "so", "if", "when", "while", "because", "for", "of", "in", "on", "at", "by", "with", "from", "about", "into", "over", "after", "before", "up", "off", "down", "very", "too", "also", "just", "still", "even", "only", "all", "both", "each", "every", "more", "most", "much", "many", "such", "than", "then", "there", "here", "what", "which", "who", "whom", "whose", "how", "why", "where", "yes", "ok", "okay", "well", "one", "two", "three", "first", "last", "next", "other", "another", "same", "own", "new", "old", "good", "bad", "big", "little", "long", "short", "mad", "angry", "upset", "sad", "happy", "tired", "sick", "late", "early", "sorry", "fine", "nice", "rude", "mean", "wrong", "right", "able", "unable", "willing", "unwilling", "ready", "sure", "unsure", "aware", "unaware", "afraid", "scared", "annoyed", "pissed", "jealous", "selfish", "petty", "honest", "dishonest", "fair", "unfair", "friendly", "unfriendly", "comfortable", "uncomfortable", "being", "am", "is", "are", "was", "were"}
+
+
+_EXTRA_VERBS = {"text", "message", "email", "dm", "facetime", "friend", "unfriend", "ghost", "venmo", "zelle", "google", "photoshop", "gift", "regift", "rehome", "uninvite", "rsvp", "babysit", "dogsit", "petsit", "housesit", "carpool", "vacation", "honeymoon", "picnic", "barbecue", "bbq", "party", "prank", "roast", "tattoo", "pierce", "dye", "nickname", "snitch", "tattle", "vent", "rant", "cosplay", "livestream", "stream", "vlog", "blog", "tweet", "post", "unfollow", "unmatch", "swipe", "ditch", "bail", "snoop", "spy", "stalk", "guilt", "gaslight", "shame", "fat-shame", "slut-shame", "bodyshame", "catfish", "doxx", "dox", "mute", "unmute", "tag", "untag", "screenshot", "sext", "flake", "nap", "diet", "fast", "vape", "smoke", "juul", "drink", "pregame", "tailgate", "cater", "tip", "overtip", "undertip", "re-gift", "cc", "bcc", "invoice", "bill", "charge", "overcharge", "sue", "report", "ground", "spank", "homeschool", "unschool", "co-sign", "cosign", "co-parent", "coparent", "foster", "adopt", "elope", "propose", "divorce", "remarry", "date", "dump", "cheat", "ghostwrite", "proofread", "rewrite", "regress", "unplug", "reschedule", "cancel", "uncancel", "rebook", "double-book", "no-show", "vacay", "christmas", "gatekeep", "mansplain", "overshare", "rehash", "nitpick", "lowball", "upcharge", "shortchange", "boycott", "picket", "unionize", "ghost-read", "deadname", "misgender", "outed", "out"}
+
+
+def is_base_verb(word: str) -> Optional[bool]:
+    """True / False when lemminflect knows the word; None when it is out of vocabulary (novel verbs such as
+    'venmo' or 'uninvite' are kept unless they sit in `_NOT_VERB_HEAD`)."""
+    w = re.sub(r"[^a-z-]", "", word.lower())
+    if not w or w in _NOT_VERB_HEAD:
+        return False
+    if w in _EXTRA_VERBS:
+        return True
+    try:
+        from lemminflect import getAllLemmas
+    except Exception:
+        return None
+    lemmas = getAllLemmas(w)
+    if not lemmas:
+        return None
+    return w in lemmas.get("VERB", ())
+
+
+def _strip_leading_pronoun(phrase: str, flags: list[str]) -> str:
+    """'me stopping errands' -> 'stopping errands'; 'to knock on the door' -> 'knock on the door'."""
+    words = phrase.split()
+    changed = False
+    while len(words) > 1 and (words[0].lower() in _LEAD_PRONOUN or words[0].lower() == "to"):
+        words.pop(0)
+        changed = True
+    if changed:
+        flags.append("leading_pronoun_dropped")
+    return " ".join(words)
+
+
+def degerund_coordinated(phrase: str) -> tuple[str, bool]:
+    """'show up for free food and leaving' -> 'show up for free food and leave': every -ing verb right after
+    and / or / then / but (optionally 'not') takes its base form."""
+
+    def rep(m: re.Match) -> str:
+        w = m.group(3)
+        if len(w) <= 4 or w.lower() in _ING_NOT_GERUND_LOCAL:
+            return m.group(0)
+        base = _verb_base(w)
+        if not base or base == w.lower():
+            return m.group(0)
+        return f"{m.group(1)}{m.group(2) or ''} {base}"
+
+    out = _COORD_GERUND.sub(rep, phrase)
+    return out, out != phrase
+
+
+def strip_npi(vp: str) -> str:
+    """Affirmative built from a negated phrase: 'talk to your grandma anymore' -> 'talk to your grandma'."""
+    out = vp
+    for pat, rep in _NPI:
+        out = pat.sub(rep, out)
+    return " ".join(out.split())
 
 
 def _verb_base(word: str) -> str:
@@ -211,7 +367,8 @@ def _verb_base(word: str) -> str:
 def _action_pair_from_vp(vp: str, negated: bool) -> tuple[str, str]:
     """vp = bare second-person verb phrase ('report your brother'). The asked action is x."""
     vp = vp.strip().rstrip(".?!").strip()
-    pos = _cap(vp) + "."
+    pos_vp = strip_npi(vp) if negated else vp
+    pos = _cap(pos_vp) + "."
     neg = "Do not " + vp[0].lower() + vp[1:] + "."
     return (neg, pos) if negated else (pos, neg)
 
@@ -231,6 +388,16 @@ def _strip_leading_adverbs(phrase: str, flags: list[str]) -> str:
     return " ".join(words[k:])
 
 
+def repair_head(vp: str) -> str:
+    """A naive de-gerund can lose a final e ('rehoming' -> 'rehom'): when the head is unknown and head + 'e' is a
+    known verb, use that."""
+    words = vp.split()
+    if words and is_base_verb(words[0]) is None and is_base_verb(words[0] + "e"):
+        words[0] = words[0] + "e"
+        return " ".join(words)
+    return vp
+
+
 def _check_imperative_head(vp: str, flags: list[str]) -> None:
     """After normalisation the first word must be a base verb: a surviving gerund or a stative verb is a hard flag."""
     w0 = vp.split()[0].lower() if vp.split() else ""
@@ -238,6 +405,12 @@ def _check_imperative_head(vp: str, flags: list[str]) -> None:
         flags.append("action_stative_verb")
     if len(w0) > 4 and w0.endswith("ing") and w0 not in _ING_NOT_GERUND_LOCAL:
         flags.append("action_first_word_not_verb")
+    elif w0:
+        known = is_base_verb(w0)
+        if known is False:
+            flags.append("action_first_word_not_verb")
+        elif known is None:
+            flags.append("head_verb_unknown")
 
 
 def actions_from_description(desc: str) -> tuple[Optional[tuple[str, str]], list[str], bool]:
@@ -247,21 +420,25 @@ def actions_from_description(desc: str) -> tuple[Optional[tuple[str, str]], list
     'not letting her use my controller' -> ('Do not let her use your controller.', 'Let her use your controller.')
     """
     flags: list[str] = []
-    d = " ".join((desc or "").translate(_QUOTES).split()).strip().rstrip("?.!")
+    d = " ".join((desc or "").translate(_QUOTES).replace('"', " ").split()).strip().rstrip("?.!")
     if not d:
         return None, ["action_missing"], False
     negated = bool(_NEG_HEAD.match(d))
     d = _NEG_HEAD.sub("", d)
+    d = _strip_leading_pronoun(d, flags)
     d = _strip_leading_adverbs(d, flags)
     d2, fl = first_to_second_person(d)
-    flags += [f for f in fl if f != "first_person_plural"]
+    flags += [f for f in fl if f not in ("residual_first_person_plural", "quoted_first_person")]
     d2, changed = plural_to_second_person(d2)
     if changed:
         flags.append("action_plural_to_second")
     d2 = d2[0].lower() + d2[1:]
     act, nflags = normalize_action(d2)  # degerunds the first word, capitalizes, adds the period
     flags += nflags
-    vp = act.rstrip(".")
+    vp = repair_head(act.rstrip("."))
+    vp, changed = degerund_coordinated(vp)
+    if changed:
+        flags.append("degerund_coordinated")
     _check_imperative_head(vp, flags)
     if len(vp.split()) > 22:
         flags.append("long_action")
@@ -285,7 +462,7 @@ def actions_from_title(title: str) -> tuple[Optional[tuple[str, str]], list[str]
     if not m:
         return None, ["title_unparsed"], False, False
     kind = m.group("kind").lower()
-    phrase = m.group("phrase").strip().strip('"“”')
+    phrase = " ".join(_AGE_TAG.sub("", m.group("phrase").replace('"', " ")).split())  # '"siding" with my mother' -> 'siding with my mother'; 'I (27f) ...' -> 'I ...'
     letters = [c for c in phrase if c.isalpha()]
     if letters and sum(c.isupper() for c in letters) / len(letters) > 0.6:  # shouting title: pronoun rules are case-sensitive
         phrase = phrase.lower()
@@ -295,6 +472,7 @@ def actions_from_title(title: str) -> tuple[Optional[tuple[str, str]], list[str]
     negated = bool(neg_m)
     refusal_head = bool(neg_m and "refus" in neg_m.group(0).lower())  # 'for refusing to X' -> rest is a base verb
     phrase = _NEG_HEAD.sub("", phrase)
+    phrase = _strip_leading_pronoun(phrase, flags)
     phrase = _strip_leading_adverbs(phrase, flags)
     words = phrase.split()
     if not words:
@@ -305,6 +483,10 @@ def actions_from_title(title: str) -> tuple[Optional[tuple[str, str]], list[str]
         if not changed and not w0.lower().endswith("ing"):
             flags.append("title_first_word_not_gerund")
         words = phrase2.split()
+        phrase2, changed = degerund_coordinated(" ".join(words))
+        if changed:
+            flags.append("degerund_coordinated")
+        words = phrase2.split()
     else:  # 'if I <verb>' : past or present tense -> base form
         base = _verb_base(w0)
         if base == w0.lower() and _PAST_RE.match(w0.lower()) and len(w0) > 4:
@@ -312,11 +494,11 @@ def actions_from_title(title: str) -> tuple[Optional[tuple[str, str]], list[str]
         words[0] = base
     phrase = " ".join(words)
     phrase, fl = first_to_second_person(phrase)
-    flags += [f for f in fl if f != "first_person_plural"]
+    flags += [f for f in fl if f not in ("residual_first_person_plural", "quoted_first_person")]
     phrase, changed = plural_to_second_person(phrase)
     if changed:
         flags.append("action_plural_to_second")
-    vp = phrase[0].lower() + phrase[1:]
+    vp = repair_head(phrase[0].lower() + phrase[1:])
     _check_imperative_head(vp, flags)
     if len(vp.split()) > 22:
         flags.append("long_action")
@@ -355,6 +537,8 @@ def load_scruples(paths: Iterable[str | Path], max_words: int = 300, min_words: 
                 flags += cflags
                 sit2, pflags = first_to_second_person(sit1)
                 flags += pflags
+                if opens_mid_stream(sit2, "leading_sentence_removed" in cflags):
+                    flags.append("opens_mid_stream")
                 n_words = len(sit2.split())
                 if n_words < min_words:
                     flags.append("body_too_short")
@@ -410,9 +594,11 @@ def _f(x) -> Optional[float]:
     return None if v != v else v
 
 
-def load_aita_berkeley(csv_path: str | Path, max_chars: int = 1500, min_words: int = 20, human_max_agreement: float = 0.7, require_prior: bool = True) -> list[Family]:
-    """ucberkeley-dlab CSV -> Family rows. Kept: WIBTA (prospective) posts, and retrospective posts with a human
-    or LLM disagreement prior (max(nta, yta) < human_max_agreement, or gpt4 != claude among {NTA, YTA}) when
+def load_aita_berkeley(csv_path: str | Path, max_chars: int = 1500, min_words: int = 20, human_max_agreement: float = 0.7, require_prior: bool = True, prospective_only: bool = True) -> list[Family]:
+    """ucberkeley-dlab CSV -> Family rows. Default (`prospective_only`): WIBTA posts only -- the round-1 hand check
+    found retrospective posts narrate a completed deed and its aftermath, so "What should you do?" is incoherent
+    (no-verdict pass 62%). With `prospective_only=False`, retrospective posts with a human or LLM disagreement
+    prior (max(nta, yta) < human_max_agreement, or gpt4 != claude among {NTA, YTA}) are kept too when
     `require_prior`. The length cap applies to the cleaned second-person situation."""
     import pandas as pd
 
@@ -424,6 +610,8 @@ def load_aita_berkeley(csv_path: str | Path, max_chars: int = 1500, min_words: i
         g4, cl = str(r.get("gpt4_label_1")), str(r.get("claude_label_1"))
         human_contested = max(nta or 0.0, yta or 0.0) < human_max_agreement
         llm_differ = g4 != cl and g4 in ("NTA", "YTA") and cl in ("NTA", "YTA")
+        if prospective_only and not prospective:
+            continue
         if require_prior and not (prospective or human_contested or llm_differ):
             continue
         flags = list(aflags)
@@ -431,6 +619,8 @@ def load_aita_berkeley(csv_path: str | Path, max_chars: int = 1500, min_words: i
         flags += cflags
         sit2, pflags = first_to_second_person(sit1)
         flags += pflags
+        if opens_mid_stream(sit2, "leading_sentence_removed" in cflags):
+            flags.append("opens_mid_stream")
         if len(sit2.split()) < min_words:
             flags.append("body_too_short")
         if len(sit2) > max_chars:
@@ -700,7 +890,64 @@ def _verb_pass(text: str, flags: list[str], pre: str, imperative: bool = False) 
 
 
 def _ms_to_second(text: str, actor: str, gender: Optional[str], other_names: set[str], name_gender: dict[str, str], flags: list[str], pre: str) -> str:
-    return _verb_pass(_person_pass(text, actor, gender, other_names, name_gender, flags, pre), flags, pre)
+    out = _verb_pass(_person_pass(text, actor, gender, other_names, name_gender, flags, pre), flags, pre)
+    return re.sub(r"(^|[.!?]\s+)([a-z])", lambda m: m.group(1) + m.group(2).upper(), out)
+
+
+def _ms_clean_field(text: str) -> str:
+    """Moral Stories fields sometimes carry CSV-style doubled quotes and a wrapping quote pair."""
+    t = " ".join((text or "").replace('""', '"').split())
+    if len(t) > 1 and t[0] == '"' and t[-1] == '"':
+        t = t[1:-1].strip()
+    return t
+
+
+_PLURAL_PRON = re.compile(r"\b(they|them|their|theirs|themselves|they're|they've|they'll|they'd|the two|both of them|the couple|the pair)\b", re.IGNORECASE)
+_CONJOINED_YOU = re.compile(r"\b([Yy]ou and (?:your )?[A-Za-z]+|[A-Z][a-z]+ and [Yy]ou|[Yy]our [a-z]+ and [Yy]ou|[Yy]ou both|[Bb]oth of you|[Yy]ou two|[Tt]he two of you)\b")
+_IRREGULAR_PLURAL = {"women", "men", "children", "people", "kids", "teeth", "feet", "police", "staff", "family", "couple", "pair", "team", "class", "crew", "group", "crowd", "everyone", "everybody", "someone", "somebody", "anyone", "anybody", "nobody", "person", "whoever", "who", "each", "neither", "either", "folks", "cattle", "sheep", "fish", "deer", "mice", "geese", "others", "both", "several", "many", "few", "all", "parents", "siblings", "twins", "grandparents"}
+_NOT_PLURAL_S = {"is", "was", "has", "his", "hers", "yours", "this", "thus", "us", "bus", "always", "perhaps", "besides", "yes", "its", "as", "does", "goes", "says", "class", "boss", "dress", "mess", "less", "unless", "across", "news", "glass", "grass", "kiss", "miss", "pass", "stress", "success", "business", "christmas", "thomas", "james", "lucas", "chris", "nicholas", "marcus", "charles", "miles", "jesus", "texas", "paris", "tennis", "chess", "gas", "bonus", "focus", "campus", "status", "virus", "plus", "minus", "famous", "serious", "various", "previous", "obvious", "nervous", "jealous", "anxious", "curious", "generous", "delicious", "religious", "dangerous", "enormous", "numerous", "furious", "precious", "cautious", "ambitious", "mysterious", "suspicious", "tedious", "hilarious", "ridiculous", "tremendous", "continuous", "conscious", "gorgeous", "courteous"}
+
+
+def _has_plural_antecedent(text: str) -> bool:
+    for w in re.findall(r"[A-Za-z]+", text):
+        lw = w.lower()
+        if lw in _PLURAL or lw in _IRREGULAR_PLURAL:
+            return True
+        if lw.endswith("s") and len(lw) > 3 and not lw.endswith("ss") and lw not in _NOT_PLURAL_S and not lw.endswith("ous") and not lw.endswith("ness"):
+            try:
+                from lemminflect import getAllLemmas
+
+                noun = getAllLemmas(lw).get("NOUN")
+                if noun and noun[0] != lw:
+                    return True
+                if not getAllLemmas(lw):  # unknown word ending in s: treat as a plural noun
+                    return True
+            except Exception:
+                return True
+    return False
+
+
+def plural_refers_to_actor(situation: str, actions: Iterable[str]) -> bool:
+    """Heuristic for 'they / their / them / the two' standing for the actor plus someone after conversion:
+    a plural pronoun after a 'you and <Name>' construction (situation), or a plural pronoun in an action or in
+    the situation with no plural noun (or singular-they antecedent) before it."""
+    conj = _CONJOINED_YOU.search(situation)
+    for m in _PLURAL_PRON.finditer(situation):
+        if m.group(1).lower() in ("the two", "both of them", "the couple", "the pair"):
+            return True
+        if conj and m.start() > conj.start():
+            return True
+        if not _has_plural_antecedent(situation[: m.start()]):
+            return True
+    for a in actions:
+        for m in _PLURAL_PRON.finditer(a):
+            if m.group(1).lower() in ("the two", "both of them", "the couple", "the pair"):
+                return True
+            if conj or _CONJOINED_YOU.search(a[: m.start()]):
+                return True
+            if not _has_plural_antecedent(situation + " " + a[: m.start()]):
+                return True
+    return False
 
 
 def _ms_action_to_imperative(a: str, actor: str, gender: Optional[str], other_names: set[str], name_gender: dict[str, str], flags: list[str], pre: str) -> Optional[str]:
@@ -747,6 +994,9 @@ def load_moral_stories(jsonl_path: str | Path) -> list[Family]:
     x = normative action, y = divergent action. Rows whose actor cannot be found or whose actions do not start
     with the actor are dropped silently (no family can be formed); doubtful conversions carry flags."""
     rows = [json.loads(l) for l in open(jsonl_path, encoding="utf-8") if l.strip()]
+    for r in rows:
+        for k in ("situation", "intention", "moral_action", "immoral_action"):
+            r[k] = _ms_clean_field(r.get(k, ""))
     actors, name_gender = _name_genders(rows)
     fams: list[Family] = []
     for r in rows:
@@ -774,6 +1024,8 @@ def load_moral_stories(jsonl_path: str | Path) -> list[Family]:
         for a in (ax, ay):
             if re.search(rf"\b{re.escape(actor)}\b", a):
                 flags.append("residual_actor_name")
+        if plural_refers_to_actor(situation, (ax, ay)):
+            flags.append("plural_refers_to_actor")
         auto = sorted({x for x in flags if "verb_agreement" in x or "contraction" in x})
         review = sorted({x for x in flags if x not in auto})
         fams.append(
@@ -841,6 +1093,9 @@ def ethics_justice_family(scenario: str, label: int, source_id: str) -> tuple[Op
     vp, reason, habit = m.group("vp").strip(), m.group("reason").strip().rstrip("."), m.group("habit").lower()
     if habit == "used to":
         flags.append("habit_discontinued")
+    # the habit's own reason clause ('buy fruit from my friend, because I like shopping locally') is not part of the act
+    vp = re.sub(r",?\s+(?:because|since)\b.*$", "", vp, flags=re.IGNORECASE).strip().rstrip(".,;").strip()
+    vp = _strip_leading_pronoun(vp, flags)  # 'I usually to knock ...' (source typo)
     if len(vp.split()) < 2:
         flags.append("short_action")
     vp2, fl = first_to_second_person(vp)
@@ -855,7 +1110,7 @@ def ethics_justice_family(scenario: str, label: int, source_id: str) -> tuple[Op
     tail = (m.group("tail") or "").strip() or (m.group("tail0") or "").strip()
     lead = _cap(tail) if tail and _TIME_TAIL.match(tail) else "This time"
     situation = f"You {habit} {vp2}. {lead}, {reason2}."
-    flags += [x for x in fl + fl2 if x not in ("first_person_plural", "source_has_second_person")]
+    flags += [x for x in fl + fl2 if x != "source_has_second_person"]  # residual_first_person_plural stays: hard
     if detect_person(situation) != "second":
         flags.append("not_second_person")
     if len(act_vp.split()) > 22:
