@@ -234,6 +234,131 @@ def test_round1_moral_stories_plural_reference():
     assert "plural_refers_to_actor" in HARD_FLAGS
 
 
+
+
+# ---- round 2 (results/e2c/handcheck_round2_report.md): Moral Stories second-person failures ----------------------
+
+# the actor / gender / other-name arguments mirror what load_moral_stories passes; texts are the source rows named in
+# data/annotation/e2c_handcheck_round2/e2c_handcheck_moral_stories.csv
+
+
+def _ms(text, actor, gender, others=(), imperative=False, flags=None):
+    from vcd.data.load_contested_sources import _person_pass, _verb_pass
+
+    fl = [] if flags is None else flags
+    out = _person_pass(text, actor, gender, {o for o, _ in others}, {o: g for o, g in others}, fl, "t_", imperative=imperative)
+    return _verb_pass(out, fl, "t_", imperative=imperative)
+
+
+def test_round2_object_pronoun_is_not_the_actor():
+    # (2) over-replacement: an object him / her in a clause whose subject is the actor is somebody else
+    assert _ms("Murray hisses back at the cat and pretends to try and swipe at him.", "Murray", "m", imperative=True) == "You hiss back at the cat and pretend to try and swipe at him."  # ms_3U8YCDAG...
+    assert _ms("Hank introduces himself and walks with the visitor to the administration building, guiding him to the right places.", "Hank", "m", imperative=True) == "You introduce yourself and walk with the visitor to the administration building, guiding him to the right places."  # ms_3M68NM07...
+    assert _ms("Richard takes a breath and congratulates him and asks to do another activity he may beat him in.", "Richard", "m", imperative=True).startswith("You take a breath and congratulate him and ask")  # ms_3K3R2QNK...
+    assert _ms("Edward invites the people around him to play a small word game.", "Edward", "m", imperative=True) == "You invite the people around you to play a small word game."  # locative 'around' is not an object cue
+    # ... but not after object control, a comitative PP, a new subject or a reduced relative: the old conversion stays
+    assert _ms("Ted asks his sister to go with him to the movies.", "Ted", "m", imperative=True) == "You ask your sister to go with you to the movies."
+    assert _ms("Linda takes William with her out on a walk near the lake.", "Linda", "f", others=(("William", "m"),), imperative=True) == "You take William with you out on a walk near the lake."
+    assert _ms("Joe calls a cab to pick him up from the bar.", "Joe", "m", imperative=True) == "You call a cab to pick you up from the bar."
+    assert _ms("Paul gets a text from his friends inviting him to a bar.", "Paul", "m") == "You get a text from your friends inviting you to a bar."
+    assert _ms("Dave moves in with a friend, hoping the electricity company won't track him down.", "Dave", "m", imperative=True).endswith("track him down.")  # friend -> ambiguous, left for the flag
+    fl = []
+    _ms("Luke tells his daughter how important seeing her married is to him.", "Luke", "m", imperative=True, flags=fl)
+    assert "pronoun_same_gender_other" not in fl and _ms("Luke tells his daughter how important seeing her married is to him.", "Luke", "m", imperative=True).endswith("is to you.")
+
+
+def test_round2_lowercase_other_name_and_appositive():
+    # (2) 'Dave tells max that he should ...': the lower-cased other name still blocks the actor reading
+    fl = []
+    _ms("Dave tells max that he should definitely pick whatever sport he's drawn to naturally.", "Dave", "m", others=(("Max", "m"),), imperative=True, flags=fl)  # ms_39O5D9O8...
+    assert "pronoun_same_gender_other" in fl
+    # (8) actor as appositive: 'Jeff's friend Murray who ...' -> 'you, Jeff's friend, who have ...'
+    assert _ms("Jeff's cat is growling and hissing at Jeff's friend Murray who has come to visit.", "Murray", "m", others=(("Jeff", "m"),)) == "Jeff's cat is growling and hissing at you, Jeff's friend, who have come to visit."  # ms_3U8YCDAG...
+    assert _ms("Ken is talking with his friend Luke and tells him that he recently tried to kill himself.", "Luke", "m", others=(("Ken", "m"),)).startswith("Ken is talking with you, his friend, and")  # ms_3300DTYQ...: 'his' stays Ken's
+
+
+def test_round2_plural_without_you_and_trigger():
+    # (3) they / their for the actor plus someone with no 'you and X' trigger, also inside the actions
+    assert plural_refers_to_actor("Your son needs to visit the dentist, but he hates going to the dentist. You want to drive your son to the dentist.", ["Tell your son that he must go to the dentist even though he doesn't want to, and they drive there.", "Tell your son that they are driving to get ice-cream but actually take him to the dentist's office."])  # ms_3VA45EW4...: 'needs' is a verb, not a plural noun
+    assert plural_refers_to_actor("You are telling Jane that you want the walls of their home painted yellow and Jane is absolutely refusing that color. You want to express your disappointment to Jane.", ["Tell Jane that you just wish you could have a yellow room.", "Tell Jane that she's just too inflexible."])  # ms_3KXIR214...
+    assert plural_refers_to_actor("You have been with the same girl for about a year and things are getting dull. You want more excitement in your life.", ["Think of a way to introduce new excitement into their relationship.", "Decide to change it up and start dating someone else."])  # ms_35H6S234...: 'things' is not animate
+    assert plural_refers_to_actor("You are confronted by your friend Amy who says she wants to talk about an argument they left unresolved. You want to react to Amy.", ["Tell Amy exactly how you feel.", "Give Amy the silent treatment."])  # ms_37TD41K0...
+    # legitimate antecedents: people, animals, groups, 'in-laws', singular they for a neutral noun (their / them only)
+    assert not plural_refers_to_actor("You are having dinner with your in-laws, and they express a political view that you disagree with. You want to respond.", ["Acknowledge your in-laws' point of view.", "Criticize your in-laws' point of view and start a heated political argument with them."])  # ms_3W8CV64Q...
+    assert not plural_refers_to_actor("Your friends ask you what you want to order for lunch. You want to eat food you like.", ["Ask them for a number 6.", "Ask for a number 9."])
+    assert not plural_refers_to_actor("You live in a shared apartment with a roommate who is currently in their bedroom with the door closed. You have a question.", ["Send your question in a text message.", "Open the door."])
+    assert plural_refers_to_actor("You are in a long term relationship which is experiencing a lot of turmoil. You want to avoid confrontation.", ["Sit down with your partner, and they earnestly talk about their issues.", "Hide your true feelings."])  # subject 'they' is not licensed by a neutral noun
+    assert not plural_refers_to_actor("Neighborhood kids on skateboards have been throwing rocks at your car. You want to stop the skateboarding kids.", ["Tell the kids' parents about their actions.", "Break the kids' skateboards."])
+
+
+def test_round2_determiner_contraction_and_heads():
+    # (4) determiner his / her -> 'your', never 'yours' ('yours in-laws', 'yours last day'); standalone his / hers -> 'yours'
+    assert _ms("John is having dinner with his in-laws, and they express a political view that he disagrees with.", "John", "m") == "You are having dinner with your in-laws, and they express a political view that you disagree with."  # ms_3W8CV64Q...
+    assert _ms("Jake wants to tell his coworkers that this is his last day on the job.", "Jake", "m") == "You want to tell your coworkers that this is your last day on the job."  # ms_3SKEMFQB...
+    assert _ms("Ronald is very unhappy with the current governor of his state.", "Ronald", "m") == "You are very unhappy with the current governor of your state."
+    assert _ms("Matt thinks since he paid for the house it is rightfully his.", "Matt", "m", imperative=True) == "You think since you paid for the house it is rightfully yours."
+    assert _ms("Holden mentions a fond memory he had at the park with an ex-girlfriend of his.", "Holden", "m", imperative=True).endswith("an ex-girlfriend of yours.")
+    # (5) 's = is -> you're by default; you've only before been / got / had
+    assert _ms("Victor tells Jane that she's too inflexible and that he's done with her entirely.", "Victor", "m", others=(("Jane", "f"),), imperative=True) == "You tell Jane that she's too inflexible and that you're done with her entirely."  # ms_3KXIR214...
+    assert _ms("Dave is walking down the street when he's approached by a homeless man.", "Dave", "m") == "You are walking down the street when you're approached by a homeless man."  # ms_3907X2AH...
+    assert _ms("Sam is tired because he's been working all day.", "Sam", "m") == "You are tired because you've been working all day."
+    # "<Actor>'s V-ing" is progressive, "<Actor>'s V-ing N" is a possessive compound
+    assert _ms("John's eating a snack of potato chips when his wife Sally tells him that he's being unhealthy.", "John", "m", others=(("Sally", "f"),)).startswith("You are eating a snack")
+    assert _ms("Elaine's connecting flight is delayed, and she is facing a lengthy layover.", "Elaine", "f") == "Your connecting flight is delayed, and you are facing a lengthy layover."
+    # (6) be + V-ing head -> lemmatised verb; adjectival -ing stays 'Be ...'
+    from vcd.data.load_contested_sources import _ms_action_to_imperative
+
+    assert _ms_action_to_imperative("Galvin is having a picnic at the park, and he leaves his trash on the ground.", "Galvin", "m", set(), {}, [], "y_") == "Have a picnic at the park, and you leave your trash on the ground."  # ms_354P56DE...
+    assert _ms_action_to_imperative("Tyler is going to tell his friend the truth.", "Tyler", "m", set(), {}, [], "x_") == "Tell your friend the truth."
+    assert _ms_action_to_imperative("Fred is controlling and does not let Sharon see her parents.", "Fred", "m", {"Sharon"}, {"Sharon": "f"}, [], "y_") == "Be controlling and do not let Sharon see her parents."
+    assert _ms_action_to_imperative("Thomas texts him and insults him a bunch asking what's up.", "Thomas", "m", set(), {}, [], "y_") == "Text him and insult him a bunch asking what's up."
+
+
+def test_round2_coordinated_vbz_and_after_you():
+    # (7) VBZ coordinated to the imperative head, across nominal coordination and after a subordinate clause whose
+    # verb does not agree; VBZ after 'you' and 'You, who ...'
+    from vcd.data.load_contested_sources import _ms_action_to_imperative
+
+    def imp(a, actor, g):
+        return _ms_action_to_imperative(a, actor, g, set(), {}, [], "y_")
+
+    assert imp("Sam gets the dog some water and food and moves it to his backyard where it will be protected from the elements.", "Sam", "m") == "Get the dog some water and food and move it to your backyard where it will be protected from the elements."  # ms_3I2PTA7R...
+    assert imp("Sam goes inside because he is doesn't know where the dog has been and just waits inside for it to leave on its own.", "Sam", "m").startswith("Go inside because you are don't know")
+    assert imp("Carla confronts her boyfriend and the woman and breaks up with him.", "Carla", "f") == "Confront your boyfriend and the woman and break up with him."  # ms_38SKSKU7...
+    assert imp("Tommy starts kicking over flowers and wreaths and draws silly faces on the headstones.", "Tommy", "m") == "Start kicking over flowers and wreaths and draw silly faces on the headstones."  # ms_3WQ3B2KG...: 'wreaths' stays a noun
+    assert imp("Riley pretends that slavery didn't happen and doesn't tell her kids.", "Riley", "f") == "Pretend that slavery didn't happen and don't tell your kids."  # ms_379J5II4...
+    assert imp("Amelia rocks her son in her arms until he falls asleep, then tucks him in before getting some sleep.", "Amelia", "f") == "Rock your son in your arms until he falls asleep, then tuck him in before getting some sleep."  # ms_32RIADZI...
+    assert imp("Greg takes Greg's toys that were on the floor outside and burns them in a pile with gasoline.", "Greg", "m").endswith("and burn them in a pile with gasoline.")
+    assert imp("Jeremy gets something to eat right before he has to meet with his friends.", "Jeremy", "m") == "Get something to eat right before you have to meet with your friends."  # ms_3M0NZ3JD...
+    assert imp("John criticizes his in-laws' point of view and starts a heated political argument with them.", "John", "m") == "Criticize your in-laws' point of view and start a heated political argument with them."
+    assert imp("Tom feeds the cat and dogs.", "Tom", "m") == "Feed the cat and dogs."  # a plural noun after 'and' is left alone
+    assert _ms("Jessica, who lives with her housemate Paul, just found out that her boyfriend Brandon cheated on her.", "Jessica", "f", others=(("Paul", "m"), ("Brandon", "m"))) == "You, who live with your housemate Paul, just found out that your boyfriend Brandon cheated on you."  # ms_39OWYR0E...
+    assert _ms("Melissa, who is white, is interviewing a white man and an Indian woman for a job.", "Melissa", "f") == "You, who are white, are interviewing a white man and an Indian woman for a job."  # ms_3BF51CHD...
+    assert _ms("Tom is proud of his wife, Lisa, because she has stopped drinking and is attending meetings.", "Lisa", "f", others=(("Tom", "m"),)) == "Tom is proud of his wife, you, because you have stopped drinking and are attending meetings."
+
+
+def test_round2_hard_flags_and_identical_actions(src_dir):
+    from vcd.data.load_contested_sources import action_core
+
+    assert {"pronoun_same_gender_other", "actions_identical", "reflexive_residual"} <= HARD_FLAGS
+    assert action_core("Ask for a number 6 xor [exclusive or] a number 9 from the fast food place.") == action_core("Ask for a number 6 or a number 9 from the fast food place.")  # ms_3JC6VJ2S...
+    assert action_core("Adopt a beagle.") != action_core("Adopt a pit bull.")
+    rows = [
+        {"ID": "R1", "norm": "It's fine to pick.", "situation": "Cindy's friends ask her what she wants to order for lunch.", "intention": "Cindy wants to eat food she likes.", "moral_action": "Cindy asks for a number 6 xor [exclusive or] a number 9 from the fast food place.", "moral_consequence": "", "immoral_action": "Cindy asks for a number 6 or a number 9 from the fast food place.", "immoral_consequence": ""},
+        {"ID": "R2", "norm": "It's good to help.", "situation": "Dave is walking down the street when he's approached by a homeless man, Bill who asks him if he can spare some change.", "intention": "Dave wants to respond to Bill's question.", "moral_action": "Dave tells Bill that he does have some change he can give him.", "moral_consequence": "", "immoral_action": "Dave tells Bill he doesn't have any change.", "immoral_consequence": ""},
+        {"ID": "R3", "norm": "It's good to help.", "situation": "Pete is at a bar.", "intention": "Pete wants to meet someone.", "moral_action": "Pete introduces himself to the woman and offers to buy her a drink.", "moral_consequence": "", "immoral_action": "Pete touches her on the butt.", "immoral_consequence": ""},
+        {"ID": "R4", "norm": "x", "situation": "Bill is at a bar and he is thirsty.", "intention": "Bill wants a drink.", "moral_action": "Bill orders a beer with his own money.", "moral_consequence": "", "immoral_action": "Bill steals a beer when he thinks nobody is looking.", "immoral_consequence": ""},
+        {"ID": "R5", "norm": "x", "situation": "Bill is at home and he is bored.", "intention": "Bill wants to pass his time.", "moral_action": "Bill reads his book.", "moral_consequence": "", "immoral_action": "Bill prank-calls his neighbor.", "immoral_consequence": ""},
+    ]
+    path = src_dir / "ms_round2.jsonl"
+    write_jsonl(path, rows)
+    fams = {f.source_id: f for f in load_moral_stories(path)}
+    assert "actions_identical" in fams["R1"].needs_review and not is_rule_clean(fams["R1"])
+    assert "pronoun_same_gender_other" in fams["R2"].needs_review and not is_rule_clean(fams["R2"])
+    assert "reflexive_residual" in fams["R3"].needs_review  # the actor's gender was read as female from 'her'
+    assert is_rule_clean(fams["R4"]) and fams["R4"].action_x == "Order a beer with your own money." and fams["R4"].situation == "You are at a bar and you are thirsty. You want a drink."
+
+
 # ---- loaders -----------------------------------------------------------------------------------------------------
 
 

@@ -17,7 +17,9 @@ plan is amended). Berkeley retrospective posts are excluded by default since the
 "1_pilot" / "1_gated" waves exist only with --berkeley-retrospective).
 
 Hand check (§1 / §11 B): --handcheck-dir writes a 100-row sample per new source for the human pass, seeded with
---handcheck-seed (round 1 used 20261002; round 2 uses 20261006 so the re-judgement is not on the judged rows).
+--handcheck-seed (round 1 used 20261002, round 2 20261006, round 3 20261007); rows already judged in the directories
+of --handcheck-exclude (comma list) are never re-sampled, and --handcheck-sources limits the sheets that are rewritten
+(round 3 regenerates only moral_stories: the other three sources passed round 2 and their judged sheets stay).
 
 Example (defaults read the Hugging Face cache; pass --no-hf with explicit files to work offline):
   python scripts/16_build_contested_pool.py
@@ -104,26 +106,31 @@ def assign_waves(fams: list[Family], args, rng: random.Random) -> None:
         f.meta["wave"] = "2b"
 
 
-def judged_ids(exclude_dir: str) -> set[str]:
-    """family_ids of earlier hand-check sheets (round 1 archive): never re-sampled."""
+def judged_ids(exclude_dirs: str) -> set[str]:
+    """family_ids of earlier hand-check sheets (comma-separated archive directories, e.g. rounds 1 and 2): never
+    re-sampled."""
     import csv
 
     ids: set[str] = set()
-    if exclude_dir and Path(exclude_dir).is_dir():
+    for exclude_dir in [d for d in (exclude_dirs or "").split(",") if d]:
+        if not Path(exclude_dir).is_dir():
+            raise SystemExit(f"--handcheck-exclude: {exclude_dir} is not a directory")
         for path in Path(exclude_dir).glob("e2c_handcheck_*.csv"):
             with open(path, newline="", encoding="utf-8") as fh:
                 ids |= {row["family_id"] for row in csv.DictReader(fh)}
     return ids
 
 
-def write_handcheck(pool: list[Family], out_dir: Path, n: int, seed: int, exclude: set[str] = frozenset()) -> list[tuple[str, int]]:
-    """One CSV per new source: a seeded sample of n rows with empty `pass` / `note` columns for the human; rows in
-    `exclude` (already judged in an earlier round) are skipped."""
+def write_handcheck(pool: list[Family], out_dir: Path, n: int, seed: int, exclude: set[str] = frozenset(), sources: set[str] | None = None) -> list[tuple[str, int]]:
+    """One CSV per new source (or per source in `sources`): a seeded sample of n rows with empty `pass` / `note`
+    columns for the human; rows in `exclude` (already judged in an earlier round) are skipped."""
     import csv
 
     out_dir.mkdir(parents=True, exist_ok=True)
     written = []
     for src in sorted({f.source for f in pool} - {"moralchoice"}):
+        if sources is not None and src not in sources:
+            continue
         rows = sorted([f for f in pool if f.source == src and f.family_id not in exclude], key=lambda f: f.family_id)
         random.Random(seed).shuffle(rows)
         rows = rows[:n]
@@ -158,8 +165,9 @@ def main() -> None:
     ap.add_argument("--ethics-wave2", type=int, default=1600, help="wave 2b: ETHICS beyond wave 1 (pinned)")
     ap.add_argument("--handcheck-dir", default="data/annotation", help="where the per-source hand-check CSVs go ('' to skip)")
     ap.add_argument("--handcheck-n", type=int, default=100)
-    ap.add_argument("--handcheck-seed", type=int, default=20261006, help="seed of the hand-check sample (round 1: 20261002)")
-    ap.add_argument("--handcheck-exclude", default="data/annotation/e2c_handcheck_round1", help="directory of earlier judged sheets whose family_ids are not re-sampled ('' for none)")
+    ap.add_argument("--handcheck-seed", type=int, default=20261007, help="seed of the hand-check sample (round 1: 20261002, round 2: 20261006, round 3: 20261007)")
+    ap.add_argument("--handcheck-exclude", default="data/annotation/e2c_handcheck_round1,data/annotation/e2c_handcheck_round2", help="comma list of directories of earlier judged sheets whose family_ids are not re-sampled ('' for none)")
+    ap.add_argument("--handcheck-sources", default="all", help="comma list of Family.source values whose sheets are (re)written, or 'all'; round 3 uses moral_stories")
     ap.add_argument("--keep-flagged", action="store_true", help="keep rows with HARD_FLAGS instead of dropping them")
     ap.add_argument("--threshold", type=float, default=0.9, help="situation cosine for leakage and within-pool dedup")
     ap.add_argument("--seed", type=int, default=20261002)
@@ -214,7 +222,8 @@ def main() -> None:
         f.meta["leak_max_cosine"] = round(leak.max_sim.get(f.family_id, 0.0), 4)
     n = write_jsonl(args.out, pool)
     print(f"wrote {n} families -> {args.out}")
-    handcheck = write_handcheck(pool, Path(args.handcheck_dir), args.handcheck_n, args.handcheck_seed, judged_ids(args.handcheck_exclude)) if args.handcheck_dir else []
+    hc_sources = None if args.handcheck_sources == "all" else {s for s in args.handcheck_sources.split(",") if s}
+    handcheck = write_handcheck(pool, Path(args.handcheck_dir), args.handcheck_n, args.handcheck_seed, judged_ids(args.handcheck_exclude), hc_sources) if args.handcheck_dir else []
 
     # 5. report
     by_src = Counter(f.source for f in pool)
@@ -249,7 +258,7 @@ def main() -> None:
     if dup_pairs or aita_pairs:
         lines += [md_table(["dropped", "kept", "cosine"], [[a, b, s] for a, b, s in (dup_pairs + aita_pairs)[:50]]), ""]
     if handcheck:
-        lines += [f"## Hand-check samples (seed {args.handcheck_seed}, rows judged in `{args.handcheck_exclude}` excluded, for the human pass of plan §11 B)", "", md_table(["file", "rows"], [[a, b] for a, b in handcheck]), ""]
+        lines += [f"## Hand-check samples (seed {args.handcheck_seed}, rows judged in `{args.handcheck_exclude}` excluded, sources `{args.handcheck_sources}`, for the human pass of plan §11 B)", "", md_table(["file", "rows"], [[a, b] for a, b in handcheck]), ""]
     lines += ["## Licenses (meta.license)", "", md_table(["source", "license"], [[src, lic] for src, lic in sorted({(f.source, str(f.meta.get("license", ""))) for f in pool})]), ""]
     Path(args.report).parent.mkdir(parents=True, exist_ok=True)
     Path(args.report).write_text("\n".join(lines), encoding="utf-8")

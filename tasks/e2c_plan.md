@@ -1,6 +1,6 @@
 # E2c 预注册：争议增强训练池（Contested-Enriched Training Pool）
 
-> 状态：**代码、候选池、T1 prompt 就绪；第一轮人工抽检未过门（`results/e2c/handcheck_round1_report.md`），规则已修、池已重建、第二轮抽检样本已生成（2026-10-05）**。筛选结果尚未产生；本文件 §0–§10 连同代码必须在任何筛选文件被打开前提交（§9）。付费筛选未开始，`data/teacher_e2c/` 不存在。上游：[docs/02](../docs/02_models_and_datasets.md) §3–5、[docs/03](../docs/03_experiments.md) §1–3、[e1_plan](e1_plan.md) §0、[e2_plan](e2_plan.md) §1–2（冻结于 456b487）。付费 API 只在 Mac 侧；本阶段不修改 `data/families/families.jsonl` 与 `data/prompts/{pilot,train,dev,test}_prompts_v2.jsonl`。
+> 状态：**第二轮人工抽检（`results/e2c/handcheck_round2_report.md`）scruples / aita_berkeley / hendrycks_ethics 过门，moral_stories 二人称列 79% 未过；Moral Stories 规则已按判官报告 (1)–(8) 修复、池已重建（9,294）；第三轮 moral_stories 抽检（seed 20261007，`results/e2c/handcheck_round3_report.md`）二人称 83% 仍未过门。非 moral_stories 四源的 Wave 1（1,610 族）与 2b（1,600 族）筛选已完成：新 contested 344 + 586 = 930，加层 0 的 356 = **1,286 < 1,500**（`results/e2c/screen_report_wave1_2b.md`）；缺口 214 的处置见 §10 行「共识型来源 rate 低于预估」（2026-10-05）**。本文件 §0–§10 连同代码必须在任何筛选文件被打开前提交（§9）。付费筛选只对已过门的三源 + mc_low 开跑（`data/prompts/contested_pool_T1_wave1_noms.jsonl`，1,610 族 → `data/teacher_e2c/*_pool_screen.jsonl`）；moral_stories wave 1 待第三轮过门后追加（§11 D）。上游：[docs/02](../docs/02_models_and_datasets.md) §3–5、[docs/03](../docs/03_experiments.md) §1–3、[e1_plan](e1_plan.md) §0、[e2_plan](e2_plan.md) §1–2（冻结于 456b487）。付费 API 只在 Mac 侧；本阶段不修改 `data/families/families.jsonl` 与 `data/prompts/{pilot,train,dev,test}_prompts_v2.jsonl`。
 
 ## 0. 问题
 
@@ -18,7 +18,7 @@ E1 在 dev 上显示：三个 aligned teacher 的训练标签两两一致 93–9
 | 1a | **MoralChoice-low**（`sanity` split） | 675 | 已是 Family，只改 split | 无；构造上低歧义 | 3–8%（pilot 0/10） | 20–55；兼作选择脚本的低端校准 |
 | 1b | **Scruples Anecdotes HYPOTHETICAL（WIBTA）**，规则干净、≤ 300 词 | 585 | situation = 正文去 edit / TLDR / AITA / meta 句（含 NTA / YTA / ESH / NAH / TA / AH / WAITA / "this post" / "Thanks"）→ 引号外一人称→二人称（大小写不敏感缩写表 + was→were / am→are 一致）→ `split_trailing_question`；**硬性丢弃**：引号外残留 we / our / us、引号内第一人称、首句无先行词（`opens_mid_stream`）、旁观者帖；action_x = `normalize_action(action.description)`（去前导代词 / 副词 / "to"，并列动名词一并还原，首词须为动词原形），action_y = 加 "Do not "（由否定标题造肯定句时去 NPI：anymore / ever / any→some）；action 内 we / our → you / your | 社区投票 `label_scores`（中位 8 票）；少数派占比可算 | 35–50% | 205–290 |
 | 1c | **Berkeley AITA（ucberkeley-dlab）**：**只取 WIBTA 前瞻帖**（载入 539，正文 ≤ 1,500 字符）；回溯帖（AITA）整体不入池：第一轮抽检 no-verdict 通过率 62%（1_pilot / 1_gated 联合通过 8/24、8/59），"What should you do?" 对已完成的事不成立，§10 的 Berkeley 门随之作废 | 50 | 标题正则（去标题内引号 / 年龄标签）→ 去前导代词 / 副词 → `degerund_first_word` + 并列动名词 → 肯定 / "Do not " 对；正文清洗 + 一人称→二人称，硬性丢弃规则同 1b | `comments_*_agreement` + 2023 LLM 标签 | 35–50% | 18–25 |
-| 1d | **Moral Stories**（demelin），clean + same_gender_other | Wave 1 600（正 / 负 norm 各 300）；**2a = 其余正向 norm 全部 2,424**；负向 4,746 为 reserve | actor 名→you，代词 / 主谓一致规则；situation = 二人称 situation + intention；x = moral_action、y = immoral_action（`focus_action = x`）；**硬性丢弃** `plural_refers_to_actor`：转换后 they / their / them / "the two" 指 actor + 他人（"you and X" 之后，或 action 中无复数先行词） | 无（consensus-by-construction） | 6–15% | 36–90（Wave 1）；+145–365（2a） |
+| 1d | **Moral Stories**（demelin），只取 clean 层（`pronoun_same_gender_other` 第二轮起硬性丢弃） | Wave 1 600（正 / 负 norm 各 300）；**2a = 其余正向 norm 全部 1,827**（第二轮重建前 2,424）；负向 3,609 为 reserve | actor 名→you，代词 / 主谓一致规则；situation = 二人称 situation + intention；x = moral_action、y = immoral_action（`focus_action = x`）；第二轮后的规则：actor 为从句主语时宾语 him / her 不是 actor（"you swipe at him" 保留 him；宾语控制 "ask X to V"、伴随 "with him"、新主语后回退为转换）；限定词 his / her → your（绝不 yours）；he's → you're（been / got / had 前才 you've）；"<Name>'s V-ing" 进行体 → you are；"X's friend <Actor>" 同位语 → "you, X's friend,"；be + V-ing 行动首词 → 原形；并列 VBZ 与 "you" / "You, who" 后 VBZ 原形化；**硬性丢弃** `plural_refers_to_actor`（they / their 需有生命复数先行词，them 任意复数；VBZ 同形词 needs / wants 不算复数名词）、`pronoun_same_gender_other`、`actions_identical`（去括号后 x == y）、`reflexive_residual` | 无（consensus-by-construction） | 6–15% | 36–90（Wave 1）；+110–275（2a） |
 | 1e | **ETHICS justice（impartiality）**，每个 habit VP 取 1 条；habit 为 "used to"（习惯已停止，575 条）、状态动词 VP（含 become，80 条）、VP 含 we / our（147 条）、首词非动词（35 条）**丢弃**；VP 去前导 "to"、截去自带的 ", because" 原因子句、去习惯性时间状语（"every year" 等留在 situation） | Wave 1 300；**2b = 1,600**；48 reserve | 正则 "I usually VP but didn't … because R" → "You usually VP. This time, R."；x = VP，y = "Do not VP" | 无（≥ 4/5 标注一致才保留） | 4–10% | 12–30（Wave 1）；+64–160（2b） |
 | 3 | **LLM 改写（last resort）**：Scruples HISTORICAL 少数派 ≥ 0.3、Berkeley 回溯争议帖（727，第一轮后只能走此层）、以及因 we / our 被硬性丢弃的 Reddit 帖 | ≤ 250 条进入训练集 | Gemini（J）只改 situation 为决策前的 ≤ 60 词二人称情境；action 对仍由标题规则导出；校验 `detect_person == second`、无裁决词、J 事实蕴含、人工抽 100 | 同 1b / 1c | 35–50% | ≤ 250 |
 
@@ -28,20 +28,20 @@ E1 在 dev 上显示：三个 aligned teacher 的训练标签两两一致 93–9
 
 契约性的代码改动（已实现，`python -m pytest -q` 148 passed 1 skipped）：`schemas.Source` 加四个新源，`Split` 加 `pool_contested | train_contested | train_consensus_control`；loader 在 `src/vcd/data/load_contested_sources.py`（`HARD_FLAGS` 决定哪些转换不入池，第一轮抽检后新增 `residual_first_person_plural | quoted_first_person | opens_mid_stream | bystander_post | plural_refers_to_actor`；`LICENSES` 写入 `meta.license`）；去重 / 泄漏在 `src/vcd/data/contested_pool.py`；§3 规则在 `src/vcd/analysis/contested.py`；脚本 `16_build_contested_pool.py`（建池 + 去重 + 分波 + 人工抽检样本 + 报告）、`17_contested_prompts.py`（任意 family 文件建 prompt；E0 路径 01–09 不动）、`18_select_contested.py`（§3 定义 + 分源报表 + E2c-C / E2c-K 组成 + 层 0 校准）。测试 `tests/test_contested.py`（23 个，含第一轮每类失败模式的回归用例）。
 
-实际建池结果（`results/e2c/pool_report.md`，第一轮抽检修规则后重建，2026-10-05；括号内为修规则前）：
+实际建池结果（`results/e2c/pool_report.md`，第二轮抽检修 Moral Stories 规则后重建，2026-10-05；括号内为第一轮后 / 修规则前；Moral Stories 以外各源与第一轮后完全相同）：
 
 | 来源 | 载入 | 规则干净 | 泄漏丢弃 | 池内重复 | 入池 | Wave 1 | 2a / 2b | reserve |
 |---|---|---|---|---|---|---|---|---|
 | mc_low | 676 | 676 | 0 | 1 | 675 | 675 | — | — |
 | scruples HYPOTHETICAL ≤ 300 词 | 3,195 | 585（1,782） | 0 | 0 | 585（1,776） | 585 | — | — |
 | aita_berkeley（只 WIBTA）≤ 1,500 字符 | 539（2,710） | 50（948） | 0 | 0 | 50（948） | 50 | — | — |
-| moral_stories（clean + same_gender_other） | 10,989 | 7,772（8,578） | 0 | 2 | 7,770（8,575） | 600 | 2a 2,424 | 4,746 |
+| moral_stories（只 clean） | 10,989 | 6,038（7,772 / 8,578） | 0 | 2 | 6,036（7,770 / 8,575） | 600 | 2a 1,827（2,424） | 3,609（4,746） |
 | ethics justice（每 VP 一条） | 2,749 | 1,948（2,105） | 0 | 0 | 1,948（2,105） | 300 | 2b 1,600 | 48 |
-| 合计 | | | 0 | 3 | **11,028**（14,079） | **2,210 family / 4,420 prompt**（3,772 / 7,544） | | |
+| 合计 | | | 0 | 3 | **9,294**（11,028 / 14,079） | **2,210 family / 4,420 prompt**（3,772 / 7,544） | | |
 
-新增硬性 flag 的丢弃数（可重叠）：Scruples `residual_first_person_plural` 2,254、`quoted_first_person` 429、`opens_mid_stream` 69、`bystander_post` 14、`action_first_word_not_verb` 11；Berkeley WIBTA `residual_first_person_plural` 446、`quoted_first_person` 71、`opens_mid_stream` 4；Moral Stories `plural_refers_to_actor` 1,050；ETHICS `residual_first_person_plural` 147、`action_first_word_not_verb` 35、`action_stative_verb` 80（含 become）。原有：Scruples 正文过长 1,133、状态动词 139、action 缺失 106；Moral Stories 代词歧义 2,325；ETHICS "used to" 575。一人称单数残留（`residual_first_person`）从 109 降到 1。
+新增硬性 flag 的丢弃数（可重叠）：Scruples `residual_first_person_plural` 2,254、`quoted_first_person` 429、`opens_mid_stream` 69、`bystander_post` 14、`action_first_word_not_verb` 11；Berkeley WIBTA `residual_first_person_plural` 446、`quoted_first_person` 71、`opens_mid_stream` 4；Moral Stories `plural_refers_to_actor` 1,234（第一轮后 1,050）、**第二轮新增** `pronoun_same_gender_other` 2,141、`actions_identical` 1、`reflexive_residual` 1；ETHICS `residual_first_person_plural` 147、`action_first_word_not_verb` 35、`action_stative_verb` 80（含 become）。原有：Scruples 正文过长 1,133、状态动词 139、action 缺失 106；Moral Stories 代词歧义 2,324；ETHICS "used to" 575。一人称单数残留（`residual_first_person`）从 109 降到 1。Moral Stories 第二轮判定的 24 条失败行重建后 18 条被硬性丢弃、6 条文本已修正；76 条通过行 72 条仍在池内。
 
-**人工检查（步 B，筛选前必做）**：第一轮（seed 20261002，`data/annotation/e2c_handcheck_round1/`，报告 `results/e2c/handcheck_round1_report.md`）三项联合通过率 scruples 19% / aita_berkeley 20% / moral_stories 71% / hendrycks_ethics 89%，全部未过；主因已按上表改为硬性丢弃或修规则。第二轮：`scripts/16` 已按 seed 20261006 写出 `data/annotation/e2c_handcheck_{scruples,aita_berkeley,moral_stories,hendrycks_ethics}.csv`（scruples / moral_stories / ethics 各 100 条，aita_berkeley 46 条 = 入池 50 条去掉第一轮已判的 4 条；四表均与第一轮已判行不重叠），三列判定：二人称、两行动互斥、情境无裁决；每源三列各 ≥ 90% 才进步 D；不过的源再修规则重建（16 → 17）并重抽。
+**人工检查（步 B，筛选前必做）**：第一轮（seed 20261002，`data/annotation/e2c_handcheck_round1/`，报告 `results/e2c/handcheck_round1_report.md`）三项联合通过率 scruples 19% / aita_berkeley 20% / moral_stories 71% / hendrycks_ethics 89%，全部未过；主因已按上表改为硬性丢弃或修规则。第二轮（seed 20261006，存档 `data/annotation/e2c_handcheck_round2/`，报告 `results/e2c/handcheck_round2_report.md`）：scruples 95 / 96 / 98、aita_berkeley 100 / 100 / 100（n = 46）、hendrycks_ethics 100 / 100 / 100 **过门**；moral_stories 79 / 96 / 100，**二人称未过**（带 `pronoun_same_gender_other` 的 18 行仅 4 过；其余 82 行 75 过，失败为他人代词被改成 you、无 "you and X" 触发的 they / their）。三列判定：二人称、两行动互斥、情境无裁决；每源三列各 ≥ 90% 才进步 D。第三轮：只重抽 moral_stories，`scripts/16 --handcheck-sources moral_stories`（seed 20261007，排除第一、二轮全部已判行）写出 `data/annotation/e2c_handcheck_moral_stories.csv` 100 条（wave 1 9 / 2a 29 / reserve 62，`needs_review` 全空），**未判**；三源已判表原位保留。
 
 ## 2. 去重与泄漏
 
@@ -51,7 +51,7 @@ E1 在 dev 上显示：三个 aligned teacher 的训练标签两两一致 93–9
 | 对全部现有 family | `dedup_split` 同款 TF-IDF char_wb(3,5) 余弦，取**两个空间的最大值**：联合空间（现有 + 池上拟合）与参照空间（只在现有 2,936 条上拟合，池行投影进去；未见 n-gram 丢失只会抬高余弦）。新 situation 对 2,936 个现有 family（所有 split）≥ 0.9 → 丢；[0.7, 0.9) 列出人工看 | 0 丢；1 对审阅（ms_3M81GAB8… ~ dd_36819（pilot），0.700，内容不同） |
 | 只对 dev / test | 同上，单独报：最大余弦、≥ 0.7 条数、top-10 | 最大 0.611，0 条 ≥ 0.7；再用的 sanity 行最大 0.593 |
 | 行动对 | 新 (x, y) 与现有 (x, y) ≥ 0.9 **且** situation ≥ 0.7 → 丢；对**每一个** situation ≥ 0.7 的现有 family 检查（不只最近邻）。另列出行动对与 dev / test 对 ≥ 0.9 的池行（主题重叠，situation 低则保留） | 0 丢；4 条主题重叠（bk_z4kw98 ~ dd_1862 0.984 / sit 0.180 等），保留 |
-| 池内 | situation ≥ 0.9 → 丢后者（在池上拟合）；AITA 两源另按 post_id 与标题 ≥ 0.9 去重 | 5 + 5；含 mc_C_1177 ~ mc_C_347 0.924（两条 sanity 家族，在 families.jsonl 的小语料上低于 0.9） |
+| 池内 | situation ≥ 0.9 → 丢后者（在池上拟合）；AITA 两源另按 post_id 与标题 ≥ 0.9 去重 | 3 + 0；含 mc_C_1177 ~ mc_C_347 0.918（两条 sanity 家族，在 families.jsonl 的小语料上低于 0.9）、两对 Moral Stories |
 | 0.9 阈值的灵敏度 | 对一条 test DD 情境的手工改写探针：去冠词 0.997、句子重排 0.966 被抓；同义替换 0.842、缩写 + 限定词 0.754、截前半 0.739 不被抓 | 只能抓近逐字复制；轻改写靠源项不同源保证（Reddit / Moral Stories / ETHICS MTurk vs GPT-4 生成的 DD、手写 MC），已写入报告 |
 | 层 0 | 本来就在 train | — |
 
@@ -120,16 +120,16 @@ E1 在 dev 上显示：三个 aligned teacher 的训练标签两两一致 93–9
 | 训练示范 T3 / T5 / T6 | ≈ 2,300 新 family（C + K，减去 T1 已有）× 18 | ≈ 41k | ≈ $45–65 |
 | 层 3 改写（若启用） | ≤ 400 条 Gemini | ≤ 1k | < $2 |
 | GPU | 30 run × ≈ 0.5 h + readout | | ≈ 23 H100-h |
-| 人工 | 转换抽检两轮（第一轮 4 × 100 已判；第二轮 3 × 100 + 46） | | ≈ 6 h |
+| 人工 | 转换抽检三轮（第一轮 4 × 100 已判；第二轮 3 × 100 + 46 已判；第三轮 moral_stories 100 已判） | | ≈ 7 h |
 
 ## 8. 步骤
 
 | # | 侧 | 做什么 | 产出 / 验收 | 状态 |
 |---|---|---|---|---|
-| 1 | Mac | 人工抽检步 B（§1） | 4 个 CSV 填完，每源 ≥ 90% | 第一轮未过（19 / 20 / 71 / 89%），规则已修、池已重建；第二轮样本已生成，**未判** |
+| 1 | Mac | 人工抽检步 B（§1） | 4 个 CSV 填完，每源 ≥ 90% | 第一轮未过（19 / 20 / 71 / 89%）；第二轮 scruples / aita_berkeley / ethics 过门，moral_stories 二人称 79% 未过；Moral Stories 规则已修、池已重建（9,294）；第三轮 moral_stories **二人称 83% 仍未过**（99 / 100 / 联合 82；`results/e2c/handcheck_round3_report.md`，25 行盲审复核 25/25 一致）。三源 + mc_low 过门，moral_stories 处置见 §10 |
 | 2 | Mac | 提交本文件 + 全部 E2c 代码 / 池 / prompt / 抽检 CSV（一个 commit），hash 写入 §9 与 hpc_log | 冻结 | **待提交** |
-| 3 | Mac | 三 teacher 筛选 Wave 1（§11 D） | `data/teacher_e2c/*_pool_screen.jsonl` | 未跑（付费） |
-| 4 | Mac | 18（§11 E）：分源 rate、校准复现 356、按 §1 触发 2a / 2b / 层 3 | `screen_report.md`；contested_selected ≥ 1,500 或记录缺口 | 校准已复现；等步 3 |
+| 3 | Mac | 三 teacher 筛选 Wave 1（§11 D） | `data/teacher_e2c/*_pool_screen.jsonl` | **已完成**：已过门三源 + mc_low（Wave 1，1,610 族，`contested_pool_T1_wave1_noms.jsonl`）+ 2b（hendrycks 1,600 族，`contested_pool_T1_wave2b.jsonl`），每 teacher 6,420 行；非答 7 + 0；moral_stories 未筛 |
+| 4 | Mac | 18（§11 E）：分源 rate、校准复现 356、按 §1 触发 2a / 2b / 层 3 | `screen_report.md`；contested_selected ≥ 1,500 或记录缺口 | 校准复现 356 / 1,113 / 24；分源 rate：scruples 37.5%、aita 30.0%、hendrycks wave 1 36.3% / 2b 36.6%、mc_low 0.4%；新 contested 930（majority_differ 261、uncertain_band 702、claude_order_split 200、flip_only 372）；**合计 1,286**（`results/e2c/screen_report_wave1_2b.md`）。**偏离记录**：2b 在 2a 之前开跑——2a 全部为 moral_stories，被步 B 的门卡住，而 §1 的 2a → 2b 只是按来源可用量排的顺序，成员均已钉死（seed 20261002），不影响选择规则 |
 | 5 | Mac | E2c-C / E2c-K 文件（步 E 一并产出）；T3 / T5 / T6 demo；`10` 建 `data/sft_e2c/`；提交 family id 列表与 meta | 30 个 SFT 文件 + meta | 等步 4 |
 | 6 | HPC | `STUDENT_SHORT=qwen3-4b-e2c` 训练 30 run；readout train / dev；13 `--split dev --out results/e2c_dev`（描述） | E1a / E1b 过 | — |
 | 7 | HPC | test readout 一次；13 `--split test --out results/e2c`；E2c gap 与对照 CI（`19_e2c_analysis.py`，第 6 步前写好并测试） | `results/e2c/summary.md` | — |
@@ -143,23 +143,23 @@ E1 在 dev 上显示：三个 aligned teacher 的训练标签两两一致 93–9
 
 | 风险 | 处理 |
 |---|---|
-| 共识型来源 rate 低于预估，新 contested 不足 1,144 | 2a → 2b → 层 3（≤ 250）→ 如实缩小；不改定义 |
+| 共识型来源 rate 低于预估，新 contested 不足 1,144 | 2a → 2b → 层 3（≤ 250）→ 如实缩小；不改定义。**实际**：Reddit 两源 rate 高（30–38%）但硬性丢弃后只剩 635 族；ETHICS 36.6% 全部用尽（reserve 48）；mc_low 0.4%；2b 先于 2a 启用（2a = moral_stories 未过门）；新 contested 930 + 356 = 1,286，缺 214。moral_stories 的去留按下一行的试筛结果定 |
 | 分布漂移：AITA 口语、长帖、Moral Stories 带 intention 句；dev / test 全是 DD / MC | E2c-K 对照吸收换源效应；长度上限；论文声明 train–test 分布差 |
 | **回溯式 AITA 与前瞻式 stem 错位**（Berkeley 727 条回溯帖叙述已完成的事及其后果，"What should you do?" 时序不合） | **已兑现**：第一轮抽检 Berkeley 回溯帖 no-verdict 通过率 62%（1_gated 26/59 失败），不再设门；Scruples 只用 HYPOTHETICAL，Berkeley 只用 WIBTA（`load_aita_berkeley(prospective_only=True)`，`scripts/16` 默认），回溯帖只可能经层 3 改写进入 |
 | contested family 顺序不稳 → 样例数少，且耦合在 teacher 上（§4） | `stable_one` 不变；按 teacher 报 n_examples；flip_only 灵敏度集 |
 | Reddit 内容触发拒答 / 敏感 | 非答按类别记录并剔除，不插补；分源报非答率 |
 | 许可：Scruples research-only、Berkeley CC-BY-NC-4.0、ETHICS MIT、Moral Stories 上游未标（源自 Social Chemistry CC BY-SA 4.0）、MoralChoice CC-BY-4.0 | `meta.license` 逐行；公开发布只给源 id 与我们的转写；论文引 Lourie 2021、Berkeley D-Lab、Emelin 2021、Hendrycks 2021 |
-| 规则转换残留 | 第一轮抽检后改为硬性丢弃：引号外 we / our / us、引号内第一人称、首句无先行词、旁观者帖、Moral Stories 复数代词指 actor + 他人；行动首词须为动词原形；缩写表大小写不敏感 + was / am 一致；代价是池缩至 11,028（Reddit 两源 635）。步 B 第二轮每源每列 ≥ 90%；剩余信息性 flag 进 `needs_review`；Moral Stories `pronoun_same_gender_other` 保留（第一轮 13/16 不过，若第二轮仍拖累二人称列则改硬性） |
+| 规则转换残留 | 第一轮抽检后改为硬性丢弃：引号外 we / our / us、引号内第一人称、首句无先行词、旁观者帖、Moral Stories 复数代词指 actor + 他人；行动首词须为动词原形；缩写表大小写不敏感 + was / am 一致；代价是池缩至 11,028（Reddit 两源 635）。步 B 第二轮三源过门；Moral Stories `pronoun_same_gender_other` 第二轮 14/18 不过 → **已改硬性**，并修：actor 为主语时宾语 him / her 不再改成 you、they / their 需有生命复数先行词（VBZ 同形词不算）、his / her 限定词 → your、's → you're、be + V-ing → 原形、并列 / "you" 后 VBZ 原形化、去括号后 x == y 丢弃、反身代词残留丢弃；代价是 Moral Stories 7,770 → 6,036（池 9,294），2a 2,424 → 1,827。第三轮只抽 moral_stories：二人称 83%（75 → 79 → 83）仍不过，17 个失败全在现有 flag 之外（他人由角色名词 / 词典外名字引入后被改成 you 10 行、actor 残留 their / shes / him 5 行等）。**试筛**（2026-10-05，`results/e2c/ms_pilot_report.md`，`data/teacher_e2c/ms_pilot/`）：第三轮判为干净的 82 族过一遍 §11 D 的筛选（492 次，$0.39）→ contested 5 / 82 = 6.1%（wave 1 1/9、2a 2/22、reserve 2/51；majority_differ 4），即 wave 1 + 2a 共 2,427 族预计只产 150–235 条 contested。**处置**：按第三轮复核建议再修一轮（第四轮；判官项 (1) 改为与性别词典无关的硬性丢弃），新 seed 抽 wave 1 50 + 2a 50（排除前三轮 300 个已判 id）；过门则筛 wave 1 + 2a（≈ $18）并入选择；**第四轮仍 < 90% 则 moral_stories 整体不入池，不启用层 3，以 1,286 如实缩小**（层 3 ≤ 250 条按 Reddit 源 37% 的 rate 至多再得 ≈ 90 条 contested，却把 LLM 改写文本引入训练集并需再一轮抽检，不值） |
 | 选择效应：按 teacher T1 回答选 family，再用同批 teacher 示范训练 | 设计意图（增强分歧），不是泄漏：评估在未被筛选的 dev / test 上；对照组用同一筛选过程 |
 
 ## 11. 逐步命令（Mac 侧，仓库根目录，`source .venv/bin/activate`）
 
 | 步 | 命令 | 产出 | 付费 |
 |---|---|---|---|
-| A 建池（已跑） | `python scripts/16_build_contested_pool.py`（默认 `--handcheck-seed 20261006 --handcheck-exclude data/annotation/e2c_handcheck_round1`；Berkeley 只 WIBTA，`--berkeley-retrospective` 才载入回溯帖） | `data/families/contested_pool.jsonl`（11,028）、`results/e2c/pool_report.md`、`data/annotation/e2c_handcheck_*.csv`；读 HF 缓存，离线加 `--no-hf --scruples-files … --berkeley-file … --moral-stories-file … --ethics-files …` | 否 |
-| B 人工抽检（第二轮） | 填 `data/annotation/e2c_handcheck_{source}.csv` 的三个 pass 列（1 / 0）与 note；每源三列均 ≥ 90%；第一轮判定表存档于 `data/annotation/e2c_handcheck_round1/` | 同文件 | 否 |
+| A 建池（已跑） | `python scripts/16_build_contested_pool.py --handcheck-sources moral_stories`（默认 `--handcheck-seed 20261007 --handcheck-exclude data/annotation/e2c_handcheck_round1,data/annotation/e2c_handcheck_round2`；`--handcheck-sources all` 会覆盖已判的三源表，勿用；Berkeley 只 WIBTA，`--berkeley-retrospective` 才载入回溯帖） | `data/families/contested_pool.jsonl`（9,294）、`results/e2c/pool_report.md`、`data/annotation/e2c_handcheck_moral_stories.csv`；读 HF 缓存，离线加 `--no-hf --scruples-files … --berkeley-file … --moral-stories-file … --ethics-files …` | 否 |
+| B 人工抽检（第三轮） | 只判 `data/annotation/e2c_handcheck_moral_stories.csv`（100 行）的三个 pass 列（1 / 0）与 note；三列均 ≥ 90%；第一、二轮判定表存档于 `data/annotation/e2c_handcheck_round{1,2}/`（三个过门源的第二轮表亦原位保留） | 同文件 | 否 |
 | C Wave 1 prompt（已跑） | `python scripts/17_contested_prompts.py`（默认 `--waves 1`） | `data/prompts/contested_pool_T1.jsonl`：2,210 × 2 = 4,420 | 否 |
-| D **筛选（付费，13,260 次，≈ $18）** | `for t in gpt4o claude46 deepseek_v4; do python scripts/04_query_teachers.py --teacher $t --mode demo --variants T1 --prompts data/prompts/contested_pool_T1.jsonl --out data/teacher_e2c/${t}_pool_screen.jsonl; done`（可先 `--limit 60` 冒烟；缓存命中免费，可断点续跑） | `data/teacher_e2c/{gpt4o,claude46,deepseek_v4}_pool_screen.jsonl` | **是** |
+| D **筛选（付费，13,260 次，≈ $18）** | `for t in gpt4o claude46 deepseek_v4; do python scripts/04_query_teachers.py --teacher $t --mode demo --variants T1 --prompts data/prompts/contested_pool_T1.jsonl --out data/teacher_e2c/${t}_pool_screen.jsonl; done`（可先 `--limit 60` 冒烟；缓存命中免费，可断点续跑）。第二轮后分两步：先用过滤掉 moral_stories 的 `data/prompts/contested_pool_T1_wave1_noms.jsonl`（1,610 族 / 3,220 条，≈ $13）；moral_stories 第三轮过门后 `python scripts/17_contested_prompts.py --sources moral_stories --out data/prompts/contested_pool_T1_wave1_ms.jsonl`（600 族 / 1,200 条）再以同一 `--out` 追加 | `data/teacher_e2c/{gpt4o,claude46,deepseek_v4}_pool_screen.jsonl` | **是** |
 | D' 校准（已验证，随时可重跑） | `python scripts/18_select_contested.py --tier0-families data/families/families.jsonl --tier0-prompts data/prompts/train_prompts_v2.jsonl --tier0-demos gpt4o=data/teacher_phase1/gpt4o_train_demo.jsonl,claude46=data/teacher_phase1/claude46_train_demo.jsonl,deepseek_v4=data/teacher_phase1/deepseek_v4_train_demo.jsonl --out /tmp/tier0.jsonl --report results/e2c/calibration_tier0.md` | tier0 consensus 1113 / contested 356 / non_answer 24；flip_only 113 | 否 |
 | E 选择 + 对照 | `python scripts/18_select_contested.py --families data/families/contested_pool.jsonl --prompts data/prompts/contested_pool_T1.jsonl --demos gpt4o=data/teacher_e2c/gpt4o_pool_screen.jsonl,claude46=data/teacher_e2c/claude46_pool_screen.jsonl,deepseek_v4=data/teacher_e2c/deepseek_v4_pool_screen.jsonl --tier0-families data/families/families.jsonl --tier0-prompts data/prompts/train_prompts_v2.jsonl --tier0-demos gpt4o=data/teacher_phase1/gpt4o_train_demo.jsonl,claude46=data/teacher_phase1/claude46_train_demo.jsonl,deepseek_v4=data/teacher_phase1/deepseek_v4_train_demo.jsonl --target 1500 --seed 20261002 --out data/families/contested_selected.jsonl --consensus-out data/families/contested_consensus_pool.jsonl --consensus-select-out data/families/consensus_control_selected.jsonl --report results/e2c/screen_report.md` | `contested_selected.jsonl`（E2c-C，split = train_contested，`meta.screen`）、`consensus_control_selected.jsonl`（E2c-K，split = train_consensus_control）、`contested_consensus_pool.jsonl`、`screen_report.md` + `.csv` | 否 |
 | F 2a / 2b（按 §1 触发） | `python scripts/17_contested_prompts.py --waves 2a --out data/prompts/contested_pool_T1_wave2a.jsonl`；`--waves 2b --out …_wave2b.jsonl`；再跑 D（`--prompts` 换文件，`--out` 同一文件追加）与 E（`--prompts` 传 `cat` 合并后的 prompt 文件） | 同上 | 是 |

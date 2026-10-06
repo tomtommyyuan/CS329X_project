@@ -53,6 +53,10 @@ HARD_FLAGS = {
     "opens_mid_stream",  # first sentence starts with a pronoun whose antecedent was in the stripped title / question
     "bystander_post",  # narrator judges somebody else's act
     "plural_refers_to_actor",  # Moral Stories: they / their / the two standing for the actor plus someone
+    # added after the round-2 hand check (results/e2c/handcheck_round2_report.md)
+    "pronoun_same_gender_other",  # Moral Stories: the actor's pronoun follows a same-gender other person (14/18 wrong in round 2)
+    "actions_identical",  # Moral Stories: x == y once bracketed insertions and source noise are stripped
+    "reflexive_residual",  # Moral Stories: 'Introduce himself' after the imperative head: the actor's gender was mis-inferred
 }
 
 # License of each source as read from its Hugging Face card / upstream repo (tasks/e2c_plan.md §10).
@@ -671,15 +675,42 @@ _MALE = {"he", "him", "his", "himself", "he's", "he'd", "he'll"}
 _FEMALE = {"she", "her", "hers", "herself", "she's", "she'd", "she'll"}
 _MALE_N = {"husband", "boyfriend", "father", "dad", "brother", "son", "man", "guy", "boy", "uncle", "nephew", "grandfather", "grandpa", "stepfather", "fiance", "king", "waiter", "actor", "businessman", "gentleman", "mr", "stepdad", "grandson", "groom", "prince", "dude", "bro"}
 _FEMALE_N = {"wife", "girlfriend", "mother", "mom", "sister", "daughter", "woman", "girl", "lady", "aunt", "niece", "grandmother", "grandma", "stepmother", "fiancee", "queen", "waitress", "actress", "businesswoman", "mrs", "ms", "stepmom", "granddaughter", "bride", "princess", "gal"}
-_NEUTRAL_SG = {"friend", "boss", "coworker", "colleague", "neighbor", "neighbour", "roommate", "teacher", "student", "customer", "clerk", "cashier", "kid", "child", "someone", "somebody", "stranger", "partner", "parent", "cousin", "doctor", "nurse", "officer", "manager", "employee", "client", "classmate", "teammate", "coach", "driver", "owner", "landlord", "tenant", "baby", "toddler", "person", "spouse", "sibling", "relative", "guest", "host", "buddy", "pal", "date", "ex", "professor", "dentist", "vet", "lawyer", "mechanic", "plumber", "babysitter", "twin", "passenger", "shopper", "cop", "supervisor", "assistant", "intern", "candidate", "applicant", "patient", "victim", "teen", "teenager", "infant", "chef", "bartender", "barista", "salesman", "salesperson", "agent", "realtor", "contractor", "worker", "volunteer", "mentor", "tutor", "principal", "dean", "judge", "referee", "umpire", "pastor", "priest", "rabbi", "counselor", "therapist"}
+_NEUTRAL_SG = {"friend", "boss", "coworker", "colleague", "neighbor", "neighbour", "roommate", "housemate", "teacher", "student", "customer", "clerk", "cashier", "kid", "child", "someone", "somebody", "stranger", "partner", "parent", "cousin", "doctor", "nurse", "officer", "manager", "employee", "client", "classmate", "teammate", "coach", "driver", "owner", "landlord", "tenant", "baby", "toddler", "person", "spouse", "sibling", "relative", "guest", "host", "buddy", "pal", "date", "ex", "professor", "dentist", "vet", "lawyer", "mechanic", "plumber", "babysitter", "twin", "passenger", "shopper", "cop", "supervisor", "assistant", "intern", "candidate", "applicant", "patient", "victim", "teen", "teenager", "infant", "chef", "bartender", "barista", "salesman", "salesperson", "agent", "realtor", "contractor", "worker", "volunteer", "mentor", "tutor", "principal", "dean", "judge", "referee", "umpire", "pastor", "priest", "rabbi", "counselor", "therapist", "visitor", "tourist", "newcomer", "acquaintance", "stepson", "stepdaughter", "stepbrother", "stepsister", "grandparent", "grandchild", "grandkid", "nanny", "caregiver", "secretary", "receptionist", "pharmacist", "surgeon", "soldier", "veteran", "pilot", "attendant", "server", "bully", "mugger", "thief", "robber", "burglar", "hitchhiker", "jogger", "cyclist", "biker", "pedestrian", "homeowner", "fiancé", "fiancée"}
 _PLURAL = {"friends", "coworkers", "colleagues", "neighbors", "neighbours", "roommates", "teachers", "students", "customers", "kids", "children", "people", "parents", "family", "relatives", "siblings", "guests", "classmates", "teammates", "employees", "clients", "passengers", "workers", "others", "everyone", "everybody", "they", "them", "their", "group", "crowd", "team", "class", "couple", "twins", "guys", "girls", "boys", "men", "women", "folks"}
+# plural / collective nouns that can be the antecedent of 'they' / 'their' (people, animals, groups); inanimate plurals
+# ('things', 'walls') cannot, so 'their relationship' after only 'things' means the actor plus someone
+_ANIMATE_PL = {"inlaws", "exes", "cops", "fans", "bosses", "ladies", "babies", "bullies", "adults", "humans", "citizens", "hosts", "pets", "animals", "cousins", "brothers", "sisters", "daughters", "sons", "aunts", "uncles", "nieces", "nephews", "husbands", "wives", "girlfriends", "boyfriends", "partners", "spouses", "grandkids", "grandchildren", "stepkids", "housemates", "bandmates", "buddies", "pals", "peers", "triplets", "gentlemen", "ladies", "lads", "fellas", "dudes", "bros", "ex", "staff", "police", "faculty", "management", "administration"}
+_GROUP_N = {"family", "couple", "team", "class", "group", "crowd", "staff", "crew", "band", "club", "committee", "company", "school", "church", "congregation", "jury", "gang", "choir", "orchestra", "cast", "public", "government", "board", "council", "union", "army", "herd", "flock", "pack", "audience", "community", "neighborhood", "neighbourhood", "department", "office", "firm", "restaurant", "store", "shop", "hospital", "squad", "household", "generation", "mob", "duo", "trio", "pair", "clinic", "bank", "hotel", "airline", "charity", "organization", "organisation", "association", "league", "society", "tribe", "clan", "troop", "unit", "faculty", "management", "administration", "police"}
+_ANIMAL_N = {"cat", "dog", "puppy", "kitten", "bird", "horse", "cow", "pig", "hamster", "rabbit", "bunny", "fish", "snake", "lizard", "turtle", "parrot", "goat", "sheep", "duck", "chicken", "mouse", "rat", "squirrel", "deer", "bear", "wolf", "fox", "pet", "animal", "pony", "goose", "bee", "ant", "spider", "frog", "monkey", "lion", "tiger", "elephant", "cub", "calf", "lamb", "foal", "chick", "pup", "gerbil", "ferret", "parakeet", "canary", "pigeon", "crow", "raccoon", "skunk", "possum", "opossum", "coyote", "moose", "elk", "bat", "owl", "hawk", "eagle", "stray"}
 _ADV = {"also", "often", "now", "then", "just", "always", "never", "usually", "still", "even", "really", "simply", "later", "instead", "first", "again", "already", "sometimes", "frequently", "regularly", "occasionally", "soon", "once", "twice", "immediately", "finally", "eventually", "secretly", "politely", "quietly", "quickly", "calmly", "gently", "carefully", "happily", "angrily", "rudely", "honestly", "kindly", "promptly", "loudly", "sternly", "firmly", "reluctantly", "excitedly", "nervously", "casually", "openly", "privately", "publicly", "briefly", "actually", "generously", "graciously", "gracefully", "warmly", "coldly", "bluntly", "directly", "discreetly"}
 _NOT_ADV_LY = {"family", "only", "early", "daily", "holy", "ugly", "lonely", "fly", "rely", "apply", "reply", "supply", "bully", "rally", "tally", "ally", "belly", "jelly", "silly", "chilly", "smelly", "lovely", "friendly", "likely", "costly", "deadly", "elderly", "lively", "lowly", "monthly", "weekly", "yearly", "hourly", "nightly", "orderly", "kindly", "assembly"}
 _COORD = {"and", "but", "or", "then", "so"}
-_POSS_BLOCK = {"to", "that", "a", "an", "the", "about", "for", "with", "from", "into", "on", "at", "of", "as", "by", "in", "up", "out", "off", "down", "over", "back", "away", "here", "there", "again", "whether", "if", "how", "what", "when", "where", "why", "too", "instead", "first", "last", "alone", "and", "or", "but", "because", "while", "so", "is", "was", "has", "had", "will", "would", "can", "could", "should", "not", "this", "these", "those", "some", "any", "very", "then", "after", "before", "until", "since", "though", "although", "unless", "once", "than", "like", "through", "without", "around", "under", "toward", "towards", "onto", "upon", "yet", "still", "also", "just", "only", "even", "now", "soon", "later", "today", "tomorrow", "yesterday"}
-_SUBORD = {"when", "while", "because", "if", "who", "whom", "whose", "that", "which", "whenever", "after", "before", "until", "as", "since", "where", "although", "though", "unless"}
+# words that cannot start the noun phrase of a determiner 'his' / 'her' (so the pronoun is an object or standalone)
+_POSS_BLOCK = {"to", "that", "a", "an", "the", "about", "for", "with", "from", "into", "on", "at", "of", "as", "by", "in", "up", "out", "off", "down", "over", "back", "away", "here", "there", "again", "whether", "if", "how", "what", "when", "where", "why", "too", "instead", "alone", "and", "or", "but", "because", "while", "so", "is", "was", "has", "had", "will", "would", "can", "could", "should", "not", "this", "these", "those", "some", "any", "very", "then", "after", "before", "until", "since", "though", "although", "unless", "once", "than", "like", "through", "without", "around", "under", "toward", "towards", "onto", "upon", "yet", "still", "also", "just", "only", "even", "now", "soon", "later", "today", "tomorrow", "yesterday"}
+# 'her first / last / next ...' is a determiner when another word follows ('her last day'), an object otherwise ('told her first')
+_POSS_ORDINAL = {"first", "last", "next", "best", "other", "favorite", "favourite", "usual", "current", "former", "only"}
+# 'his' is a standalone pronoun ('a friend of his', 'his too') only before one of these or before punctuation
+_HIS_STANDALONE_NEXT = {"and", "or", "but", "too", "instead", "is", "was", "as", "than", "also", "while", "because", "so", "if", "when", "though", "although", "either", "anyway", "alone", "again", "yet", "still", "now", "then", "here", "there", "back", "away", "with", "to", "for", "from", "on", "in", "at", "of", "by", "into", "onto"}
+_SUBORD = {"when", "while", "because", "if", "who", "whom", "whose", "that", "which", "whenever", "after", "before", "until", "as", "since", "where", "although", "though", "unless", "how", "what", "why", "whether", "whatever", "whoever"}
+_SUBJ_PRON = {"he", "she", "it", "they", "there", "this", "that", "someone", "somebody", "everyone", "everybody", "nobody", "one", "people", "i", "we"}
+_PARTICLES = {"up", "out", "off", "down", "away", "back", "over", "along", "around", "through", "aside", "ahead", "forward", "together", "apart", "home"}
+# prepositions whose object cannot be the clause subject ('you swipe at him'); comitative / locative ones can
+# ('you take William with you', 'next to you') and are left out on purpose
+_OBJ_PREP_OK = {"at", "to", "for", "about", "from", "of", "against", "toward", "towards", "after", "than", "like", "without", "into", "onto", "upon", "off", "past"}
+_PREPS = {"at", "to", "for", "about", "from", "of", "against", "toward", "towards", "after", "than", "like", "without", "into", "onto", "upon", "with", "on", "in", "by", "before", "while", "despite", "besides", "instead"}
+_DETS = {"a", "an", "the", "his", "her", "their", "your", "my", "its", "this", "that", "these", "those", "some", "any", "another", "every", "each", "one", "two", "several", "many", "few", "all", "both", "no"}
+_PERSON_WORDS = {"him", "her", "them", "you", "me", "us", "everyone", "everybody", "someone", "somebody", "anyone", "anybody", "nobody", "people", "others", "himself", "herself", "yourself", "themselves"}
+_AUX = {"is", "was", "are", "were", "will", "would", "can", "could", "should", "has", "have", "had", "do", "does", "did", "might", "may", "must", "doesn't", "isn't", "wasn't", "hasn't", "don't", "didn't", "won't", "can't", "aren't", "weren't", "it'll", "it's", "they're", "they'll", "they've", "they'd", "that's", "there's", "what's", "who's"}
+_SUBJ_RESET = {"it", "they", "there", "this", "people", "we", "i", "it'll", "it's", "they're", "they'll", "they've", "they'd", "that's", "there's", "what's", "who's"}
+# the object of these cannot be ruled out as the subject ('next to him', 'in front of him', 'across from him')
+_LOC_PREPS = {"near", "next", "beside", "behind", "with", "by", "on", "in", "under", "over", "above", "below", "between", "among", "across", "opposite", "alongside", "inside", "outside", "front", "top", "side", "back", "ahead", "close", "beneath", "underneath", "along"}
+_GERUND_SUBJ_PREPS = {"for", "about", "from", "of", "on", "at", "in", "into"}  # 'thank the host for having him': the gerund's subject is the object before the preposition
+_CAUSATIVES = {"help", "helps", "let", "lets", "make", "makes", "watch", "watches"}
+_REL_OBJ_NEXT = {"him", "her", "them", "you", "me", "us", "the", "a", "an", "his", "their", "your", "my", "its", "this", "that", "these", "those", "everyone", "someone", "people", "all", "at", "to", "for", "with", "about", "toward", "towards"} | _PARTICLES
+_BARE_INF = {"go", "come", "do", "see", "know", "feel", "be", "get", "take", "have", "lift", "carry", "pick", "clean", "finish", "leave", "stay", "sit", "stand", "move", "try", "cry", "laugh", "sleep", "eat", "drink", "play", "work", "study", "pay", "buy", "drive", "walk", "run", "talk", "speak", "read", "write", "use", "keep", "hold", "put", "find", "look", "think", "understand", "learn", "win", "lose", "fix", "cook", "wash", "open", "close", "choose", "decide", "wait", "stop", "start", "continue", "quit"}
 _TOK = re.compile(r"[A-Za-z']+|[^A-Za-z']+")
 _NEG_MAP = {"doesn't": "don't", "isn't": "aren't", "wasn't": "weren't", "hasn't": "haven't", "is": "are", "has": "have", "was": "were", "does": "do"}
+_NEG_AUX = {"doesn't", "isn't", "wasn't", "hasn't"}
 _NEG_NORM = re.compile(
     r"\b(wrong|bad|rude|mean|cruel|hurtful|selfish|immoral|illegal|irresponsible|disrespectful|inappropriate|unacceptable|"
     r"shouldn't|should not|not okay|not ok|don't|do not|never|unkind|inconsiderate|unfair|dishonest|harmful|unethical|"
@@ -703,6 +734,15 @@ def _lemma(w: str) -> Optional[str]:
         return None
 
 
+def _all_lemmas(w: str) -> dict:
+    try:
+        from lemminflect import getAllLemmas
+
+        return getAllLemmas(w.lower())
+    except Exception:
+        return {}
+
+
 def _is_vbz(w: str) -> bool:
     lw = w.lower()
     if lw in _NEG_MAP:
@@ -718,9 +758,16 @@ def _is_vbz(w: str) -> bool:
         return lw.endswith("s") and not lw.endswith("ss")
 
 
+def _is_extra_vbz(w: str) -> bool:
+    """'texts', 'venmos': 3sg forms of verbs lemminflect does not know; only trusted right after a subject 'you'."""
+    lw = w.lower()
+    return lw.endswith("s") and (lw[:-1] in _EXTRA_VERBS or (lw.endswith("es") and lw[:-2] in _EXTRA_VERBS))
+
+
 def _vbz_to_base(w: str) -> str:
     lw = w.lower()
-    out = _NEG_MAP.get(lw) or _lemma(lw) or lw
+    extra = lw[:-1] if lw.endswith("s") and lw[:-1] in _EXTRA_VERBS else lw[:-2] if lw.endswith("es") and lw[:-2] in _EXTRA_VERBS else None
+    out = _NEG_MAP.get(lw) or extra or _lemma(lw) or lw
     return _cap(out) if w[0].isupper() else out
 
 
@@ -729,6 +776,22 @@ def _is_adv(w: str) -> bool:
         return False
     lw = w.lower()
     return lw in _ADV or (lw.endswith("ly") and lw not in _NOT_ADV_LY)
+
+
+def _is_gerund(w: str) -> bool:
+    lw = w.lower()
+    if not lw.endswith("ing") or lw in _ING_NOT_GERUND_LOCAL:
+        return False
+    lem = _all_lemmas(lw).get("VERB")
+    return bool(lem) and lem[0] != lw
+
+
+def _verb_like(w: str) -> bool:
+    """A word that continues the same subject's predicate after 'and' (verb, adverb or negation), not a new subject."""
+    lw = w.lower()
+    if lw in {"not", "then", "also", "you"} or lw in _NEG_MAP or _is_adv(w) or _is_vbz(w) or _is_gerund(w):
+        return True
+    return bool(is_base_verb(w)) and not w[:1].isupper()
 
 
 def _actor_of(r: dict) -> Optional[str]:
@@ -752,46 +815,213 @@ def _name_genders(rows: list[dict]) -> tuple[Counter, dict[str, str]]:
     return actors, genders
 
 
-def _person_pass(text: str, actor: str, gender: Optional[str], other_names: set[str], name_gender: dict[str, str], flags: list[str], pre: str) -> str:
+_APPOSITIVE_HEADS = sorted(_MALE_N | _FEMALE_N | _NEUTRAL_SG, key=len, reverse=True)
+
+
+_APPOS_MARK = "\x01"  # marks the possessor of a rewritten appositive ('his friend' = somebody else's), never converted
+
+
+def _actor_appositive(text: str, actor: str) -> tuple[str, bool]:
+    """'hissing at Jeff's friend Murray who ...' -> 'hissing at Murray, Jeff's friend, who ...' so that the actor's name
+    can become 'you' without leaving 'Jeff's friend you'. Only possessive-headed appositives are rewritten; a pronoun
+    possessor ('his friend Luke') belongs to the other person and is marked so the person pass leaves it alone."""
+    pat = re.compile(rf"\b((?:[A-Z][a-z]+'s|[Hh]is|[Hh]er|[Tt]heir)\s+(?:[a-z]+\s+)?(?:{'|'.join(_APPOSITIVE_HEADS)}))\s+{re.escape(actor)}\b(?!'s)")
+
+    def rep(m: re.Match) -> str:
+        g = m.group(1)
+        head = g.split()[0]
+        if head in {"His", "Her", "Their"}:
+            g = g[0].lower() + g[1:]
+        if head.lower() in {"his", "her", "their"}:
+            g = _APPOS_MARK + g
+        return f"{actor}, {g},"
+
+    out, n = pat.subn(rep, text)
+    out = re.sub(r",\s*,", ",", out)
+    out = re.sub(r",\s*([.!?;])", r"\1", out)
+    return out, n > 0
+
+
+def _noun_before_to(pw: str, before: str) -> bool:
+    """Does `pw` read as a plural noun in 'V ... <pw> to V' ('sleeping pills to help her', 'videos on YouTube to help
+    her')? A 3sg verb homograph ('goes to', 'wants to') counts only after a modifier or a noun-only word."""
+    lem = _all_lemmas(pw)
+    nouns = lem.get("NOUN", ())
+    if not (pw.endswith("s") and nouns and nouns[0] != pw):
+        return False
+    if not (lem.get("VERB") and _is_vbz(pw)):
+        return True
+    before_lem = _all_lemmas(before)
+    return before in _PLURAL_LICENSERS or before in _PARTICLES or before.endswith("ing") or _is_vbz(before) or bool(before_lem.get("NOUN") and not before_lem.get("VERB"))
+
+
+def _object_np(words: list[str], pos: int) -> bool:
+    """Is the noun at `pos` inside an object noun phrase ('with the visitor', 'tells his friend Luke')? Looks back over
+    determiners / adjectives for an object cue; a verb or a clause boundary first means it is not."""
+    for j in range(pos - 1, max(-1, pos - 4), -1):
+        w = words[j]
+        if w in _OBJECT_CUES:
+            return True
+        if w in _COORD or w in _SUBORD or w in {"you", "he", "she", "it", "they"} or _is_vbz(w) or w.endswith("ing"):
+            return False
+    return False
+
+
+def _person_pass(text: str, actor: str, gender: Optional[str], other_names: set[str], name_gender: dict[str, str], flags: list[str], pre: str, imperative: bool = False) -> str:
+    """Actor name and the actor's third-person pronouns -> second person. `subj` tracks who is the subject of the
+    current clause when that is certain (the actor, as a name or converted pronoun; always in an imperative action):
+    an object 'him' / 'her' in such a clause cannot be the actor ('you swipe at him'), so it is kept and the row
+    remembers another same-gender person was mentioned."""
+    text, appos = _actor_appositive(text, actor)
+    if appos:
+        flags.append(f"{pre}actor_appositive")
     toks = _TOK.findall(text)
     widx = [i for i, t in enumerate(toks) if re.match(r"^[A-Za-z']+$", t)]
+    protected = {i for i in widx if toks[i - 1].endswith(_APPOS_MARK)} if appos else set()
+    words = [toks[i].lower() for i in widx]
+    other_lower = {n.lower() for n in other_names}
     last = "actor"
+    subj: Optional[str] = "actor" if imperative else None
     for pos, i in enumerate(widx):
         t = toks[i]
         lw = t.lower()
+        if i in protected:
+            last = "m" if lw == "his" else "f" if lw == "her" else last
+            continue
         nxt = toks[widx[pos + 1]] if pos + 1 < len(widx) else ""
-        adjacent = pos + 1 < len(widx) and "".join(toks[i + 1 : widx[pos + 1]]).strip() == ""
+        sep_next = "".join(toks[i + 1 : widx[pos + 1]]) if pos + 1 < len(widx) else ""
+        adjacent = pos + 1 < len(widx) and sep_next.strip() == ""
+        hyphen_compound = pos + 2 < len(widx) and "".join(toks[widx[pos + 1] + 1 : widx[pos + 2]]) == "-"
+        nxt2_adjacent = pos + 2 < len(widx) and "".join(toks[widx[pos + 1] + 1 : widx[pos + 2]]).strip() == ""
+        nxt2 = toks[widx[pos + 2]].lower() if pos + 2 < len(widx) else ""
+        prev = words[pos - 1] if pos > 0 else ""
+        pprev_w = words[pos - 2] if pos > 1 else ""
         prev_nonspace = next((toks[j].strip() for j in range(i - 1, -1, -1) if toks[j].strip()), "")
         sent_start = i == 0 or prev_nonspace == "" or prev_nonspace.endswith((".", "!", "?"))
+        if sent_start and pos > 0:
+            subj = None
+        if lw in _SUBORD:
+            subj = None
+            continue
+        if lw in _COORD:
+            if not (pos + 1 < len(widx) and _verb_like(nxt)):
+                subj = None
+            continue
         if t == actor or t == actor + "'s":
             if t.endswith("'s"):
-                if adjacent and (nxt.lower().endswith("ing") or nxt.lower() in {"a", "an", "the", "not", "very", "so", "too", "going", "about", "at", "in", "on", "always", "never", "really"}):
+                n = nxt.lower()
+                # "<Actor>'s eating a snack" = is (progressive); "<Actor>'s spending habits" = possessive + compound
+                progressive = _is_gerund(n) and (not nxt2 or not nxt2_adjacent or nxt2 in _DETS or nxt2 in _PREPS or nxt2 in _PERSON_WORDS or nxt2 in _COORD or nxt2 in _SUBORD or nxt2 in _PARTICLES or _is_adv(nxt2) or nxt2 == "not")
+                if adjacent and (progressive or n in {"a", "an", "the", "not", "very", "so", "too", "about", "at", "in", "on", "always", "never", "really"}):
                     toks[i] = ("You" if sent_start else "you") + " are"
                     flags.append(f"{pre}contraction_is")
+                    subj = "actor"
                 else:
                     toks[i] = "Your" if sent_start else "your"
             else:
                 toks[i] = "You" if sent_start else "you"
+                if prev not in _OBJECT_CUES:
+                    subj = "actor"
             last = "actor"
             continue
+        if lw == "to" and pos + 1 < len(widx) and (is_base_verb(nxt) or (nxt.lower() == "not")):
+            # infinitive: 'decide to V' keeps the actor as subject; 'ask your friend at work to V' / 'tell him to V'
+            # (a person between the last verb and 'to') makes that person the subject
+            for q in range(pos - 1, max(-1, pos - 7), -1):
+                pw = words[q][:-2] if words[q].endswith("'s") else words[q]
+                if pw in _PERSON_WORDS or pw in _MALE_N or pw in _FEMALE_N or pw in _NEUTRAL_SG or pw in _PLURAL or pw in other_lower or (toks[widx[q]][:1].isupper() and toks[widx[q]][1:].islower()):
+                    subj = None
+                    break
+                det_at = next((d for d in (q - 1, q - 2) if d >= 0 and (words[d] in _DETS or words[d].endswith("'s"))), None)
+                if _noun_before_to(pw, words[q - 1] if q > 0 else "") or det_at is not None:
+                    head = det_at if det_at is not None else q
+                    before = words[head - 1] if head > 0 else ""
+                    if before == "for" or before not in _PREPS:  # a direct object: 'a cab to pick him up', 'videos on YouTube to help her', 'for an ambulance to come'
+                        subj = None
+                        break
+                    continue  # a PP: 'go to the store to buy him a gift', the actor still acts
+                if pw == "you" or pw in _COORD or pw in _SUBORD or _is_vbz(pw):
+                    break
+            continue
+        if _is_gerund(t):
+            if prev in _GERUND_SUBJ_PREPS or (prev == "not" and pprev_w in _GERUND_SUBJ_PREPS) or lw == "being":  # 'thank the host for having him', 'accuse her of not being faithful to him', 'the options being read to her'
+                subj = None
+            elif prev and pos > 0 and "".join(toks[widx[pos - 1] + 1 : i]).strip() == "" and prev not in _PREPS and prev not in _DETS and prev not in _COORD and prev not in _SUBORD and prev != "you" and prev not in _ADV and not prev.endswith("ly") and prev not in _AUX and not _is_vbz(prev) and not _is_gerund(prev) and (not _all_lemmas(prev).get("VERB") or pprev_w in _DETS or (pos > 2 and words[pos - 3] in _DETS)) and nxt.lower() in _REL_OBJ_NEXT:
+                subj = None  # 'a phone call asking him to donate': reduced relative on a thing, the call asks
+            elif pos > 0 and not "".join(toks[widx[pos - 1] + 1 : i]).strip(",;:") == "".join(toks[widx[pos - 1] + 1 : i]):
+                pass  # ', guiding him': participial clause of the matrix subject
+            elif prev and (prev in _PLURAL or prev in _MALE_N or prev in _FEMALE_N or prev in _NEUTRAL_SG or prev in _PERSON_WORDS or prev in other_lower or (toks[widx[pos - 1]][:1].isupper() and toks[widx[pos - 1]][1:].islower())) and "".join(toks[widx[pos - 1] + 1 : i]).strip() == "":
+                subj = None  # 'your friends inviting him' / 'Sharon choosing her parents': reduced relative, they act
+            continue
+        if lw in _SUBJ_RESET and (lw in _AUX or (pos + 1 < len(widx) and (nxt.lower() in _AUX or _is_vbz(nxt) or bool(_all_lemmas(nxt).get("VERB"))))):
+            subj = None
+            continue
+        nounish = lw not in _ADV and not lw.endswith("ly") and lw not in _COORD and lw not in _SUBORD and lw not in _DETS and lw not in _PREPS and lw not in _AUX and lw not in _MALE and lw not in _FEMALE and not _is_vbz(lw) and not _is_gerund(lw)
+        if nounish and adjacent and nxt.lower() in _AUX and lw != "you":
+            subj = None  # 'the company won't track him': a new subject
+            continue
+        prev_noun = prev and prev not in _AUX and prev not in _COORD and prev not in _ADV and prev not in _DETS and prev not in _PREPS and prev not in _SUBORD and prev not in _MALE and prev not in _FEMALE and prev != "you" and prev != actor.lower() and not _is_vbz(prev) and not _is_gerund(prev) and (not _all_lemmas(prev).get("VERB") or (_all_lemmas(prev).get("NOUN") and pprev_w in _DETS))
+        if lw not in _AUX and lw not in _DETS and lw not in _PREPS and lw not in _COORD and lw not in _SUBORD and not _is_vbz(lw) and not _is_gerund(lw) and prev_noun and _all_lemmas(lw).get("VERB") and _all_lemmas(lw)["VERB"][0] != lw and not _all_lemmas(lw).get("NOUN") and "".join(toks[widx[pos - 1] + 1 : i]).strip() == "":
+            subj = None  # 'the ticket written to him' / 'the woman left him': a verb form after a noun, i.e. another subject
+            continue
+        if nounish and adjacent and (prev in _DETS or pprev_w in _DETS) and is_base_verb(nxt) and not nxt.lower().endswith("ing") and not _is_vbz(nxt) and (nxt.lower() in _BARE_INF or not _all_lemmas(nxt).get("NOUN")):
+            subj = None  # 'demand the tax firm pay him': a bare-infinitive complement with its own subject
+            continue
+        if (lw[:-2] if lw.endswith("'s") else lw) in _PLURAL and adjacent and (nxt.lower() in _AUX or nxt.lower() == "to" or (is_base_verb(nxt) and not nxt.lower().endswith("ing") and not _is_vbz(nxt))):
+            subj = None  # 'your friends do all your chores and lose every game to him'
+            continue
         base = lw[:-2] if lw.endswith("'s") else lw
-        if t in other_names or t.replace("'s", "") in other_names:
-            last = name_gender.get(t.replace("'s", ""), "n")
-            continue
-        if base in _MALE_N:
-            last = "m"
-            continue
-        if base in _FEMALE_N:
-            last = "f"
-            continue
-        if base in _NEUTRAL_SG:
-            last = "n"
+        name = t.replace("'s", "")
+        if name in other_names or (t[:1].islower() and base in other_lower) or base in _MALE_N or base in _FEMALE_N or base in _NEUTRAL_SG:
+            if name in other_names or base in other_lower:
+                last = name_gender.get(_cap(name), "n")
+            else:
+                last = "m" if base in _MALE_N else "f" if base in _FEMALE_N else "n"
+            n = nxt.lower()
+            # a new subject ('Angela is speaking to him'), a causative / object-control complement ('make the bully
+            # stop bothering him', 'ask your friend to V') or an unknown role: the actor is no longer the certain subject
+            infinitive = n == "to" and bool(nxt2) and nxt2 not in _DETS and nxt2 not in _PREPS and bool(is_base_verb(nxt2)) and not _is_vbz(nxt2)
+            if not _object_np(words, pos) or (adjacent and (n in _AUX or _is_vbz(nxt) or infinitive or (is_base_verb(nxt) and not n.endswith("ing") and not _is_vbz(nxt) and n not in _PREPS))):
+                subj = None
             continue
         if base in _PLURAL:
             continue
         if lw in _MALE or lw in _FEMALE:
             pg = "m" if lw in _MALE else "f"
             if pg != gender:
+                n = nxt.lower()
+                if lw in {"he", "she", "he's", "she's", "he'd", "she'd", "he'll", "she'll"}:
+                    subj = None
+                elif lw in {"him", "her"} and adjacent and (n == "to" or (is_base_verb(nxt) and not n.endswith("ing") and not _is_vbz(nxt) and n not in _PREPS)):
+                    subj = None  # 'make her listen to him' / 'ask her to call him': she is the next subject
+                continue
+            cap = t[0].isupper()
+            n = nxt.lower()
+            if lw == "his":
+                standalone = (not adjacent) or (n in _HIS_STANDALONE_NEXT and not hyphen_compound)
+                determiner = not standalone
+            elif lw == "her":
+                if not adjacent:
+                    determiner = False
+                elif hyphen_compound:
+                    determiner = True
+                elif prev in _CAUSATIVES and is_base_verb(nxt) and not n.endswith("ing") and not n.endswith("s") and (n in _BARE_INF or not _all_lemmas(n).get("NOUN")):
+                    determiner = False  # 'help her lift it'
+                elif n in _POSS_ORDINAL:
+                    determiner = bool(nxt2) and nxt2_adjacent and nxt2 not in _POSS_BLOCK and nxt2 not in _COORD
+                else:
+                    determiner = n not in _POSS_BLOCK
+            else:
+                determiner = False
+            pprev = words[pos - 2] if pos > 1 else ""
+            direct_object = (bool(_all_lemmas(prev).get("VERB")) or bool(is_base_verb(prev))) and prev not in _NEUTRAL_SG and prev not in _PERSON_WORDS and prev not in _PREPS and prev not in _LOC_PREPS and prev != "to"
+            prep_object = prev in _OBJ_PREP_OK and pprev not in _LOC_PREPS and not (prev == "for" and n == "to")
+            coordinated = n == "and" and bool(nxt2) and (toks[widx[pos + 2]][:1].isupper() or nxt2 in _DETS or nxt2 in _PERSON_WORDS)  # 'for her and Debbie'
+            if (lw == "him" or (lw == "her" and not determiner)) and subj == "actor" and (direct_object or prep_object) and not coordinated:
+                flags.append(f"{pre}object_pronoun_kept")  # 'you congratulate him' / 'you swipe at him': somebody else
+                last = pg
+                if adjacent and (n == "to" or (is_base_verb(nxt) and not n.endswith("ing") and not _is_vbz(nxt))):
+                    subj = None  # 'tell him to V' / 'let him V': he is the next subject
                 continue
             if last == pg:
                 flags.append("pronoun_same_gender_other")
@@ -799,15 +1029,18 @@ def _person_pass(text: str, actor: str, gender: Optional[str], other_names: set[
             if last == "n":
                 flags.append("pronoun_ambiguous")
                 continue
-            cap = t[0].isupper()
             if lw in {"he", "she"}:
                 rep = "you"
+                subj = "actor"
             elif lw in {"he's", "she's"}:
-                rep = "you've" if (adjacent and (nxt.lower().endswith("ed") or nxt.lower() in {"been", "got", "gotten", "done", "had"})) else "you're"
+                rep = "you've" if (adjacent and n in {"been", "got", "gotten", "had"}) else "you're"
+                subj = "actor"
             elif lw in {"he'd", "she'd"}:
                 rep = "you'd"
+                subj = "actor"
             elif lw in {"he'll", "she'll"}:
                 rep = "you'll"
+                subj = "actor"
             elif lw in {"himself", "herself"}:
                 rep = "yourself"
             elif lw == "hers":
@@ -815,16 +1048,52 @@ def _person_pass(text: str, actor: str, gender: Optional[str], other_names: set[
             elif lw == "him":
                 rep = "you"
             elif lw == "his":
-                rep = "your" if (adjacent and nxt.lower() not in _POSS_BLOCK) else "yours"
+                rep = "your" if determiner else "yours"
             else:  # her
-                rep = "your" if (adjacent and nxt.lower() not in _POSS_BLOCK) else "you"
+                rep = "your" if determiner else "you"
             toks[i] = _cap(rep) if cap else rep
             last = "actor"
-    return "".join(toks)
+    return "".join(toks).replace(_APPOS_MARK, "")
+
+
+# after a coordinated noun / verb homograph ('walks', 'starts'), these do not start a complement
+_VBZ_NEXT_STOP = {"to", "for", "with", "from", "on", "at", "of", "as", "by", "in", "into", "onto", "upon", "about", "than", "like", "after", "before", "until", "since", "while", "because", "if", "when", "where", "whether", "although", "though", "unless", "once", "and", "or", "but", "so", "then", "too", "also", "instead", "again", "here", "there", "now", "soon", "later", "today", "tomorrow", "yesterday", "yet", "still", "just", "only", "even", "alone", "anyway", "that", "which", "who"}
+
+
+def _coord_vbz_ok(toks: list[str], widx: list[int], words: list[str], nk: int, k: int) -> bool:
+    """Is the word after the coordinator at `k` a third-person-singular verb of the actor rather than a plural noun?
+    'and moves it' / 'and starts a fight' yes (a complement follows); 'flowers and wreaths and' no (a preposition,
+    conjunction or the end follows AND a plural noun precedes the coordinator, i.e. nominal coordination)."""
+    w = words[nk]
+    if w in _NEG_MAP:
+        return True
+    if w in _PLURAL or w in _IRREGULAR_PLURAL or w in _ANIMATE_PL or not _is_vbz(toks[widx[nk]]):
+        return False
+    lem = _all_lemmas(w)
+    noun = lem.get("NOUN")
+    if noun == (w,) or (noun and noun[0] in _ANIMAL_N):
+        return False
+    if not noun:
+        return True
+    if nk + 1 < len(widx) and not "".join(toks[widx[nk] + 1 : widx[nk + 1]]).strip():
+        n = words[nk + 1]
+        if n in _PARTICLES or n == "not":
+            return True
+        if n not in _VBZ_NEXT_STOP and not _is_adv(toks[widx[nk + 1]]):
+            return True
+    pk = k - 1
+    while pk > 0 and _is_adv(toks[widx[pk]]):
+        pk -= 1
+    if pk < 0:
+        return False
+    return _plural_noun(words[pk], words[pk - 1] if pk > 0 else "") is None
 
 
 def _verb_pass(text: str, flags: list[str], pre: str, imperative: bool = False) -> str:
-    """Third-person-singular verbs whose subject became 'you' -> base form, including coordinated predicates."""
+    """Third-person-singular verbs whose subject became 'you' -> base form, including coordinated predicates. In an
+    imperative action the actor stays the subject across nominal coordination ('the woman and breaks up' -> 'break
+    up') and a coordinated verb after a subordinate clause is the actor's when a comma precedes it or the embedded
+    verb does not agree with it ('toys that were ... and burns them' -> 'burn')."""
     try:
         from lemminflect import getAllLemmas
     except Exception:  # without lemminflect we leave verbs alone and flag the row
@@ -837,53 +1106,89 @@ def _verb_pass(text: str, flags: list[str], pre: str, imperative: bool = False) 
         words = [toks[i].lower() for i in widx]
         expect_verb = imperative
         you_clause = imperative
+        in_sub = False  # inside a subordinate clause of an imperative action
+        sub_vbz: Optional[bool] = None  # whether that clause's first verb is 3sg present
+        pending_main = -1  # index of 'who' in 'You, who live ..., <main verb>' while the main verb is still to be checked
         k = 0
         while k < len(widx):
             w = words[k]
             i = widx[k]
             prev = words[k - 1] if k > 0 else ""
-            if w == "you" and prev not in _OBJECT_CUES:
-                you_clause = True
+            if pending_main >= 0 and k > pending_main + 1 and "," in "".join(toks[widx[k - 1] + 1 : i]):
+                pending_main = -1
                 expect_verb = True
+            if w == "you":
                 sep = "".join(toks[i + 1 : widx[k + 1]]) if k + 1 < len(widx) else ""
-                if sep.strip().startswith(","):
-                    j = k + 1
+                j = k + 1
+                if sep.strip().startswith(",") and j < len(widx) and words[j] != "who" and words[j] not in _SUBORD and words[j] not in _COORD and words[j] != "you":  # skip ', Jeff's friend,'
                     while j < len(widx) and not "".join(toks[widx[j] + 1 : widx[j + 1]] if j + 1 < len(widx) else "").strip().startswith(","):
                         j += 1
-                    k = j + 1
+                    j += 1
+                    if j - k > 6:  # not a short appositive
+                        j = k + 1
+                v = k + 1
+                while v < len(widx) and _is_adv(toks[widx[v]]):
+                    v += 1
+                sep_before_you = "".join(toks[widx[k - 1] + 1 : i]) if k > 0 else ""
+                subject = prev not in _OBJECT_CUES or (v < len(widx) and _is_vbz(toks[widx[v]]) and words[v] not in _PLURAL)
+                if imperative and k > 0 and not (prev in _SUBORD or prev in _COORD or "," in sep_before_you or (v < len(widx) and _is_vbz(toks[widx[v]]) and words[v] not in _PLURAL)):
+                    subject = False  # 'Text you and insults him': the object of the imperative
+                if j < len(widx) and words[j] == "who":  # 'you, who lives ...' / 'at you, Jeff's friend, who has ...'
                     expect_verb = True
+                    pending_main = j if (subject and j == k + 1 and sep.strip().startswith(",")) else -1
+                    k = j
+                    continue
+                if subject:
+                    you_clause = True
+                    in_sub = False
+                    expect_verb = True
+                    k = j
                     continue
                 k += 1
                 continue
             if expect_verb:
-                if _is_adv(toks[i]) or w in {"not", "also"}:
+                if _is_adv(toks[i]) or w in {"not", "also", "who"}:
                     k += 1
                     continue
-                if _is_vbz(toks[i]) and not (k + 1 < len(widx) and words[k + 1] == "you" and w not in _NEG_MAP and k == 0):
+                if (_is_vbz(toks[i]) or _is_extra_vbz(toks[i])) and not (k + 1 < len(widx) and words[k + 1] == "you" and w not in _NEG_MAP and k == 0):
                     toks[i] = _vbz_to_base(toks[i])
                     flags.append(f"{pre}verb_agreement")
+                if k + 1 < len(widx) and words[k + 1] in _NEG_AUX:  # 'you are doesn't know' (source typo) -> 'don't'
+                    toks[widx[k + 1]] = _vbz_to_base(toks[widx[k + 1]])
+                    flags.append(f"{pre}verb_agreement")
+                    k += 1
                 expect_verb = False
                 k += 1
                 continue
             if w in _SUBORD and you_clause and not expect_verb:
                 you_clause = False
+                if imperative:
+                    in_sub, sub_vbz = True, None
+                k += 1
+                continue
+            if in_sub and sub_vbz is None and (w in _NEG_MAP or w in {"are", "were", "have", "do", "did", "didn't", "aren't", "weren't", "haven't", "don't"} or _is_vbz(toks[i]) or (getAllLemmas(w).get("VERB") and w.endswith("ed"))):
+                sub_vbz = _is_vbz(toks[i]) and w not in {"are", "were", "have", "do"}
             sep_before = "".join(toks[widx[k - 1] + 1 : i]) if k > 0 else ""
             if "," in sep_before and you_clause and not expect_verb and _is_vbz(toks[i]) and w not in _PLURAL and getAllLemmas(w).get("VERB"):
                 toks[i] = _vbz_to_base(toks[i])
                 flags.append(f"{pre}verb_agreement_coord")
                 k += 1
                 continue
-            if w in _COORD and you_clause:
+            if w in _COORD and (you_clause or (imperative and in_sub)):
                 nk = k + 1
                 while nk < len(widx) and _is_adv(toks[widx[nk]]):
                     nk += 1
-                if nk < len(widx) and _is_vbz(toks[widx[nk]]) and words[nk] not in _PLURAL and not getAllLemmas(words[nk]).get("NOUN") == (words[nk],):
-                    toks[widx[nk]] = _vbz_to_base(toks[widx[nk]])
-                    flags.append(f"{pre}verb_agreement_coord")
-                    k = nk + 1
-                    continue
-                if nk < len(widx) and words[nk] != "you":
-                    you_clause = False
+                if nk < len(widx) and _coord_vbz_ok(toks, widx, words, nk, k):
+                    if you_clause or "," in sep_before or sub_vbz is False:
+                        toks[widx[nk]] = _vbz_to_base(toks[widx[nk]])
+                        flags.append(f"{pre}verb_agreement_coord")
+                        you_clause, in_sub = True, False
+                        k = nk + 1
+                        continue
+                if nk < len(widx) and words[nk] != "you" and you_clause:
+                    name_subject = toks[widx[nk]][:1].isupper() and toks[widx[nk]][1:].islower() and nk + 1 < len(widx) and (_is_vbz(toks[widx[nk + 1]]) or words[nk + 1] in _NEG_MAP or words[nk + 1] in {"will", "would", "can", "could", "should", "might", "may", "must", "did", "do", "does", "are", "were", "have", "had"})
+                    if words[nk] in _SUBJ_PRON or name_subject:  # a new explicit subject ('and Anne takes it'), not 'Take John and Jake aside'
+                        you_clause = False
             k += 1
         out_sents.append("".join(toks))
     return " ".join(out_sents)
@@ -903,51 +1208,100 @@ def _ms_clean_field(text: str) -> str:
 
 
 _PLURAL_PRON = re.compile(r"\b(they|them|their|theirs|themselves|they're|they've|they'll|they'd|the two|both of them|the couple|the pair)\b", re.IGNORECASE)
+_ANIMATE_PRON = {"they", "their", "theirs", "they're", "they've", "they'll", "they'd"}
 _CONJOINED_YOU = re.compile(r"\b([Yy]ou and (?:your )?[A-Za-z]+|[A-Z][a-z]+ and [Yy]ou|[Yy]our [a-z]+ and [Yy]ou|[Yy]ou both|[Bb]oth of you|[Yy]ou two|[Tt]he two of you)\b")
-_IRREGULAR_PLURAL = {"women", "men", "children", "people", "kids", "teeth", "feet", "police", "staff", "family", "couple", "pair", "team", "class", "crew", "group", "crowd", "everyone", "everybody", "someone", "somebody", "anyone", "anybody", "nobody", "person", "whoever", "who", "each", "neither", "either", "folks", "cattle", "sheep", "fish", "deer", "mice", "geese", "others", "both", "several", "many", "few", "all", "parents", "siblings", "twins", "grandparents"}
+_IRREGULAR_PLURAL = {"women", "men", "children", "people", "kids", "teeth", "feet", "police", "staff", "family", "couple", "pair", "team", "class", "crew", "group", "crowd", "everyone", "everybody", "someone", "somebody", "anyone", "anybody", "nobody", "person", "whoever", "each", "neither", "either", "folks", "cattle", "sheep", "fish", "deer", "mice", "geese", "others", "both", "several", "many", "few", "all", "parents", "siblings", "twins", "grandparents"}
 _NOT_PLURAL_S = {"is", "was", "has", "his", "hers", "yours", "this", "thus", "us", "bus", "always", "perhaps", "besides", "yes", "its", "as", "does", "goes", "says", "class", "boss", "dress", "mess", "less", "unless", "across", "news", "glass", "grass", "kiss", "miss", "pass", "stress", "success", "business", "christmas", "thomas", "james", "lucas", "chris", "nicholas", "marcus", "charles", "miles", "jesus", "texas", "paris", "tennis", "chess", "gas", "bonus", "focus", "campus", "status", "virus", "plus", "minus", "famous", "serious", "various", "previous", "obvious", "nervous", "jealous", "anxious", "curious", "generous", "delicious", "religious", "dangerous", "enormous", "numerous", "furious", "precious", "cautious", "ambitious", "mysterious", "suspicious", "tedious", "hilarious", "ridiculous", "tremendous", "continuous", "conscious", "gorgeous", "courteous"}
+# a plural noun that is also a 3sg verb ('needs', 'walls') counts as a noun only after a determiner-like word
+_PLURAL_LICENSERS = {"the", "these", "those", "some", "many", "several", "few", "all", "both", "other", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "your", "his", "her", "their", "our", "my", "its", "of", "with", "for", "to", "from", "at", "on", "in", "by", "about", "among", "between", "and", "or", "no", "any", "more", "most", "various", "different", "new", "old", "young", "little", "big", "small", "good", "bad", "fellow", "close", "best", "older", "younger", "own", "are", "were", "have"}
+_ANIMATE_SUFFIX = re.compile(r"(ers|ors|ists|ians|ees|ants|ents|mates|men)$")
 
 
-def _has_plural_antecedent(text: str) -> bool:
-    for w in re.findall(r"[A-Za-z]+", text):
-        lw = w.lower()
-        if lw in _PLURAL or lw in _IRREGULAR_PLURAL:
+def _plural_noun(tok: str, prev: str) -> Optional[str]:
+    """The singular lemma when `tok` reads as a plural noun in context, else None."""
+    lw = tok.lower()
+    if lw in _PLURAL or lw in _IRREGULAR_PLURAL or lw in _ANIMATE_PL or lw in _GROUP_N:
+        return lw
+    if not (lw.endswith("s") and len(lw) > 3 and not lw.endswith("ss") and lw not in _NOT_PLURAL_S and not lw.endswith("ous") and not lw.endswith("ness")):
+        return None
+    lem = _all_lemmas(lw)
+    if not lem:
+        return lw  # unknown word ending in s: treat as a plural noun
+    nouns = [n for n in lem.get("NOUN", ()) if n != lw]
+    if not nouns:
+        return None
+    if lem.get("VERB") and _is_vbz(lw) and prev not in _PLURAL_LICENSERS:
+        return None  # 'your son needs to', 'he hates': a verb
+    return nouns[0]
+
+
+def _animate_plural(tok: str, singular: str) -> bool:
+    lw = tok.lower()
+    if lw in _PLURAL or lw in _IRREGULAR_PLURAL or lw in _ANIMATE_PL or lw in _GROUP_N:
+        return True
+    if singular in _NEUTRAL_SG or singular in _MALE_N or singular in _FEMALE_N or singular in _ANIMAL_N or singular in _GROUP_N:
+        return True
+    if _ANIMATE_SUFFIX.search(lw):
+        return True
+    return tok[:1].isupper() and lw not in _all_lemmas(lw).get("NOUN", ())  # 'the Johnsons'
+
+
+_GENDERED = re.compile(r"\b(he|she|him|her|his|hers|himself|herself|he's|she's)\b", re.IGNORECASE)
+
+
+def _has_plural_antecedent(text: str, animate: bool = False, subject_they: bool = False) -> bool:
+    """A plural noun before a plural pronoun; with `animate`, one that can be referred to by 'they' / 'their'
+    (people, animals, groups), so that 'things ... their relationship' does not count. A gender-neutral singular
+    ('your roommate ... their bedroom') licenses singular they only when no he / she is in play."""
+    toks = re.findall(r"[A-Za-z]+", text.replace("in-laws", "inlaws").replace("co-workers", "coworkers"))
+    names = [w for w in toks[1:] if w[:1].isupper() and w not in {"You", "Your", "I"}]
+    neutral_ok = animate and not subject_they and not _GENDERED.search(text) and not names
+    for j, w in enumerate(toks):
+        if neutral_ok and w.lower() in _NEUTRAL_SG:
             return True
-        if lw.endswith("s") and len(lw) > 3 and not lw.endswith("ss") and lw not in _NOT_PLURAL_S and not lw.endswith("ous") and not lw.endswith("ness"):
-            try:
-                from lemminflect import getAllLemmas
-
-                noun = getAllLemmas(lw).get("NOUN")
-                if noun and noun[0] != lw:
-                    return True
-                if not getAllLemmas(lw):  # unknown word ending in s: treat as a plural noun
-                    return True
-            except Exception:
-                return True
+        sg = _plural_noun(w, toks[j - 1].lower() if j else "")
+        if sg is None:
+            continue
+        if not animate or _animate_plural(w, sg):
+            return True
     return False
 
 
 def plural_refers_to_actor(situation: str, actions: Iterable[str]) -> bool:
     """Heuristic for 'they / their / them / the two' standing for the actor plus someone after conversion:
     a plural pronoun after a 'you and <Name>' construction (situation), or a plural pronoun in an action or in
-    the situation with no plural noun (or singular-they antecedent) before it."""
+    the situation with no plural noun before it ('they' / 'their' need a people / animal / group antecedent, 'them'
+    any plural noun or singular-they antecedent)."""
     conj = _CONJOINED_YOU.search(situation)
     for m in _PLURAL_PRON.finditer(situation):
-        if m.group(1).lower() in ("the two", "both of them", "the couple", "the pair"):
+        p = m.group(1).lower()
+        if p in ("the two", "both of them", "the couple", "the pair"):
             return True
         if conj and m.start() > conj.start():
             return True
-        if not _has_plural_antecedent(situation[: m.start()]):
+        if not _has_plural_antecedent(situation[: m.start()], animate=p in _ANIMATE_PRON, subject_they=p.startswith("they")):
             return True
     for a in actions:
         for m in _PLURAL_PRON.finditer(a):
-            if m.group(1).lower() in ("the two", "both of them", "the couple", "the pair"):
+            p = m.group(1).lower()
+            if p in ("the two", "both of them", "the couple", "the pair"):
                 return True
             if conj or _CONJOINED_YOU.search(a[: m.start()]):
                 return True
-            if not _has_plural_antecedent(situation + " " + a[: m.start()]):
+            if not _has_plural_antecedent(situation + " " + a[: m.start()], animate=p in _ANIMATE_PRON, subject_they=p.startswith("they")):
                 return True
     return False
+
+
+_BRACKETS = re.compile(r"\[[^\]]*\]|\([^)]*\)")
+_ACTION_NOISE = {"xor": "or"}  # source typos that make a pair differ only in noise
+
+
+def action_core(a: str) -> str:
+    """Lower-cased action text without bracketed insertions and punctuation, for the x == y check."""
+    t = _BRACKETS.sub(" ", a).lower()
+    t = re.sub(r"[^a-z0-9' ]", " ", t)
+    return " ".join(_ACTION_NOISE.get(w, w) for w in t.split())
 
 
 def _ms_action_to_imperative(a: str, actor: str, gender: Optional[str], other_names: set[str], name_gender: dict[str, str], flags: list[str], pre: str) -> Optional[str]:
@@ -961,7 +1315,21 @@ def _ms_action_to_imperative(a: str, actor: str, gender: Optional[str], other_na
     while k < len(words) - 1 and _is_adv(words[k]):
         k += 1
     lw = words[k].lower()
-    if lw in {"is", "was"}:
+    nxt = words[k + 1].lower() if k + 1 < len(words) else ""
+    nxt2 = words[k + 2].lower() if k + 2 < len(words) else ""
+    going_to = nxt == "going" and nxt2 == "to" and k + 3 < len(words) and bool(is_base_verb(words[k + 3])) and not _is_gerund(words[k + 3])
+    if lw in {"is", "was", "isn't", "wasn't"} and _is_gerund(nxt) and (going_to or nxt == "going" or ("ADJ" not in _all_lemmas(nxt) and nxt2 != "of")):
+        # progressive head: 'is having a picnic' -> 'Have a picnic'; 'is going to tell her' -> 'Tell her'
+        neg = lw in {"isn't", "wasn't"}
+        if nxt == "going" and k + 3 < len(words) and words[k + 2].lower() == "to" and is_base_verb(words[k + 3]) and not _is_gerund(words[k + 3]):
+            del words[k : k + 3]
+        else:
+            del words[k]
+            words[k] = _lemma(nxt) or nxt
+        if neg:
+            words.insert(k, "Do not")
+        flags.append(f"{pre}progressive_head")
+    elif lw in {"is", "was"}:
         words[k] = "Be"
     elif lw in {"isn't", "wasn't"}:
         words[k] = "Do not be"
@@ -984,7 +1352,7 @@ def _ms_action_to_imperative(a: str, actor: str, gender: Optional[str], other_na
             lem = _lemma(lw) or lw
         words[k] = lem
     rest = " ".join(words)
-    rest = _person_pass(rest, actor, gender, other_names, name_gender, flags, pre)
+    rest = _person_pass(rest, actor, gender, other_names, name_gender, flags, pre, imperative=True)
     rest = _verb_pass(rest, flags, pre, imperative=True)
     return _cap(rest) + "."
 
@@ -1026,7 +1394,11 @@ def load_moral_stories(jsonl_path: str | Path) -> list[Family]:
                 flags.append("residual_actor_name")
         if plural_refers_to_actor(situation, (ax, ay)):
             flags.append("plural_refers_to_actor")
-        auto = sorted({x for x in flags if "verb_agreement" in x or "contraction" in x})
+        if action_core(ax) == action_core(ay):
+            flags.append("actions_identical")
+        if any(re.match(r"^\w+(?: \w+)? (?:himself|herself)\b", a) for a in (ax, ay)):
+            flags.append("reflexive_residual")  # 'Introduce himself ...': the actor's gender was mis-inferred
+        auto = sorted({x for x in flags if any(s in x for s in ("verb_agreement", "contraction", "object_pronoun", "progressive_head", "actor_appositive"))})
         review = sorted({x for x in flags if x not in auto})
         fams.append(
             Family(

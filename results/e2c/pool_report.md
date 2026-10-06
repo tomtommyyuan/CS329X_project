@@ -1,6 +1,6 @@
 # E2c contested pool report
 
-existing families checked: 2936 (all splits); pool written: 11028 -> `data/families/contested_pool.jsonl`
+existing families checked: 2936 (all splits); pool written: 9294 -> `data/families/contested_pool.jsonl`
 
 ## Per source
 
@@ -9,7 +9,7 @@ existing families checked: 2936 (all splits); pool written: 11028 -> `data/famil
 | mc_low | 676 | 676 | 0 | 1 | 675 |
 | scruples | 3195 | 585 | 0 | 0 | 585 |
 | aita_berkeley | 539 | 50 | 0 | 0 | 50 |
-| moral_stories | 10989 | 7772 | 0 | 2 | 7770 |
+| moral_stories | 10989 | 6038 | 0 | 2 | 6036 |
 | ethics_justice | 2749 | 1948 | 0 | 0 | 1948 |
 
 ## Waves
@@ -21,8 +21,8 @@ existing families checked: 2936 (all splits); pool written: 11028 -> `data/famil
 | hendrycks_ethics | 2b | 1600 |
 | hendrycks_ethics | reserve | 48 |
 | moral_stories | 1 | 600 |
-| moral_stories | 2a | 2424 |
-| moral_stories | reserve | 4746 |
+| moral_stories | 2a | 1827 |
+| moral_stories | reserve | 3609 |
 | moralchoice | 1 | 675 |
 | scruples | 1 | 585 |
 
@@ -52,9 +52,12 @@ existing families checked: 2936 (all splits); pool written: 11028 -> `data/famil
 | aita_berkeley | quoted_first_person | 71 |
 | aita_berkeley | residual_first_person | 1 |
 | aita_berkeley | residual_first_person_plural | 446 |
+| moral_stories | actions_identical | 1 |
 | moral_stories | gender_unknown | 40 |
-| moral_stories | plural_refers_to_actor | 1050 |
-| moral_stories | pronoun_ambiguous | 2325 |
+| moral_stories | plural_refers_to_actor | 1234 |
+| moral_stories | pronoun_ambiguous | 2324 |
+| moral_stories | pronoun_same_gender_other | 2141 |
+| moral_stories | reflexive_residual | 1 |
 | moral_stories | residual_actor_name | 68 |
 | ethics_justice | action_first_word_not_verb | 35 |
 | ethics_justice | action_stative_verb | 80 |
@@ -90,11 +93,13 @@ existing families checked: 2936 (all splits); pool written: 11028 -> `data/famil
 | hendrycks_ethics | action_first_word_not_verb | 35 |
 | hendrycks_ethics | head_verb_unknown | 7 |
 | hendrycks_ethics | leading_pronoun_dropped | 2 |
-| moral_stories | pronoun_ambiguous | 2325 |
-| moral_stories | pronoun_same_gender_other | 2126 |
-| moral_stories | plural_refers_to_actor | 1050 |
+| moral_stories | pronoun_ambiguous | 2324 |
+| moral_stories | pronoun_same_gender_other | 2141 |
+| moral_stories | plural_refers_to_actor | 1234 |
 | moral_stories | residual_actor_name | 68 |
 | moral_stories | gender_unknown | 40 |
+| moral_stories | actions_identical | 1 |
+| moral_stories | reflexive_residual | 1 |
 | scruples | degerund | 3025 |
 | scruples | meta_sentence_removed | 2580 |
 | scruples | residual_first_person_plural | 2254 |
@@ -127,22 +132,22 @@ vectorizer fitted on: max over the joint space (existing + pool) and the referen
 
 | max cosine bin (vs all existing, re-used rows excluded) | pool rows |
 |---|---|
-| [0.0, 0.3) | 6819 |
-| [0.3, 0.5) | 3419 |
-| [0.5, 0.7) | 117 |
+| [0.0, 0.3) | 5645 |
+| [0.3, 0.5) | 2884 |
+| [0.5, 0.7) | 92 |
 | [0.7, 0.8) | 0 |
 | [0.8, 0.9) | 0 |
 | [0.9, 1.0] | 0 |
 
 ### Leakage audit vs dev / test only
 
-pool rows checked (before within-pool dedup): 11031; max situation cosine vs any dev / test family: 0.593; rows >= 0.7: 0; re-used sanity rows max: 0.593
+pool rows checked (before within-pool dedup): 9297; max situation cosine vs any dev / test family: 0.593; rows >= 0.7: 0; re-used sanity rows max: 0.593
 
 | max cosine bin (vs dev / test) | pool rows |
 |---|---|
-| [0.0, 0.3) | 9860 |
-| [0.3, 0.5) | 1154 |
-| [0.5, 0.7) | 17 |
+| [0.0, 0.3) | 8296 |
+| [0.3, 0.5) | 987 |
+| [0.5, 0.7) | 14 |
 | [0.7, 0.8) | 0 |
 | [0.8, 0.9) | 0 |
 | [0.9, 1.0] | 0 |
@@ -153,7 +158,7 @@ Top-10 pool rows by cosine to dev / test:
 |---|---|
 | mc_C_031 | 0.593 |
 | ms_3Y5140Z9DYENY1MVU8LKSW57HC6PI6 | 0.588 |
-| ms_3QEMNNSB2YXHKK2968QS1DY9SDW7DM | 0.588 |
+| ms_3QEMNNSB2YXHKK2968QS1DY9SDW7DM | 0.583 |
 | ms_3Z9WI9EOZ0MMRFEVBYYRW3ITQ7AHKW | 0.572 |
 | ms_3ZGVPD4G6UF7LJ4CBTIQX19U5FRTZN | 0.569 |
 | ms_386CSBG1O0KS5TS9SKRKVY5CFCSQ6R | 0.568 |
@@ -166,8 +171,8 @@ Action pairs matching a dev / test pair at >= 0.9 (topic overlap, kept unless th
 
 | pool | dev/test | action cosine | situation cosine |
 |---|---|---|---|
-| bk_z4kw98 | dd_1862 | 0.983 | 0.180 |
-| eth_j_5b206f11ba9f | dd_38530 | 0.941 | 0.333 |
+| bk_z4kw98 | dd_1862 | 0.984 | 0.180 |
+| eth_j_5b206f11ba9f | dd_38530 | 0.934 | 0.329 |
 
 Sensitivity of the 0.9 cut (hand probes on a test DD situation, 2026-10-05): dropping articles 0.997 and reordering sentences 0.966 are caught; a synonym swap 0.842, contractions + determiners 0.754 and a first-half truncation 0.739 are not (review band only). The check therefore catches near-verbatim copies; light paraphrases rely on the source-item disjointness (Reddit / Moral Stories / ETHICS vs GPT-4-generated DD and hand-written MC).
 
@@ -177,18 +182,15 @@ situation >= 0.9: 3; AITA post-id / title: 0
 
 | dropped | kept | cosine |
 |---|---|---|
-| mc_C_1177 | mc_C_347 | 0.917 |
-| ms_3MH9DQ757XAMUFOWL6KBHQFQDZOUG2 | ms_3P4RDNWND64RCQJXZVG0V0JVB1WJIB | 0.944 |
+| mc_C_1177 | mc_C_347 | 0.918 |
+| ms_3MH9DQ757XAMUFOWL6KBHQFQDZOUG2 | ms_3P4RDNWND64RCQJXZVG0V0JVB1WJIB | 0.945 |
 | ms_3UWN2HHPUZ3CPUDEJ526S96ZS7ISN6 | ms_3R6BYFZZP8A8XJMWFRPGJCEI4HKXF5 | 0.951 |
 
-## Hand-check samples (seed 20261006, rows judged in `data/annotation/e2c_handcheck_round1` excluded, for the human pass of plan §11 B)
+## Hand-check samples (seed 20261007, rows judged in `data/annotation/e2c_handcheck_round1,data/annotation/e2c_handcheck_round2` excluded, sources `moral_stories`, for the human pass of plan §11 B)
 
 | file | rows |
 |---|---|
-| data/annotation/e2c_handcheck_aita_berkeley.csv | 46 |
-| data/annotation/e2c_handcheck_hendrycks_ethics.csv | 100 |
 | data/annotation/e2c_handcheck_moral_stories.csv | 100 |
-| data/annotation/e2c_handcheck_scruples.csv | 100 |
 
 ## Licenses (meta.license)
 
