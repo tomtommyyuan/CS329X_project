@@ -14,6 +14,9 @@
 | test 评估 + 分析 | 完成 2026-10-05 | `results/e1`（确认性）：E1 PASS，E2 primary FAIL，E2 secondary fail |
 | F / C 改写（Mac 侧） | 完成 2026-10-05 | 三个 teacher 已进仓库 |
 | E3 paired 网格 45 run | 完成 2026-10-05 | train / dev / test readout 齐；E3 冻结于 5e98fe3；`results/e3`：12 inconclusive、1 no effect、0 effect |
+| E2c 示范 assemble + SFT 重建 | 完成 2026-10-06 | 6 × 11880 / 11880、missing 0；30 个 sha256 与 meta 一致；168 passed 1 skipped |
+| E2c S_0 复制 | 完成 2026-10-06 | `runs/qwen3-4b-e2c{,k}/base_B_s0/eval/` 与原件 sha256 相同 |
+| E2c 训练 30 run | 进行中 | array 130578（C）、130579（K）；follower 130585–130614 |
 
 ## 日志
 
@@ -363,3 +366,36 @@ dev 上的 verdict 只是描述，不当结果报：
 以上是 E3 的正式结论，此后不再改任何量。
 - **清理（e3_plan §4 第 7 步）。** 45 个 paired run 的 train / dev / test 都已齐，checkpoint 已删；`runs/qwen3-4b-paired` 现为 248 MB。所有 checkpoint 都已清除，scratch 用量回到 2.1 TB。
 - **剩余。** 本轮 HPC 任务（e1_plan §7、§8，e3_plan §4）已全部完成，没有 BLOCKED。`/hai/scratch/tomyyc/.venv-broken-20261004` 确认不再需要后可以删除。
+
+### 2026-10-06 E2c 步 1–2：示范 assemble、SFT 重建与 sha256 核对、S_0 复制（e2c_plan §8 行 6、§11 行 H–I）
+
+新 session 在交互分配 130319（`hai-interactive`，haic-hgx-5，1 × H100）里做。`git pull --rebase` 到 f43598a；队列里只有这个分配本身，没有前任残留作业。
+
+**17b assemble。** 每个 teacher × 条件都是 11880 / 11880、missing 0。
+
+| 条件 | teacher | phase1 demo | pool screen | 新 demo | 非 answer |
+|---|---|---|---|---|---|
+| C | gpt4o | 2,848 | 2,258 | 6,774 | refusal 4、malformed 4 |
+| C | claude46 | 2,848 | 2,258 | 6,774 | malformed 9、insufficient 1、refusal 1 |
+| C | deepseek_v4 | 2,848 | 2,258 | 6,774 | 0 |
+| K | gpt4o | 2,288 | 2,398 | 7,194 | refusal 2、malformed 2 |
+| K | claude46 | 2,288 | 2,398 | 7,194 | 0 |
+| K | deepseek_v4 | 2,288 | 2,398 | 7,194 | 0 |
+
+**10 重建。** 命令按 §11 行 I，C 写到 `data/sft_e2c`，K 写到 `data/sft_e2ck`。30 个 jsonl 的 sha256 与已提交的 `.meta.json` 逐一相同，行数等于 `n_examples`。meta 里除 `built_at`、`prompts_path`、`demos_path` 外的字段也全部相同。10 重写过本地 meta，已 `git checkout` 回 Mac 侧的原件。
+
+| teacher | C n_examples（族） | K n_examples（族） |
+|---|---|---|
+| gpt4o | 4,964（1,451） | 5,874（1,485） |
+| claude46 | 4,838（1,455） | 5,836（1,485） |
+| deepseek_v4 | 2,497（1,112） | 5,370（1,485） |
+
+- **pytest**（分配内）：168 passed、1 skipped。
+- **S_0。** `runs/qwen3-4b/base_B_s0/eval/` 的 4 个文件已复制到 `runs/qwen3-4b-e2c/base_B_s0/eval/` 与 `runs/qwen3-4b-e2ck/base_B_s0/eval/`，dev / test 的 sha256 与原件相同。
+
+**异常（都已处理，不影响数据与规则）：**
+
+1. **第一次提交的两个 array（130527 / 130528）全部失败。** 本 session 的登录 profile 设了 `HF_HOME=/hai/scratch/tomyyc/hf_home`，那里没有 Qwen3-4B-Base。sbatch 继承了这个值，而 train.sbatch 只在 HF_HOME 未设时才用 `/hai/scratch/$USER/hf`。所有任务都在加载 tokenizer 时失败，没有写出 manifest；空 run 目录已删。处理：`export HF_HOME=/hai/scratch/$USER/hf HF_HUB_OFFLINE=1` 后重交，C 为 array 130578，K 为 130579。以后在这个账户提交前都要先确认 HF_HOME。
+2. **`12 --split train` 在 E2c run 上必须带 `--prompts data/prompts/e2c_{C,K}_prompts.jsonl`。** 默认的 `paths.prompts_train`（train_prompts_v2）里没有 pool family，readout 会在第一行报 `prompt_id 'ms_….T5.o1' is not in the given prompt set`，已用 S_0 冒烟确认。这只是补上输入文件，不改规则。follower 脚本 `/hai/scratch/tomyyc/vcd_diag/e2c_eval_run.sh` 用 `EXTRA_ARGS` 传这个参数，不跑 test。
+
+**下一步：** 30 个训练任务各有一个 follower 作业，依赖 `afterok:<array>_<i>`，跑完训练后接着做 train + dev readout，每个 run 只有一个写者；作业 id 在 `/hai/scratch/tomyyc/vcd_diag/e2c_eval_ids.txt`。之后跑 13（C / K）与 19 的 dev，再核对 E2c-E1 门。
