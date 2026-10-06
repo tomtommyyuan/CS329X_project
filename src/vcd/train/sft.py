@@ -260,11 +260,14 @@ def train_sft(
     epochs: Optional[int] = None,
     learning_rate: Optional[float] = None,
     max_steps: Optional[int] = None,
+    student_short: Optional[str] = None,
     log=print,
 ) -> dict[str, Any]:
     """Train one student on one SFT file and return the manifest (also written to run_dir/train_manifest.json).
 
-    `cfg` is `load_train_config(...)`; `model_name`, `epochs`, `learning_rate`, `max_steps` override it.
+    `cfg` is `load_train_config(...)`; `model_name`, `epochs`, `learning_rate`, `max_steps` override it. `student_short`
+    overrides cfg["student_model_short"] in the run id only (E2c: "qwen3-4b-e2c" / "qwen3-4b-e2ck" so those runs never share
+    a run id with the E1 grid); it changes no hyperparameter.
     `max_steps` caps the number of optimizer steps (smoke runs); the cosine schedule is then computed over
     that cap so the smoke run is a shrunk copy of a real run.
     """
@@ -276,7 +279,7 @@ def train_sft(
     t_cfg = cfg["train"]
     data_path, run_dir = Path(data_path), Path(run_dir)
     model_name = model_name or cfg["student_model"]
-    student_short = cfg["student_model_short"]
+    student_short = student_short or cfg["student_model_short"]
     epochs = int(epochs if epochs is not None else t_cfg["num_epochs"])
     lr = float(learning_rate if learning_rate is not None else t_cfg["learning_rate"])
     max_steps = max_steps if max_steps is not None else cfg.get("max_steps")

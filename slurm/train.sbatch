@@ -8,7 +8,8 @@
 #
 # Grid index i in 0..47: i < 45 -> teacher = TEACHERS[i / 15], version = VERSIONS[(i % 15) / 5], seed = i % 5 + 1;
 #                        i >= 45 -> random R, seed = i - 44.
-# Each run writes runs/${STUDENT_SHORT}/${teacher}_${version}_s${seed}; a directory that already has
+# Each run writes runs/${STUDENT_SHORT}/${teacher}_${version}_s${seed} with run id ${STUDENT_SHORT}.${teacher}_${version}_s${seed}
+# (STUDENT_SHORT is passed to scripts/11 as --student-short; E2c uses qwen3-4b-e2c for C and qwen3-4b-e2ck for K); a directory that already has
 # train_manifest.json is skipped (safe to resubmit the array after preemption / failures).
 #
 # Verified 2026-10-04 (sacctmgr / scontrol): account ingrai with QoS ingrai (<= 32 GPUs per user, no --qos needed);
@@ -78,5 +79,5 @@ if [[ -f "$RUN_DIR/train_manifest.json" ]]; then
 fi
 python -c "import torch; assert torch.cuda.is_available(), 'no CUDA: torch wheel does not match the node driver (see slurm/README.md §0)'; print(torch.cuda.get_device_name(0))"
 
-python scripts/11_train_student.py --data "$DATA" --out "$RUN_DIR" --seed "$SEED" --config "$CONFIG" $EXTRA_ARGS
+python scripts/11_train_student.py --data "$DATA" --out "$RUN_DIR" --seed "$SEED" --config "$CONFIG" --student-short "$STUDENT_SHORT" $EXTRA_ARGS
 echo "[train.sbatch] finished $RUN_DIR"

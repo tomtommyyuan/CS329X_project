@@ -36,6 +36,7 @@ def main() -> None:
     ap.add_argument("--lr", type=float, default=None, help="override train.learning_rate (protocol: 1e-5)")
     ap.add_argument("--max-steps", type=int, default=None, help="cap optimizer steps (smoke runs only)")
     ap.add_argument("--overwrite", action="store_true", help="retrain even if --out already has train_manifest.json")
+    ap.add_argument("--student-short", default=None, help="run-id prefix override (default config student_model_short); E2c runs use qwen3-4b-e2c / qwen3-4b-e2ck")
     args = ap.parse_args()
 
     run_dir = Path(args.out)
@@ -54,6 +55,7 @@ def main() -> None:
         epochs=args.epochs,
         learning_rate=args.lr,
         max_steps=args.max_steps,
+        student_short=args.student_short,
     )
 
 
