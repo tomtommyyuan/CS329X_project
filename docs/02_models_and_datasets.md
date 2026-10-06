@@ -35,12 +35,15 @@ family = 一个情境 + 两个互斥、都有人会选的行动；英文日常�
 | DailyDilemmas (ICLR 2025) | HF `kellycyy/daily_dilemmas`，CC-BY-4.0 | 1,360 | 主池 |
 | MoralChoice (NeurIPS 2023) | HF `ninoscherrer/moralchoice`，CC-BY-4.0 | 680 high-ambiguity + 687 low | high 作主池；low 取约 100 作 sanity |
 | ValueConsistency (Moore 2024) | HF `jlcmoore/ValueConsistency`，MIT | 8,010 行，4 语言 | 英文 U.S. 子集作与 Moore 对照的次级 test 池；aligned teacher 拒答风险高，过 E0 门槛才进训练 |
-| Scruples Dilemmas (AAAI 2021) | `github.com/allenai/scruples`，research-only | 10k | 备用池 |
+| Scruples Anecdotes (AAAI 2021) | HF `tasksource/scruples`（镜像标 apache-2.0；上游 `allenai/scruples` research-only，按 research-only 处理） | 32k 帖，HYPOTHETICAL ≈ 3.2k | E2c 争议池（规则转换，`load_contested_sources.load_scruples`） |
+| Berkeley everyday dilemmas (r/AITA 2022–23) | HF `ucberkeley-dlab/normative_evaluation_llms_everyday_dilemmas`，CC-BY-NC-4.0 | 2,710 候选（WIBTA + 人类 / LLM 争议帖） | E2c 争议池；回溯帖过门才用 |
+| Moral Stories (Emelin 2021) | HF `demelin/moral_stories`，卡片未标许可；上游 GitHub，源自 Social Chemistry 101（CC BY-SA 4.0） | 12k 故事 | E2c 争议池（consensus-by-construction，作低端） |
+| ETHICS justice (Hendrycks 2021) | HF `hendrycks/ethics`，MIT | impartiality 2,749 VP | E2c 争议池（低端校准） |
 | Moral Dilemma Dataset (Russo, EACL 2026)；D2VBench (2026) | 待确认是否公开 | 1,618 / 未知 | 可选 |
 
 不用：OpinionQA / GlobalOpinionQA，政治问卷，拒答高。
 
-需要约 2,050 个 family（见 §5），DailyDilemmas + MoralChoice-high 去重后够用；不够才用 Scruples 或 J 生成（带 provenance flag，不超过 20%）。
+需要约 2,050 个 family（见 §5），DailyDilemmas + MoralChoice-high 去重后够用；不够才用 Scruples 或 J 生成（带 provenance flag，不超过 20%）。E2c 的争议增强训练池（[tasks/e2c_plan.md](../tasks/e2c_plan.md)）用上面四个新来源，写在 `data/families/contested_pool.jsonl`，每行带 `meta.provenance` 与 `meta.license`；dev / test 不动。
 
 ## 4. 自己生成的数据
 

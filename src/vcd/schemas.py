@@ -6,8 +6,8 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
-Source = Literal["daily_dilemmas", "moralchoice", "valueconsistency", "generated"]
-Split = Literal["pilot", "train", "dev", "test", "sanity", "pool", "excluded", "unassigned"]
+Source = Literal["daily_dilemmas", "moralchoice", "valueconsistency", "generated", "scruples", "aita_berkeley", "moral_stories", "hendrycks_ethics"]
+Split = Literal["pilot", "train", "dev", "test", "sanity", "pool", "excluded", "unassigned", "pool_contested", "train_contested", "train_consensus_control"]
 Variant = Literal["T0", "T1", "T2", "T3", "T4", "T5", "T6", "VC"]
 Category = Literal["answer", "refusal", "insufficient", "malformed"]
 
