@@ -1,0 +1,16 @@
+run_id,teacher,version,seed,n_rows,answer_rate,n_targets,n_scored,n_missing,n_no_letter,n_match,accuracy,passed,sft_source
+qwen3-4b-e2ck.claude46_O_s1,claude46,O,1,5836,1.0,5836,5836,0,0,5815,0.996401644962303,True,data/sft_e2ck/claude46_O_s1.jsonl
+qwen3-4b-e2ck.claude46_O_s2,claude46,O,2,5836,1.0,5836,5836,0,0,5808,0.9952021932830706,True,data/sft_e2ck/claude46_O_s1.jsonl
+qwen3-4b-e2ck.claude46_O_s3,claude46,O,3,5836,1.0,5836,5836,0,0,5814,0.9962302947224126,True,data/sft_e2ck/claude46_O_s1.jsonl
+qwen3-4b-e2ck.claude46_O_s4,claude46,O,4,5836,1.0,5836,5836,0,0,5816,0.9965729952021933,True,data/sft_e2ck/claude46_O_s1.jsonl
+qwen3-4b-e2ck.claude46_O_s5,claude46,O,5,5836,1.0,5836,5836,0,0,5814,0.9962302947224126,True,data/sft_e2ck/claude46_O_s1.jsonl
+qwen3-4b-e2ck.deepseek_v4_O_s1,deepseek_v4,O,1,5370,1.0,5370,5370,0,0,5345,0.9953445065176909,True,data/sft_e2ck/deepseek_v4_O_s1.jsonl
+qwen3-4b-e2ck.deepseek_v4_O_s2,deepseek_v4,O,2,5370,1.0,5370,5370,0,0,5354,0.9970204841713222,True,data/sft_e2ck/deepseek_v4_O_s1.jsonl
+qwen3-4b-e2ck.deepseek_v4_O_s3,deepseek_v4,O,3,5370,1.0,5370,5370,0,0,5352,0.9966480446927374,True,data/sft_e2ck/deepseek_v4_O_s1.jsonl
+qwen3-4b-e2ck.deepseek_v4_O_s4,deepseek_v4,O,4,5370,1.0,5370,5370,0,0,5357,0.9975791433891993,True,data/sft_e2ck/deepseek_v4_O_s1.jsonl
+qwen3-4b-e2ck.deepseek_v4_O_s5,deepseek_v4,O,5,5370,1.0,5370,5370,0,0,5358,0.9977653631284916,True,data/sft_e2ck/deepseek_v4_O_s1.jsonl
+qwen3-4b-e2ck.gpt4o_O_s1,gpt4o,O,1,5874,1.0,5874,5874,0,0,5853,0.9964249233912156,True,data/sft_e2ck/gpt4o_O_s1.jsonl
+qwen3-4b-e2ck.gpt4o_O_s2,gpt4o,O,2,5874,1.0,5874,5874,0,0,5854,0.996595165134491,True,data/sft_e2ck/gpt4o_O_s1.jsonl
+qwen3-4b-e2ck.gpt4o_O_s3,gpt4o,O,3,5874,1.0,5874,5874,0,0,5848,0.9955737146748382,True,data/sft_e2ck/gpt4o_O_s1.jsonl
+qwen3-4b-e2ck.gpt4o_O_s4,gpt4o,O,4,5874,1.0,5874,5874,0,0,5858,0.9972761321075928,True,data/sft_e2ck/gpt4o_O_s1.jsonl
+qwen3-4b-e2ck.gpt4o_O_s5,gpt4o,O,5,5874,1.0,5874,5874,0,0,5852,0.9962546816479401,True,data/sft_e2ck/gpt4o_O_s1.jsonl

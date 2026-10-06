@@ -16,7 +16,9 @@
 | E3 paired 网格 45 run | 完成 2026-10-05 | train / dev / test readout 齐；E3 冻结于 5e98fe3；`results/e3`：12 inconclusive、1 no effect、0 effect |
 | E2c 示范 assemble + SFT 重建 | 完成 2026-10-06 | 6 × 11880 / 11880、missing 0；30 个 sha256 与 meta 一致；168 passed 1 skipped |
 | E2c S_0 复制 | 完成 2026-10-06 | `runs/qwen3-4b-e2c{,k}/base_B_s0/eval/` 与原件 sha256 相同 |
-| E2c 训练 30 run | 进行中 | array 130578（C）、130579（K）；follower 130585–130614 |
+| E2c 训练 30 run | 完成 2026-10-06 | 30 / 30 exit 0；8 个在交互分配上（K gpt4o s2–s5 训练 + readout，K deepseek s3–s5 / gpt4o s1 readout） |
+| E2c train / dev readout + 13 / 19 dev | 完成 2026-10-06 | `results/e2c_dev/{C,K}`、`results/e2c_dev/e2c_*` |
+| **E2c-E1 门（§6）** | **未过 → BLOCKED** | C claude46 五个 run E1a 0.902–0.912 < 0.95；test 未跑，checkpoint 全部保留 |
 
 ## 日志
 
@@ -399,3 +401,71 @@ dev 上的 verdict 只是描述，不当结果报：
 2. **`12 --split train` 在 E2c run 上必须带 `--prompts data/prompts/e2c_{C,K}_prompts.jsonl`。** 默认的 `paths.prompts_train`（train_prompts_v2）里没有 pool family，readout 会在第一行报 `prompt_id 'ms_….T5.o1' is not in the given prompt set`，已用 S_0 冒烟确认。这只是补上输入文件，不改规则。follower 脚本 `/hai/scratch/tomyyc/vcd_diag/e2c_eval_run.sh` 用 `EXTRA_ARGS` 传这个参数，不跑 test。
 
 **下一步：** 30 个训练任务各有一个 follower 作业，依赖 `afterok:<array>_<i>`，跑完训练后接着做 train + dev readout，每个 run 只有一个写者；作业 id 在 `/hai/scratch/tomyyc/vcd_diag/e2c_eval_ids.txt`。之后跑 13（C / K）与 19 的 dev，再核对 E2c-E1 门。
+
+### 2026-10-06 E2c 步 3–4：训练 30 run、train / dev readout、13 / 19 dev、E2c-E1 门（e2c_plan §8 行 6）
+
+**训练。** array 130578（C）与 130579（K）共 30 个任务全部 exit 0。
+
+- 用时：每个 run 7–17 分钟，deepseek C 约 7 分钟。peak 71.7–72.4 GiB，0 个样例因过长被丢弃。
+- 30 个 manifest 都满足：`run_id` 为 `qwen3-4b-e2c.{t}_O_s{k}` 或 `qwen3-4b-e2ck.{t}_O_s{k}`，与 E1 的 18 个 run id 无重名；`data_sha256` 等于 meta 的 sha256；`hyperparameters` 与 E1 的 manifest 相同；`steps` 等于 `steps_planned`；`git_commit` 为 49ca3f9。
+- 队列只给 4 个 GPU，所以交互分配用前任的"偷队尾"办法分担：先 scancel 仍在 PD 的 array 元素和它的 follower，确认二者都已离开队列再在本地跑，每个 run 始终只有一个写者。本地训练了 K gpt4o s2–s5，另外接手了 4 个 follower 的 readout。脚本是 `vcd_diag/e2c_steal.sh` 和 `e2c_steal_eval.sh`。
+
+**readout。** 30 个 run 都有 train 和 dev readout，全部为 transformers fp32、0.9 门。
+
+- train：行数等于 `n_examples`，`sft_sha256` 等于 `data_sha256`，readout 顺序等于 SFT 文件顺序，n_missing 为 0。
+- dev：每个 run 1,500 行。
+- 没有任何 E2c run 的 test readout；`find` 只找到 base_B_s0 的复制件。
+
+**13 的输入补丁（不是规则改动）。** E2c 的 13 必须加 `--prompts-train data/prompts/e2c_{C,K}_prompts.jsonl`。按 plan 原命令运行时，E1b 的 family 映射只读 train_prompts_v2，会报 `KeyError: 'bk_10p4i0m.T3.o2'`。
+
+- 这个参数只用于 E1b 的 prompt_id → family_id 映射；SFT 文件齐全时不进入其他路径。
+- 两个文件里 family_id 都等于 prompt_id 去掉最后两段后的前缀（11880 / 11880），共享的 tier-0 行完全相同，所以数值与回退规则一致。崩溃前已写出的 22 个文件与正式输出逐字节相同。
+- 步 7 的 `13 --split test` 也需要这个参数，因为 13 在任何 split 都会读 train readout。
+- 实际命令：`13 --runs-dir runs --student qwen3-4b-e2c --split dev --sft-dir data/sft_e2c --prompts-train data/prompts/e2c_C_prompts.jsonl --out results/e2c_dev/C`；K 对应换成 e2ck。19 按原命令 `19 --split dev --out results/e2c_dev`。
+
+**E2c-E1 门（§6：E2c-C 每个 O run E1a ≥ 0.95，且 E1b 六对 ci_lo > 0.5）：未过。**
+
+| 条件 | teacher | n_examples | E1a（s1–s5） | E1a 过 | E1b 最低 ci_lo（对手） |
+|---|---|---|---|---|---|
+| C | gpt4o | 4,964 | 0.953 / 0.952 / 0.955 / 0.950 / 0.956 | 5/5（s4 只多 1 条：4,717，门槛 4,716） | 0.902（deepseek_v4） |
+| C | claude46 | 4,838 | **0.902 / 0.906 / 0.909 / 0.906 / 0.912** | **0/5** | 0.804（gpt4o） |
+| C | deepseek_v4 | 2,497 | 0.965 / 0.962 / 0.956 / 0.970 / 0.964 | 5/5 | 0.919（gpt4o） |
+| K | 三个 teacher | 5,874 / 5,836 / 5,370 | 0.995–0.998 | 15/15 | 0.470（gpt4o vs deepseek_v4，只有 23 个 item） |
+| E1（参照） | 三个 teacher | | 最低 0.981 | | 0.841 |
+
+- 用不导入 `vcd` 的独立脚本重算，E1a 在 30 / 30 个 run 上与 13 的 CSV 完全相同，E1b 12 / 12 对相同。
+- 协议文件（`configs/train.yaml`、`train/data.py`、`framings.py`、`readout.py`、`scripts/10–13、17b、19`、`e1_metrics`、`e2c_metrics`）与 f43598a / 115027a 逐字节一致。
+- K 的 E1b 未过，但 §6 的门只针对 C。K 按构造是共识集，两两冲突的 item 只有 23–38 个，CI 很宽。§8 行 6 的验收写的是"E1a / E1b 过"，没有指明条件，请 Mac 侧确认 K 是否也要过 E1b。
+
+**claude46 C 为什么只复现约 0.91（描述性诊断，不改任何量）。** 分析由并行的只读 agent 完成，再由另一个 agent 逐条复核；下表的数字都已用独立代码复现，最后一行我自己又核对过一次。
+
+| 证据 | claude46 C | gpt4o C | deepseek_v4 C | E1 claude46 | K claude46 |
+|---|---|---|---|---|---|
+| 训练集 letter NLL | 0.227 | 0.127 | 0.105 | 0.042 | 0.014 |
+| 错误中 p(target) ≥ 0.1 的比例（软错） | 0.88 | 0.82 | 0.79 | 0.83 | 0.63 |
+| 整段目标 loss，epoch 1 / 2 / 3 均值 | 1.215 / 0.617 / 0.303 | 0.850 / 0.396 / 0.180 | 1.193 / 0.526 / 0.212 | 1.209 / 0.617 / 0.299 | 1.110 / 0.557 / 0.268 |
+| 每条目标 token 数 | 72.6 | 49.2 | 44.1 | 79.3 | 68.9 |
+| 字母占 loss token 比例 | 0.0138 | 0.0203 | 0.0227 | 0.0126 | 0.0145 |
+| 错误率：family 内少数派标签 / 平局 / 多数派 | 0.490 / 0.357 / 0.071 | 0.272 / 0.242 / 0.032 | 0.256 / 0.160 / 0.027 | — | — |
+| 错误率：Scruples（scr）来源 | 0.174 | 0.061 | 0.037 | — | — |
+| 5 个 seed 都错的 item 数 | 193 | 56 | 25 | 24 | 8 |
+| E1 与 C 都含、prompt 与标签完全相同的 tier-0 item（1,181 / 1,189 / 699 个）：C 学生错误率 vs E1 学生错误率 | **0.086 vs 0.055** | 0.051 vs 0.051 | 0.030 vs 0.030 | | |
+
+结论（只供 Mac 侧决策，我不做选择）：
+
+1. **不是管线错误。** readout、数据、超参、模板都核对过，没有问题。
+2. **不是简单的"没训完"。** 整段目标 loss 的曲线与 E1 claude46 几乎一样；欠拟合的是字母 token，而且多是软错（p 接近 0.5）。
+3. **难标签解释的是同一 teacher 内部错在哪，解释不了 claude46 与 gpt4o 之差。** 少数派标签、两序分裂的 family、scr 来源的错误率都高，但按 gpt4o 的分格错误率套到 claude46 的 item 构成上，只能解释约 8% 的差距（不同口径在 −3% 到 19% 之间）。即使完美预测每个 family 的多数派动作，上限也只有 0.953。
+4. **这是集合层面的效应。** 同样的 tier-0 item，混在 claude46 的 C 训练集里会变差（0.055 → 0.086），gpt4o 和 deepseek 则不变。
+5. **目标长度与差距强相关。** 按 item 自身目标长度分五档，错误率从 0.052 升到 0.143。复核 agent 的 item 级线性模型里，长度控制把 claude46 与 gpt4o 的差从 0.047 降到 0.009（不显著）。但机制没有证实：E1 claude46 的目标更长，E1a 却有 0.986。
+6. **训练顺序位置有影响。** 训练时 shuffle=false，学习率 cosine 降到 0，排在文件靠后的 item 更容易错：claude46 C 按十分位从 0.073 升到 0.129，其他 teacher 同样。
+
+**dev 描述（19，`results/e2c_dev/e2c_summary.md`）。** §6 写明门未过时"不看下面"，所以以下只记录、不解读：
+
+- primary（C）PARTIAL：只有 claude46 过，gap 0.049，CI [0.012, 0.088]，q95 0.018。
+- 归因 C − K：2/3 过（claude46 +0.043、deepseek_v4 +0.054）。
+- 13 C 的 E2 primary 为 FAIL（0/3），E2 secondary 为 pass（D 0.096）；13 K 的 E2 primary 为 PARTIAL（1/3）。
+
+**不做的事：** 没有跑 test readout，没有动 `configs/train.yaml`、阈值或任何规则。30 个 checkpoint 全部保留（每个 7.6 GB，scratch 合计约 2.1 TB）：Mac 侧若决定不重训就直接用于 test，若重训则会被替换。
+
+BLOCKED: E2c-E1 门（e2c_plan §6）在 C 上未过——claude46 C 五个 run 的 E1a 为 0.902–0.912（< 0.95），gpt4o / deepseek_v4 C 都过，E1b 六对都过；§6 规定"不过则先修训练，不看下面"，而"修训练"必然改动冻结的协议常量（configs/train.yaml 或训练集），按 CLAUDE.md 需要 Mac 侧书面决定。请 Mac 侧在 e2c_plan 里写明下一步（例如：改 E2c 训练配方并重新冻结后重训 C 与 K / 如实报告门未过并停在 dev / 其他），以及 K 是否也要过 E1b；在此之前 HPC 侧不跑 test、不删 checkpoint。

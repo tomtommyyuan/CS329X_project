@@ -1,0 +1,16 @@
+run_id,teacher,version,seed,n_rows,answer_rate,n_targets,n_scored,n_missing,n_no_letter,n_match,accuracy,passed,sft_source
+qwen3-4b-e2c.claude46_O_s1,claude46,O,1,4838,0.9997933030177759,4838,4838,0,0,4363,0.9018189334435717,False,data/sft_e2c/claude46_O_s1.jsonl
+qwen3-4b-e2c.claude46_O_s2,claude46,O,2,4838,1.0,4838,4838,0,0,4382,0.9057461761058289,False,data/sft_e2c/claude46_O_s1.jsonl
+qwen3-4b-e2c.claude46_O_s3,claude46,O,3,4838,1.0,4838,4838,0,0,4397,0.9088466308391897,False,data/sft_e2c/claude46_O_s1.jsonl
+qwen3-4b-e2c.claude46_O_s4,claude46,O,4,4838,0.9995866060355518,4838,4838,0,0,4382,0.9057461761058289,False,data/sft_e2c/claude46_O_s1.jsonl
+qwen3-4b-e2c.claude46_O_s5,claude46,O,5,4838,1.0,4838,4838,0,0,4413,0.9121537825547748,False,data/sft_e2c/claude46_O_s1.jsonl
+qwen3-4b-e2c.deepseek_v4_O_s1,deepseek_v4,O,1,2497,1.0,2497,2497,0,0,2409,0.9647577092511013,True,data/sft_e2c/deepseek_v4_O_s1.jsonl
+qwen3-4b-e2c.deepseek_v4_O_s2,deepseek_v4,O,2,2497,1.0,2497,2497,0,0,2402,0.9619543452142572,True,data/sft_e2c/deepseek_v4_O_s1.jsonl
+qwen3-4b-e2c.deepseek_v4_O_s3,deepseek_v4,O,3,2497,1.0,2497,2497,0,0,2386,0.9555466559871846,True,data/sft_e2c/deepseek_v4_O_s1.jsonl
+qwen3-4b-e2c.deepseek_v4_O_s4,deepseek_v4,O,4,2497,1.0,2497,2497,0,0,2421,0.9695634761714057,True,data/sft_e2c/deepseek_v4_O_s1.jsonl
+qwen3-4b-e2c.deepseek_v4_O_s5,deepseek_v4,O,5,2497,1.0,2497,2497,0,0,2406,0.9635562675210252,True,data/sft_e2c/deepseek_v4_O_s1.jsonl
+qwen3-4b-e2c.gpt4o_O_s1,gpt4o,O,1,4964,1.0,4964,4964,0,0,4732,0.9532634971796938,True,data/sft_e2c/gpt4o_O_s1.jsonl
+qwen3-4b-e2c.gpt4o_O_s2,gpt4o,O,2,4964,1.0,4964,4964,0,0,4726,0.952054794520548,True,data/sft_e2c/gpt4o_O_s1.jsonl
+qwen3-4b-e2c.gpt4o_O_s3,gpt4o,O,3,4964,0.999798549556809,4964,4964,0,0,4742,0.9552780016116036,True,data/sft_e2c/gpt4o_O_s1.jsonl
+qwen3-4b-e2c.gpt4o_O_s4,gpt4o,O,4,4964,0.9993956486704271,4964,4964,0,0,4717,0.9502417405318292,True,data/sft_e2c/gpt4o_O_s1.jsonl
+qwen3-4b-e2c.gpt4o_O_s5,gpt4o,O,5,4964,1.0,4964,4964,0,0,4747,0.9562852538275585,True,data/sft_e2c/gpt4o_O_s1.jsonl
