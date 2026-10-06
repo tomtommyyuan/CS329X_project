@@ -1,0 +1,31 @@
+{
+  "n": 5132,
+  "category_counts": {
+    "answer": 5132
+  },
+  "category_rates": {
+    "answer": 1.0
+  },
+  "mean_mass_AB": 0.999908572282872,
+  "top1_histogram": [
+    {
+      "token": " A",
+      "count": 2588
+    },
+    {
+      "token": " B",
+      "count": 2544
+    }
+  ],
+  "backend": "transformers",
+  "seconds": 177.6379897594452,
+  "run_id": "qwen3-4b.gpt4o_O_s5",
+  "model": "runs/qwen3-4b-paired/gpt4o_O_s5/checkpoint",
+  "split": "train",
+  "prompts_path": "/hai/scratch/tomyyc/CS329X_project/data/prompts/train_prompts_v2.jsonl",
+  "answer_mass_min": 0.9,
+  "dtype": "float32",
+  "batch_size": 64,
+  "sft_path": "/hai/scratch/tomyyc/CS329X_project/data/sft_paired/gpt4o_O_s5.jsonl",
+  "sft_sha256": "ce95237eb3263604964ccaa590bcc165d908a1386cd82fe195c738de3ddb3957"
+}

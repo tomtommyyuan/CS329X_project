@@ -292,3 +292,31 @@ QoS 每人最多 64 个作业，没法给每个 run 单独挂评估作业。所�
 3. e3_plan §4 第 2–3 步：`python scripts/15_e3_analysis.py --runs-dir runs --student qwen3-4b-paired --split dev --out results/e3_dev` → 在本文件写 13 行 verdict 和一行 `E3 规则冻结于 <HEAD>` → 加 `--frozen-commit <HEAD>` 重出一次 → 提交。
 4. e3_plan §4 第 4 步（冻结之后才做）：每个 teacher 一个作业跑 45 个 paired test readout，`sbatch ... /hai/scratch/tomyyc/vcd_diag/test_paired.sh <teacher>`。脚本没找到冻结行就拒绝运行。
 5. 第 5–7 步：`15 --split test --out results/e3 --frozen-commit <HEAD>` → 提交 → 删除 paired checkpoint。
+
+### 2026-10-05 E3：paired readout、dev 分析、冻结（e1_plan §8 第 3–4 步，e3_plan §4 第 2–3 步）
+
+- **paired readout。** follower 130174–130176 全部 COMPLETED（约 1 小时），90 个 readout 都 exit 0。45 个 run 的 train readout 行数 = `n_examples`、`sft_sha256` = `data_sha256`；dev 各 1,500 行；全部 fp32。
+- **e1_plan §8 第 4 步。** `13 --student qwen3-4b-paired --split dev --out results/e3_dev_e1tables` 已出。
+- **e3_plan §4 第 2 步。** `15 --split dev --out results/e3_dev`：run inventory 每个 teacher n_O = n_F = n_C = 5、paired 5 / 5；13 行 verdict 都已出、没有 pending；头部为 "not yet frozen"、"dev = freeze split"。
+
+dev 上的 verdict 只是描述，不当结果报：
+
+| 行 | tier | 各 teacher（claude46 / deepseek_v4 / gpt4o）的 stat | q95 | 过 / TOST | verdict |
+|---|---|---|---|---|---|
+| 分歧率 F vs C | primary | −0.006 / −0.000 / +0.005 | 0.011 | 0/3 / 0/3 | inconclusive |
+| 分歧率 O vs F | secondary | −0.026 / −0.016 / −0.016 | 0.011 | 0/3 / 0/3 | inconclusive |
+| 分歧率 O vs C | secondary | −0.006 / +0.002 / +0.003 | 0.011 | 0/3 / 0/3 | inconclusive |
+| flip rate F − O | primary | −0.007 / +0.001 / −0.005 | 0.016 | 0/3 / 0/3 | inconclusive |
+| 跨 framing JSD F − O | primary | +0.001 / −0.002 / −0.003 | 0.006 | 0/3 / 1/3 | inconclusive |
+| agreement F − O | secondary | −0.002 / −0.001 / +0.003 | 0.011 | 0/3 / 0/3 | inconclusive |
+| excess drift F − O | primary | +0.001 / +0.001 / −0.001 | 0.005 | 0/3 / 0/3 | inconclusive |
+| ΔρPartial F − O | primary | +0.001 / −0.031 / −0.004 | 0.052 | 0/3 / 0/3 | inconclusive |
+| flip rate C − O | primary | −0.005 / +0.000 / −0.006 | 0.016 | 0/3 / 0/3 | inconclusive |
+| 跨 framing JSD C − O | primary | −0.001 / −0.006* / −0.006 | 0.006 | 1/3 / 1/3 | inconclusive |
+| agreement C − O | secondary | −0.004 / +0.000 / +0.005 | 0.011 | 0/3 / 0/3 | inconclusive |
+| excess drift C − O | primary | −0.003 / −0.004 / −0.005 | 0.005 | 0/3 / 0/3 | inconclusive |
+| ΔρPartial C − O | primary | −0.039 / +0.011 / +0.031 | 0.052 | 0/3 / 0/3 | inconclusive |
+
+注：分歧率 O vs F 三个 teacher 都为负，也就是同 seed 的 F / O 学生比两个不同 seed 的 O 学生更像。原因是同 seed 的一对共享初始化和数据顺序，e3_plan §3 已说明它会让 null 偏保守。只记录，不改。
+
+**E3 规则冻结于 5e98fe3。** 15 和 e3_metrics 自 fc54a5c 起未改；之后不改 15 的默认值和 e3_metrics 的阈值；test 只跑一次。
