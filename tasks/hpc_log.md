@@ -332,3 +332,31 @@ dev 上的 verdict 只是描述，不当结果报：
 1. 检查 45 个 `runs/qwen3-4b-paired/*/eval/test_responses.jsonl` 是否都在且都是 3,000 行。缺的或行数不对的（删掉坏文件后）用 `sbatch --account=ingrai --partition=hai --gres=gpu:h100:1 -c 8 --mem=64G -t 00:45:00 --exclude=haic-hgx-2 -J vcd-test-paired -o logs/%x-%j.out /hai/scratch/tomyyc/vcd_diag/test_runs.sh <run ...>` 补，先确认没有同一 run 的作业仍在跑。
 2. `python scripts/15_e3_analysis.py --runs-dir runs --student qwen3-4b-paired --split test --out results/e3 --frozen-commit 5e98fe3`。Verdicts 表即 E3 的确认性结论，effect / no effect / inconclusive 如实报。
 3. 提交 `runs/qwen3-4b-paired/*/eval results/e3 tasks/hpc_log.md`，然后对 dev / train / test 都齐的 paired run 执行 `rm -rf runs/qwen3-4b-paired/<run>/checkpoint`。
+
+### 2026-10-05 E3 test：readout 与确认性分析（e3_plan §4 第 4–5 步，只跑一次）
+
+- **readout。** 45 个 paired run 的 test readout 齐全，各 3,000 行。分工如下，每个 run 只有一个写者：
+  - 6 个由最初的三条流完成；
+  - 7 个在交互分配上跑，从队列里先 scancel 再接手；
+  - 32 个由互不重叠的 sbatch 作业完成。
+- **分析。** `15 --split test --out results/e3 --frozen-commit 5e98fe3`。15 和 e3_metrics 与 5e98fe3 逐字节相同；inventory 每个 teacher O / F / C 各 5 个，paired 5 / 5。
+
+**确认性结论（`results/e3/summary.md` 的 Verdicts）：13 行中 12 行 inconclusive、1 行 no effect、0 行 effect。**
+
+| 行 | tier | 过 q95 | TOST 过 | 方向 | verdict |
+|---|---|---|---|---|---|
+| 分歧率 F vs C | primary | 1/3（deepseek +0.008，2.9 null sd） | 0/3 | + | inconclusive |
+| 分歧率 O vs F | secondary | 0/3 | 0/3 | — | inconclusive |
+| 分歧率 O vs C | secondary | 1/3（claude +0.007） | 0/3 | + | inconclusive |
+| flip rate F − O | primary | 0/3 | 0/3 | — | inconclusive |
+| 跨 framing JSD F − O | primary | 0/3 | 2/3（claude、gpt4o） | — | **no effect** |
+| agreement F − O | secondary | 0/3 | 0/3 | — | inconclusive |
+| excess drift F − O | primary | 0/3 | 0/3 | — | inconclusive |
+| ΔρPartial F − O | primary | 2/3（deepseek +0.035、gpt4o −0.034，符号相反） | 0/3 | mixed | inconclusive |
+| flip rate C − O | primary | 0/3 | 0/3 | — | inconclusive |
+| 跨 framing JSD C − O | primary | 0/3 | 1/3 | — | inconclusive |
+| agreement C − O | secondary | 1/3（gpt4o +0.008） | 0/3 | + | inconclusive |
+| excess drift C − O | primary | 0/3 | 0/3 | — | inconclusive |
+| ΔρPartial C − O | primary | 1/3（deepseek +0.054，5.3 null sd） | 0/3 | + | inconclusive |
+
+以上是 E3 的正式结论，此后不再改任何量。

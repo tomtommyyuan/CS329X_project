@@ -1,0 +1,991 @@
+{
+  "rule_zh": "\u6548\u5e94\u5728 \u2265 2 / 3 teacher \u4e0a\u8d85 seed null 95 \u5206\u4f4d\u4e14\u65b9\u5411\u4e00\u81f4\uff1bR \u6709\u800c F / C \u65e0\u5219\u5f52\u56e0\u4e8e\u9690\u6027\u5185\u5bb9\u53d8\u5316",
+  "frozen": "E3 rule pre-specified 2026-10-05 (docs/03 E3 row, tasks/e3_plan.md \u00a73) before any F / C run existed; frozen at commit 5e98fe3 (tasks/hpc_log.md)",
+  "split": "test",
+  "confirmatory": true,
+  "alpha": 0.05,
+  "df": 12,
+  "n_required": 3,
+  "primary_rows": [
+    "disagreement F vs C",
+    "consistency change: flip rate",
+    "consistency change: cross-framing JSD",
+    "excess teacher drift (JSD to own teacher)",
+    "inheritance by form: partial delta_rho"
+  ],
+  "verdicts": {
+    "disagreement F vs C": {
+      "verdict": "inconclusive",
+      "n_teachers": 3,
+      "n_required": 3,
+      "n_need": 2,
+      "n_pass": 1,
+      "n_tost": 0,
+      "n_null": 30,
+      "q95": 0.006491810189844201,
+      "q95_single": 0.009101421404682269,
+      "null_sd_single": 0.004934639058572884,
+      "null_sd": 0.0036424033648594484,
+      "null_mean": 0.044929022668153115,
+      "df": 12,
+      "one_sided": true,
+      "tost_bound": "1 null SD of the statistic (95% CI inside)",
+      "direction": "+",
+      "direction_consistent": true,
+      "passing": [
+        "deepseek_v4"
+      ],
+      "per_teacher": {
+        "claude46": {
+          "stat": 0.004849498327759202,
+          "n_seeds": 5,
+          "null_sd": 0.0034457994979263827,
+          "q95": 0.006141405564416863,
+          "effect_sd": 1.4073652081839176,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "+",
+          "p_null": 0.09234524418889437,
+          "p_holm": 0.18469048837778873,
+          "tost": false,
+          "ci": [
+            -0.007525083612040129,
+            0.018561872909699004
+          ]
+        },
+        "deepseek_v4": {
+          "stat": 0.008166666666666662,
+          "n_seeds": 5,
+          "null_sd": 0.00277328689139793,
+          "q95": 0.004942794714783915,
+          "effect_sd": 2.9447608511033248,
+          "exceeds_q95": true,
+          "exceeds_q95_single": false,
+          "sign": "+",
+          "p_null": 0.006131509350691449,
+          "p_holm": 0.01839452805207435,
+          "tost": false,
+          "ci": [
+            -0.0038333333333333344,
+            0.02116666666666666
+          ]
+        },
+        "gpt4o": {
+          "stat": 0.0036666666666666653,
+          "n_seeds": 5,
+          "null_sd": 0.004708123705254033,
+          "q95": 0.008391230290331826,
+          "effect_sd": 0.7787957360964936,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "+",
+          "p_null": 0.2255924744157879,
+          "p_holm": 0.2255924744157879,
+          "tost": false,
+          "ci": [
+            -0.00866666666666667,
+            0.017166666666666663
+          ]
+        }
+      },
+      "rule": "effect iff >= 0.67 of 3 teachers exceed the t-scaled seed-pair null q95 with the same direction; no effect iff the same share pass the TOST; else inconclusive"
+    },
+    "disagreement O vs F": {
+      "verdict": "inconclusive",
+      "n_teachers": 3,
+      "n_required": 3,
+      "n_need": 2,
+      "n_pass": 0,
+      "n_tost": 0,
+      "n_null": 30,
+      "q95": 0.006491810189844201,
+      "q95_single": 0.009101421404682269,
+      "null_sd_single": 0.004934639058572884,
+      "null_sd": 0.0036424033648594484,
+      "null_mean": 0.044929022668153115,
+      "df": 12,
+      "one_sided": true,
+      "tost_bound": "1 null SD of the statistic (95% CI inside)",
+      "direction": "nan",
+      "direction_consistent": true,
+      "passing": [],
+      "per_teacher": {
+        "claude46": {
+          "stat": -0.010200668896321066,
+          "n_seeds": 5,
+          "null_sd": 0.0034457994979263827,
+          "q95": 0.006141405564416863,
+          "effect_sd": -2.9603199206627187,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "-",
+          "p_null": 0.9940432164069168,
+          "p_holm": 1.0,
+          "tost": false,
+          "ci": [
+            -0.018561872909698993,
+            -0.0008361204013377851
+          ]
+        },
+        "deepseek_v4": {
+          "stat": -0.007666666666666669,
+          "n_seeds": 5,
+          "null_sd": 0.00277328689139793,
+          "q95": 0.004942794714783915,
+          "effect_sd": -2.7644693704235315,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "-",
+          "p_null": 0.9914316755528975,
+          "p_holm": 1.0,
+          "tost": false,
+          "ci": [
+            -0.016500000000000004,
+            0.0016666666666666635
+          ]
+        },
+        "gpt4o": {
+          "stat": -0.01716666666666667,
+          "n_seeds": 5,
+          "null_sd": 0.004708123705254033,
+          "q95": 0.008391230290331826,
+          "effect_sd": -3.64618003717904,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "-",
+          "p_null": 0.9983250422325934,
+          "p_holm": 1.0,
+          "tost": false,
+          "ci": [
+            -0.026666666666666672,
+            -0.0069958333333334025
+          ]
+        }
+      },
+      "rule": "effect iff >= 0.67 of 3 teachers exceed the t-scaled seed-pair null q95 with the same direction; no effect iff the same share pass the TOST; else inconclusive"
+    },
+    "disagreement O vs C": {
+      "verdict": "inconclusive",
+      "n_teachers": 3,
+      "n_required": 3,
+      "n_need": 2,
+      "n_pass": 1,
+      "n_tost": 0,
+      "n_null": 30,
+      "q95": 0.006491810189844201,
+      "q95_single": 0.009101421404682269,
+      "null_sd_single": 0.004934639058572884,
+      "null_sd": 0.0036424033648594484,
+      "null_mean": 0.044929022668153115,
+      "df": 12,
+      "one_sided": true,
+      "tost_bound": "1 null SD of the statistic (95% CI inside)",
+      "direction": "+",
+      "direction_consistent": true,
+      "passing": [
+        "claude46"
+      ],
+      "per_teacher": {
+        "claude46": {
+          "stat": 0.007357859531772579,
+          "n_seeds": 5,
+          "null_sd": 0.0034457994979263827,
+          "q95": 0.006141405564416863,
+          "effect_sd": 2.1353127296583567,
+          "exceeds_q95": true,
+          "exceeds_q95_single": false,
+          "sign": "+",
+          "p_null": 0.02702040647511462,
+          "p_holm": 0.08106121942534386,
+          "tost": false,
+          "ci": [
+            -0.006187290969899662,
+            0.02207357859531773
+          ]
+        },
+        "deepseek_v4": {
+          "stat": 0.004833333333333328,
+          "n_seeds": 5,
+          "null_sd": 0.00277328689139793,
+          "q95": 0.004942794714783915,
+          "effect_sd": 1.7428176465713545,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "+",
+          "p_null": 0.053453705132508286,
+          "p_holm": 0.10690741026501657,
+          "tost": false,
+          "ci": [
+            -0.007166666666666668,
+            0.017499999999999995
+          ]
+        },
+        "gpt4o": {
+          "stat": 0.006499999999999999,
+          "n_seeds": 5,
+          "null_sd": 0.004708123705254033,
+          "q95": 0.008391230290331826,
+          "effect_sd": 1.3805924412619661,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "+",
+          "p_null": 0.09628896250521357,
+          "p_holm": 0.10690741026501657,
+          "tost": false,
+          "ci": [
+            -0.006833333333333337,
+            0.02149999999999999
+          ]
+        }
+      },
+      "rule": "effect iff >= 0.67 of 3 teachers exceed the t-scaled seed-pair null q95 with the same direction; no effect iff the same share pass the TOST; else inconclusive"
+    },
+    "consistency change: flip rate F - O": {
+      "verdict": "inconclusive",
+      "n_teachers": 3,
+      "n_required": 3,
+      "n_need": 2,
+      "n_pass": 0,
+      "n_tost": 0,
+      "n_null": 30,
+      "q95": 0.006983514638408534,
+      "q95_single": 0.011972222222222217,
+      "null_sd_single": 0.007167028411399307,
+      "null_sd": 0.003205192544912236,
+      "null_mean": 0.0012203641768859165,
+      "df": 12,
+      "one_sided": false,
+      "tost_bound": "1 null SD of the statistic (95% CI inside)",
+      "direction": "nan",
+      "direction_consistent": true,
+      "passing": [],
+      "per_teacher": {
+        "claude46": {
+          "stat": -0.00011148272017837255,
+          "n_seeds": 5,
+          "null_sd": 0.003205192544912236,
+          "q95": 0.006983514638408534,
+          "effect_sd": -0.03478191048314233,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "-",
+          "p_null": 0.9728255210024935,
+          "p_holm": 1.0,
+          "tost": false,
+          "ci": [
+            -0.007134894091415829,
+            0.006577480490523968
+          ]
+        },
+        "deepseek_v4": {
+          "stat": -0.0024444444444444444,
+          "n_seeds": 5,
+          "null_sd": 0.003205192544912236,
+          "q95": 0.006983514638408534,
+          "effect_sd": -0.7626513571936995,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "-",
+          "p_null": 0.4604007558278163,
+          "p_holm": 1.0,
+          "tost": false,
+          "ci": [
+            -0.011891666666666665,
+            0.00688888888888889
+          ]
+        },
+        "gpt4o": {
+          "stat": 0.0018888888888888887,
+          "n_seeds": 5,
+          "null_sd": 0.003205192544912236,
+          "q95": 0.006983514638408534,
+          "effect_sd": 0.5893215032860405,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "+",
+          "p_null": 0.5665754139780863,
+          "p_holm": 1.0,
+          "tost": false,
+          "ci": [
+            -0.00611111111111111,
+            0.00988888888888889
+          ]
+        }
+      },
+      "rule": "effect iff >= 0.67 of 3 teachers exceed the t-scaled seed-pair null q95 with the same direction; no effect iff the same share pass the TOST; else inconclusive"
+    },
+    "consistency change: cross-framing JSD F - O": {
+      "verdict": "no effect",
+      "n_teachers": 3,
+      "n_required": 3,
+      "n_need": 2,
+      "n_pass": 0,
+      "n_tost": 2,
+      "n_null": 30,
+      "q95": 0.0052144339761340435,
+      "q95_single": 0.010765327780489447,
+      "null_sd_single": 0.005351459600410491,
+      "null_sd": 0.002393245489072344,
+      "null_mean": 0.0006518833477786402,
+      "df": 12,
+      "one_sided": false,
+      "tost_bound": "1 null SD of the statistic (95% CI inside)",
+      "direction": "nan",
+      "direction_consistent": true,
+      "passing": [],
+      "per_teacher": {
+        "claude46": {
+          "stat": -0.0003322682423620864,
+          "n_seeds": 5,
+          "null_sd": 0.002393245489072344,
+          "q95": 0.0052144339761340435,
+          "effect_sd": -0.13883583772715197,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "-",
+          "p_null": 0.8918826000174973,
+          "p_holm": 1.0,
+          "tost": true,
+          "ci": [
+            -0.0010366546594970764,
+            0.000366543930175945
+          ]
+        },
+        "deepseek_v4": {
+          "stat": 0.0010296281249406647,
+          "n_seeds": 5,
+          "null_sd": 0.002393245489072344,
+          "q95": 0.0052144339761340435,
+          "effect_sd": 0.4302225282119985,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "+",
+          "p_null": 0.6746589057717934,
+          "p_holm": 1.0,
+          "tost": false,
+          "ci": [
+            -0.0014377505480242946,
+            0.003536245357658199
+          ]
+        },
+        "gpt4o": {
+          "stat": -0.0003491600793048134,
+          "n_seeds": 5,
+          "null_sd": 0.002393245489072344,
+          "q95": 0.0052144339761340435,
+          "effect_sd": -0.1458939673757216,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "-",
+          "p_null": 0.8864271886717833,
+          "p_holm": 1.0,
+          "tost": true,
+          "ci": [
+            -0.0015071055790985824,
+            0.0007849541486802089
+          ]
+        }
+      },
+      "rule": "effect iff >= 0.67 of 3 teachers exceed the t-scaled seed-pair null q95 with the same direction; no effect iff the same share pass the TOST; else inconclusive"
+    },
+    "teacher agreement change F - O": {
+      "verdict": "inconclusive",
+      "n_teachers": 3,
+      "n_required": 3,
+      "n_need": 2,
+      "n_pass": 0,
+      "n_tost": 0,
+      "n_null": 30,
+      "q95": 0.008040317703122777,
+      "q95_single": 0.01455198755456491,
+      "null_sd_single": 0.008251602294641986,
+      "null_sd": 0.0036902287308225464,
+      "null_mean": -0.0033687347140955635,
+      "df": 12,
+      "one_sided": false,
+      "tost_bound": "1 null SD of the statistic (95% CI inside)",
+      "direction": "nan",
+      "direction_consistent": true,
+      "passing": [],
+      "per_teacher": {
+        "claude46": {
+          "stat": 0.0037162162162162164,
+          "n_seeds": 5,
+          "null_sd": 0.0036902287308225464,
+          "q95": 0.008040317703122777,
+          "effect_sd": 1.0070422424432963,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "+",
+          "p_null": 0.3337897260140186,
+          "p_holm": 1.0,
+          "tost": false,
+          "ci": [
+            -0.0028153153153153147,
+            0.010247747747747749
+          ]
+        },
+        "deepseek_v4": {
+          "stat": 0.0003333333333333333,
+          "n_seeds": 5,
+          "null_sd": 0.0036902287308225464,
+          "q95": 0.008040317703122777,
+          "effect_sd": 0.09032863750400476,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "+",
+          "p_null": 0.9295162811469131,
+          "p_holm": 1.0,
+          "tost": false,
+          "ci": [
+            -0.007,
+            0.007666666666666666
+          ]
+        },
+        "gpt4o": {
+          "stat": -0.0032646048109965637,
+          "n_seeds": 5,
+          "null_sd": 0.0036902287308225464,
+          "q95": 0.008040317703122777,
+          "effect_sd": -0.8846619136990157,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "-",
+          "p_null": 0.3937197200033352,
+          "p_holm": 1.0,
+          "tost": false,
+          "ci": [
+            -0.00979381443298969,
+            0.0032646048109965637
+          ]
+        }
+      },
+      "rule": "effect iff >= 0.67 of 3 teachers exceed the t-scaled seed-pair null q95 with the same direction; no effect iff the same share pass the TOST; else inconclusive"
+    },
+    "excess teacher drift (JSD to own teacher) F - O": {
+      "verdict": "inconclusive",
+      "n_teachers": 3,
+      "n_required": 3,
+      "n_need": 2,
+      "n_pass": 0,
+      "n_tost": 0,
+      "n_null": 30,
+      "q95": 0.005468343233286215,
+      "q95_single": 0.010198002624864045,
+      "null_sd_single": 0.005612041120483258,
+      "null_sd": 0.00250978108758493,
+      "null_mean": 0.0015419918999322287,
+      "df": 12,
+      "one_sided": false,
+      "tost_bound": "1 null SD of the statistic (95% CI inside)",
+      "direction": "nan",
+      "direction_consistent": true,
+      "passing": [],
+      "per_teacher": {
+        "claude46": {
+          "stat": -0.0017262425017840425,
+          "n_seeds": 5,
+          "null_sd": 0.00250978108758493,
+          "q95": 0.0054683432332862155,
+          "effect_sd": -0.687806004405405,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "-",
+          "p_null": 0.5046530467492968,
+          "p_holm": 1.0,
+          "tost": false,
+          "ci": [
+            -0.005497071648234051,
+            0.0018748173415851362
+          ]
+        },
+        "deepseek_v4": {
+          "stat": -0.0018559123052950793,
+          "n_seeds": 5,
+          "null_sd": 0.00250978108758493,
+          "q95": 0.0054683432332862155,
+          "effect_sd": -0.7394717867927498,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "-",
+          "p_null": 0.47383862190655546,
+          "p_holm": 1.0,
+          "tost": false,
+          "ci": [
+            -0.005438861605403881,
+            0.0019671570236528112
+          ]
+        },
+        "gpt4o": {
+          "stat": 0.0020060054917616205,
+          "n_seeds": 5,
+          "null_sd": 0.00250978108758493,
+          "q95": 0.0054683432332862155,
+          "effect_sd": 0.7992750848608576,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "+",
+          "p_null": 0.4396654736087804,
+          "p_holm": 1.0,
+          "tost": false,
+          "ci": [
+            -0.0009512057092132399,
+            0.004957105628364302
+          ]
+        }
+      },
+      "rule": "effect iff >= 0.67 of 3 teachers exceed the t-scaled seed-pair null q95 with the same direction; no effect iff the same share pass the TOST; else inconclusive"
+    },
+    "inheritance by form: partial delta_rho F - O": {
+      "verdict": "inconclusive",
+      "n_teachers": 3,
+      "n_required": 3,
+      "n_need": 2,
+      "n_pass": 2,
+      "n_tost": 0,
+      "n_null": 30,
+      "q95": 0.022016150049575352,
+      "q95_single": 0.03603726967176266,
+      "null_sd_single": 0.022594693515369437,
+      "null_sd": 0.01010465412622795,
+      "null_mean": -0.012401761331117523,
+      "df": 12,
+      "one_sided": false,
+      "tost_bound": "1 null SD of the statistic (95% CI inside)",
+      "direction": "mixed",
+      "direction_consistent": false,
+      "passing": [
+        "deepseek_v4",
+        "gpt4o"
+      ],
+      "per_teacher": {
+        "claude46": {
+          "stat": 0.00262577053006513,
+          "n_seeds": 5,
+          "null_sd": 0.01010465412622795,
+          "q95": 0.022016150049575352,
+          "effect_sd": 0.2598575366622,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "+",
+          "p_null": 0.799378478480598,
+          "p_holm": 0.799378478480598,
+          "tost": false,
+          "ci": [
+            -0.023300344300014292,
+            0.04428711496250321
+          ]
+        },
+        "deepseek_v4": {
+          "stat": 0.03459475641518093,
+          "n_seeds": 5,
+          "null_sd": 0.01010465412622795,
+          "q95": 0.022016150049575352,
+          "effect_sd": 3.4236457758000562,
+          "exceeds_q95": true,
+          "exceeds_q95_single": false,
+          "sign": "+",
+          "p_null": 0.005044496258981669,
+          "p_holm": 0.015133488776945009,
+          "tost": false,
+          "ci": [
+            0.0002979400650373098,
+            0.06508396194329208
+          ]
+        },
+        "gpt4o": {
+          "stat": -0.03374571755754484,
+          "n_seeds": 5,
+          "null_sd": 0.01010465412622795,
+          "q95": 0.022016150049575352,
+          "effect_sd": -3.339621241458767,
+          "exceeds_q95": true,
+          "exceeds_q95_single": false,
+          "sign": "-",
+          "p_null": 0.0058922285801313755,
+          "p_holm": 0.015133488776945009,
+          "tost": false,
+          "ci": [
+            -0.07986282827070966,
+            0.0058236062002925745
+          ]
+        }
+      },
+      "rule": "effect iff >= 0.67 of 3 teachers exceed the t-scaled seed-pair null q95 with the same direction; no effect iff the same share pass the TOST; else inconclusive"
+    },
+    "consistency change: flip rate C - O": {
+      "verdict": "inconclusive",
+      "n_teachers": 3,
+      "n_required": 3,
+      "n_need": 2,
+      "n_pass": 0,
+      "n_tost": 0,
+      "n_null": 30,
+      "q95": 0.006983514638408534,
+      "q95_single": 0.011972222222222217,
+      "null_sd_single": 0.007167028411399307,
+      "null_sd": 0.003205192544912236,
+      "null_mean": 0.0012203641768859165,
+      "df": 12,
+      "one_sided": false,
+      "tost_bound": "1 null SD of the statistic (95% CI inside)",
+      "direction": "nan",
+      "direction_consistent": true,
+      "passing": [],
+      "per_teacher": {
+        "claude46": {
+          "stat": -7.426240967392351e-20,
+          "n_seeds": 5,
+          "null_sd": 0.003205192544912236,
+          "q95": 0.006983514638408534,
+          "effect_sd": -2.316940671530139e-17,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "-",
+          "p_null": 1.0,
+          "p_holm": 1.0,
+          "tost": false,
+          "ci": [
+            -0.009698996655518394,
+            0.009364548494983277
+          ]
+        },
+        "deepseek_v4": {
+          "stat": 0.004555555555555556,
+          "n_seeds": 5,
+          "null_sd": 0.003205192544912236,
+          "q95": 0.006983514638408534,
+          "effect_sd": 1.4213048020428036,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "+",
+          "p_null": 0.1806916568848494,
+          "p_holm": 0.5420749706545482,
+          "tost": false,
+          "ci": [
+            -0.005333333333333333,
+            0.015000000000000003
+          ]
+        },
+        "gpt4o": {
+          "stat": -0.0027777777777777775,
+          "n_seeds": 5,
+          "null_sd": 0.003205192544912236,
+          "q95": 0.006983514638408534,
+          "effect_sd": -0.8666492695382948,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "-",
+          "p_null": 0.4031306013681431,
+          "p_holm": 0.8062612027362862,
+          "tost": false,
+          "ci": [
+            -0.01422222222222222,
+            0.008666666666666666
+          ]
+        }
+      },
+      "rule": "effect iff >= 0.67 of 3 teachers exceed the t-scaled seed-pair null q95 with the same direction; no effect iff the same share pass the TOST; else inconclusive"
+    },
+    "consistency change: cross-framing JSD C - O": {
+      "verdict": "inconclusive",
+      "n_teachers": 3,
+      "n_required": 3,
+      "n_need": 2,
+      "n_pass": 0,
+      "n_tost": 1,
+      "n_null": 30,
+      "q95": 0.0052144339761340435,
+      "q95_single": 0.010765327780489447,
+      "null_sd_single": 0.005351459600410491,
+      "null_sd": 0.002393245489072344,
+      "null_mean": 0.0006518833477786402,
+      "df": 12,
+      "one_sided": false,
+      "tost_bound": "1 null SD of the statistic (95% CI inside)",
+      "direction": "nan",
+      "direction_consistent": true,
+      "passing": [],
+      "per_teacher": {
+        "claude46": {
+          "stat": -0.00031915601635328365,
+          "n_seeds": 5,
+          "null_sd": 0.002393245489072344,
+          "q95": 0.0052144339761340435,
+          "effect_sd": -0.1333569906683468,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "-",
+          "p_null": 0.89612134594887,
+          "p_holm": 0.89612134594887,
+          "tost": true,
+          "ci": [
+            -0.0014310967316614122,
+            0.000746739906879114
+          ]
+        },
+        "deepseek_v4": {
+          "stat": -0.0020079346012527805,
+          "n_seeds": 5,
+          "null_sd": 0.002393245489072344,
+          "q95": 0.0052144339761340435,
+          "effect_sd": -0.8390006835575755,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "-",
+          "p_null": 0.41786944833041967,
+          "p_holm": 0.8357388966608393,
+          "tost": false,
+          "ci": [
+            -0.005175770304926282,
+            0.0010059586644006716
+          ]
+        },
+        "gpt4o": {
+          "stat": -0.0029885518958827624,
+          "n_seeds": 5,
+          "null_sd": 0.002393245489072344,
+          "q95": 0.0052144339761340435,
+          "effect_sd": -1.2487443973167867,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "-",
+          "p_null": 0.23557103085717826,
+          "p_holm": 0.7067130925715348,
+          "tost": false,
+          "ci": [
+            -0.0053394837362456685,
+            -0.000701793736411329
+          ]
+        }
+      },
+      "rule": "effect iff >= 0.67 of 3 teachers exceed the t-scaled seed-pair null q95 with the same direction; no effect iff the same share pass the TOST; else inconclusive"
+    },
+    "teacher agreement change C - O": {
+      "verdict": "inconclusive",
+      "n_teachers": 3,
+      "n_required": 3,
+      "n_need": 2,
+      "n_pass": 1,
+      "n_tost": 0,
+      "n_null": 30,
+      "q95": 0.008040317703122777,
+      "q95_single": 0.01455198755456491,
+      "null_sd_single": 0.008251602294641986,
+      "null_sd": 0.0036902287308225464,
+      "null_mean": -0.0033687347140955635,
+      "df": 12,
+      "one_sided": false,
+      "tost_bound": "1 null SD of the statistic (95% CI inside)",
+      "direction": "+",
+      "direction_consistent": true,
+      "passing": [
+        "gpt4o"
+      ],
+      "per_teacher": {
+        "claude46": {
+          "stat": -0.004391891891891892,
+          "n_seeds": 5,
+          "null_sd": 0.0036902287308225464,
+          "q95": 0.008040317703122777,
+          "effect_sd": -1.190140831978441,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "-",
+          "p_null": 0.25700416494654654,
+          "p_holm": 0.5140083298930931,
+          "tost": false,
+          "ci": [
+            -0.017062218468468466,
+            0.007713963963963963
+          ]
+        },
+        "deepseek_v4": {
+          "stat": -0.0018333333333333333,
+          "n_seeds": 5,
+          "null_sd": 0.0036902287308225464,
+          "q95": 0.008040317703122777,
+          "effect_sd": -0.49680750627202613,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "-",
+          "p_null": 0.6283011781885371,
+          "p_holm": 0.6283011781885371,
+          "tost": false,
+          "ci": [
+            -0.012333333333333333,
+            0.008666666666666666
+          ]
+        },
+        "gpt4o": {
+          "stat": 0.008075601374570448,
+          "n_seeds": 5,
+          "null_sd": 0.0036902287308225464,
+          "q95": 0.008040317703122777,
+          "effect_sd": 2.1883742075712496,
+          "exceeds_q95": true,
+          "exceeds_q95_single": false,
+          "sign": "+",
+          "p_null": 0.04915089066721424,
+          "p_holm": 0.14745267200164272,
+          "tost": false,
+          "ci": [
+            -0.003092783505154639,
+            0.019243986254295534
+          ]
+        }
+      },
+      "rule": "effect iff >= 0.67 of 3 teachers exceed the t-scaled seed-pair null q95 with the same direction; no effect iff the same share pass the TOST; else inconclusive"
+    },
+    "excess teacher drift (JSD to own teacher) C - O": {
+      "verdict": "inconclusive",
+      "n_teachers": 3,
+      "n_required": 3,
+      "n_need": 2,
+      "n_pass": 0,
+      "n_tost": 0,
+      "n_null": 30,
+      "q95": 0.005468343233286215,
+      "q95_single": 0.010198002624864045,
+      "null_sd_single": 0.005612041120483258,
+      "null_sd": 0.00250978108758493,
+      "null_mean": 0.0015419918999322287,
+      "df": 12,
+      "one_sided": false,
+      "tost_bound": "1 null SD of the statistic (95% CI inside)",
+      "direction": "nan",
+      "direction_consistent": true,
+      "passing": [],
+      "per_teacher": {
+        "claude46": {
+          "stat": 0.001498084945633538,
+          "n_seeds": 5,
+          "null_sd": 0.00250978108758493,
+          "q95": 0.0054683432332862155,
+          "effect_sd": 0.5968986510592802,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "+",
+          "p_null": 0.5616680992092716,
+          "p_holm": 0.6915699459087584,
+          "tost": false,
+          "ci": [
+            -0.004694966283494188,
+            0.007790059835907232
+          ]
+        },
+        "deepseek_v4": {
+          "stat": -0.0024630114620881184,
+          "n_seeds": 5,
+          "null_sd": 0.00250978108758493,
+          "q95": 0.0054683432332862155,
+          "effect_sd": -0.9813650578019868,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "-",
+          "p_null": 0.3457849729543792,
+          "p_holm": 0.6915699459087584,
+          "tost": false,
+          "ci": [
+            -0.007098897061756431,
+            0.001935366196760337
+          ]
+        },
+        "gpt4o": {
+          "stat": -0.003638841447456283,
+          "n_seeds": 5,
+          "null_sd": 0.00250978108758493,
+          "q95": 0.0054683432332862155,
+          "effect_sd": -1.4498640799615738,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "-",
+          "p_null": 0.1727253229829445,
+          "p_holm": 0.5181759689488334,
+          "tost": false,
+          "ci": [
+            -0.009851191990858758,
+            0.002356564897757768
+          ]
+        }
+      },
+      "rule": "effect iff >= 0.67 of 3 teachers exceed the t-scaled seed-pair null q95 with the same direction; no effect iff the same share pass the TOST; else inconclusive"
+    },
+    "inheritance by form: partial delta_rho C - O": {
+      "verdict": "inconclusive",
+      "n_teachers": 3,
+      "n_required": 3,
+      "n_need": 2,
+      "n_pass": 1,
+      "n_tost": 0,
+      "n_null": 30,
+      "q95": 0.022016150049575352,
+      "q95_single": 0.03603726967176266,
+      "null_sd_single": 0.022594693515369437,
+      "null_sd": 0.01010465412622795,
+      "null_mean": -0.012401761331117523,
+      "df": 12,
+      "one_sided": false,
+      "tost_bound": "1 null SD of the statistic (95% CI inside)",
+      "direction": "+",
+      "direction_consistent": true,
+      "passing": [
+        "deepseek_v4"
+      ],
+      "per_teacher": {
+        "claude46": {
+          "stat": -0.020544785211423215,
+          "n_seeds": 5,
+          "null_sd": 0.01010465412622795,
+          "q95": 0.022016150049575352,
+          "effect_sd": -2.0332002416684944,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "-",
+          "p_null": 0.06476234140297825,
+          "p_holm": 0.1295246828059565,
+          "tost": false,
+          "ci": [
+            -0.08069705180683649,
+            0.056374024009516764
+          ]
+        },
+        "deepseek_v4": {
+          "stat": 0.0540201953062968,
+          "n_seeds": 5,
+          "null_sd": 0.01010465412622795,
+          "q95": 0.022016150049575352,
+          "effect_sd": 5.346070694896952,
+          "exceeds_q95": true,
+          "exceeds_q95_single": true,
+          "sign": "+",
+          "p_null": 0.00017472096880195848,
+          "p_holm": 0.0005241629064058754,
+          "tost": false,
+          "ci": [
+            -0.0036990143183898883,
+            0.09980437740309422
+          ]
+        },
+        "gpt4o": {
+          "stat": 0.01049435753455455,
+          "n_seeds": 5,
+          "null_sd": 0.01010465412622795,
+          "q95": 0.022016150049575352,
+          "effect_sd": 1.0385667241509111,
+          "exceeds_q95": false,
+          "exceeds_q95_single": false,
+          "sign": "+",
+          "p_null": 0.31948098291528904,
+          "p_holm": 0.31948098291528904,
+          "tost": false,
+          "ci": [
+            -0.03248013670674516,
+            0.0543838665196631
+          ]
+        }
+      },
+      "rule": "effect iff >= 0.67 of 3 teachers exceed the t-scaled seed-pair null q95 with the same direction; no effect iff the same share pass the TOST; else inconclusive"
+    }
+  }
+}
