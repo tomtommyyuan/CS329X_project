@@ -25,4 +25,5 @@ data/sft_e2ck/*.jsonl
 data/prompts/contested_pool_T1_screened.jsonl
 data/prompts/e2c_*_new_prompts.jsonl
 # assembled per-teacher E2c demo files (17b assemble of committed sources); rebuilt on the cluster
-data/teacher_e2c/*_e2c_[CK]_demo.jsonl
+data/teacher_e2c/*_e2c_C_demo.jsonl
+data/teacher_e2c/*_e2c_K_demo.jsonl
