@@ -22,6 +22,8 @@
 | E2c 修订 1 试训（5 epoch） | 完成 2026-10-06 | claude46 C s1 E1a 0.9752 ≥ 0.95 → 不需要 6 epoch |
 | E2c 5 epoch 30 run | 完成 2026-10-07 | 61 个作业全部 COMPLETED；dev 门通过（C E1a ≥ 0.975、E1b 6/6；K E1a ≥ 0.998） |
 | E2c test（确认性） | 完成 2026-10-07 | primary PARTIAL（1/3，deepseek_v4）；归因 2/3；checkpoint 已清 |
+| E2c robustness K_n | 完成 2026-10-07 | dev 门过；test：C − K_n 归因 2/3；checkpoint 已清 |
+| E2c robustness Cnf | **BLOCKED** | dev 门未过（claude46 E1a 0.942–0.952，435 步）；checkpoint 保留，等 Mac 侧 (a) / (b) |
 
 ## 日志
 
@@ -631,3 +633,19 @@ claude46 的 gap CI 在 0 以上，但没超过 seed-pair null q95（0.028 < 0.0
 E2c robustness 门通过（仅 K_n）：K_n 进入 test，每个 run 只跑一次 readout。
 BLOCKED: Cnf 的 robustness 门未过（claude46 Cnf E1a 0.942–0.952，4/5 < 0.95）。按指示停在 dev，不跑 Cnf 的 test，15 个 Cnf checkpoint 保留，等 Mac 侧在 (a) / (b) 中选择。
 - K_n test readout 作业：131417–131431（15 个，`slurm/eval.sbatch <run> test`，清单 `vcd_diag/e2cr_test_ids.txt`）。全部完成后在交互分配里跑 13 K_n test 与 19 K_n test（`--frozen-commit a694423`）。
+
+### 2026-10-07 E2c robustness：K_n test（只跑一次，冻结于 a694423）
+
+- **readout**：131417–131431 全部 COMPLETED、exit 0，各 3,000 行。
+- **分析**：在交互分配里跑 `13 --student qwen3-4b-e2ckn --split test --sft-dir data/sft_e2ckn --prompts-train data/prompts/e2c_K_prompts.jsonl --out results/e2c_robust/Kn/13` 和 `19 --split test --k-glob "runs/qwen3-4b-e2ckn/*_O_s*/eval/test_responses.jsonl" --out results/e2c_robust/Kn --frozen-commit a694423`。看到 test 之后没有改任何量。
+
+| 归因（test） | C − K（主轮） | C − K_n（规模匹配） | CI（K_n） | 过（K_n） |
+|---|---|---|---|---|
+| gpt4o | 0.005 | 0.008 | [−0.008, 0.031] | 否 |
+| claude46 | 0.027 | 0.026 | [0.001, 0.049] | 是 |
+| deepseek_v4 | 0.034 | 0.032 | [0.012, 0.059] | 是 |
+
+- C − K_n 的归因 2/3 → attributed to contestedness，与主轮一致。所以 C 与 K 之间的差别不能用例子数解释。
+- K_n 的 gap 是 −0.005 / 0.002 / 0.003，CI 都跨 0。C 行与主轮相同（primary PARTIAL）。
+- 13 K_n：E1 PASS、E2 primary FAIL、E2 secondary fail。
+- **清理**：15 个 K_n checkpoint 已删。15 个 Cnf checkpoint 保留（Cnf 仍是 BLOCKED，见上一段，等 Mac 侧在 (a) / (b) 中选择）。
