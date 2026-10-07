@@ -630,3 +630,4 @@ claude46 的 gap CI 在 0 以上，但没超过 seed-pair null q95（0.028 < 0.0
 
 E2c robustness 门通过（仅 K_n）：K_n 进入 test，每个 run 只跑一次 readout。
 BLOCKED: Cnf 的 robustness 门未过（claude46 Cnf E1a 0.942–0.952，4/5 < 0.95）。按指示停在 dev，不跑 Cnf 的 test，15 个 Cnf checkpoint 保留，等 Mac 侧在 (a) / (b) 中选择。
+- K_n test readout 作业：131417–131431（15 个，`slurm/eval.sbatch <run> test`，清单 `vcd_diag/e2cr_test_ids.txt`）。全部完成后在交互分配里跑 13 K_n test 与 19 K_n test（`--frozen-commit a694423`）。
