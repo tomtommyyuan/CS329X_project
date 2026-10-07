@@ -193,3 +193,5 @@ E1 在 dev 上显示：三个 aligned teacher 的训练标签两两一致 93–9
 
 程序与 §8 行 6–7 相同：`CONFIG=configs/train_e2c.yaml`，`STUDENT_SHORT` 为 `qwen3-4b-e2ckn` / `qwen3-4b-e2cnf`，`DATA_LIST` 为各自的 runs.txt；重建后 30 个 sha256 须与 meta 一致；S_0 复制到两个新目录；train / dev readout → 13 门 → dev 的 19（描述）→ test 每 run 一次 → 13、19 test，`--frozen-commit` 填本节提交的 hash；看 test 后不改任何量；删 checkpoint。结果作为论文的 robustness 表（exploratory），不改变 §6 的确认性判定。
 
+**结果（2026-10-07，hpc_log）**：K_n 门过（E1a ≥ 0.998），test 一次：C − K_n 归因 gpt4o 0.008 [−0.008, 0.031]、claude46 0.026 [0.001, 0.049]、deepseek_v4 0.032 [0.012, 0.059] → 2/3，与 C − K 相同；K_n 学生的翻转率 / suggestibility / 与各 teacher 一致率与 K、E1 同水平（如 deepseek 翻转 0.078 vs C 0.258），所以 C 的不稳定不是样例少造成的。**Cnf 门未过**：claude46 E1a 0.942 / 0.952 / 0.947 / 0.942 / 0.943（4/5 < 0.95；5 epoch 只有 435 步，C 为 760 步），gpt4o 0.982–0.988、deepseek_v4 0.992–0.996 过，E1b 6/6 过；dev 描述（已见）：Cnf gap −0.007 / 0.039 / 0.046，Cnf − K 归因 2/3。按 §6 "不过则先修训练"，Cnf 停在 dev，checkpoint 保留，处置待 Mac 侧决定（如实记为未过门 / 按与 C 相同的优化步数重训 = 修订 2）。
+
