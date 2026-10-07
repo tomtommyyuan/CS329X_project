@@ -1,0 +1,28 @@
+{
+  "control": "K_n (size-matched consensus control)",
+  "teacher": "deepseek_v4",
+  "version": "O",
+  "seed": 4,
+  "n_examples": 2497,
+  "n_families": 1310,
+  "variant_counts": {
+    "T1": 600,
+    "T3": 705,
+    "T5": 613,
+    "T6": 579
+  },
+  "letter_counts": {
+    "A": 1242,
+    "B": 1255
+  },
+  "reference": "data/sft_e2c/deepseek_v4_O_s4.jsonl",
+  "reference_n_examples": 2497,
+  "source": "data/sft_e2ck/deepseek_v4_O_s4.jsonl",
+  "source_sha256": "1e37efe216036fa1f8ebe61e22d0c3da429dcafd9e71159ef7051b1afc9f97f2",
+  "source_n_examples": 5370,
+  "subsample_seed": 20261007,
+  "teacher_index": 2,
+  "selected_prompt_ids_sha256": "83428e0153dcb6b87c6c15bcae01d312d3fd6e86b0cfb0a19cef673d655bfa77",
+  "sha256": "2d081840ec93b81532470d32decc56f1e078d8855433ca571666d36cc8b1eff2",
+  "built_at": "2026-10-07T07:24:53+00:00"
+}

@@ -1,0 +1,28 @@
+{
+  "control": "K_n (size-matched consensus control)",
+  "teacher": "claude46",
+  "version": "O",
+  "seed": 1,
+  "n_examples": 4838,
+  "n_families": 1482,
+  "variant_counts": {
+    "T1": 1168,
+    "T3": 1236,
+    "T5": 1233,
+    "T6": 1201
+  },
+  "letter_counts": {
+    "A": 2400,
+    "B": 2438
+  },
+  "reference": "data/sft_e2c/claude46_O_s1.jsonl",
+  "reference_n_examples": 4838,
+  "source": "data/sft_e2ck/claude46_O_s1.jsonl",
+  "source_sha256": "57edf7a87eedcc460bfa652507c4e9fcfdbba59f465fff325f15c11721f9c76d",
+  "source_n_examples": 5836,
+  "subsample_seed": 20261007,
+  "teacher_index": 1,
+  "selected_prompt_ids_sha256": "15820d0b85e644fe67a072d5460450ae371a6598278ade20e095423832cf0816",
+  "sha256": "0121595dc249975aa7db97af4f16f3e655dc38b45b8667b18c8e59747a3ac0f9",
+  "built_at": "2026-10-07T07:24:53+00:00"
+}

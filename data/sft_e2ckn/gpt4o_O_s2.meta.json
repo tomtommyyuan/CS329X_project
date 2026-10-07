@@ -1,0 +1,28 @@
+{
+  "control": "K_n (size-matched consensus control)",
+  "teacher": "gpt4o",
+  "version": "O",
+  "seed": 2,
+  "n_examples": 4964,
+  "n_families": 1485,
+  "variant_counts": {
+    "T1": 1223,
+    "T3": 1248,
+    "T5": 1253,
+    "T6": 1240
+  },
+  "letter_counts": {
+    "A": 2444,
+    "B": 2520
+  },
+  "reference": "data/sft_e2c/gpt4o_O_s2.jsonl",
+  "reference_n_examples": 4964,
+  "source": "data/sft_e2ck/gpt4o_O_s2.jsonl",
+  "source_sha256": "89e196cc76afcae494cc0283142290f5494077686a77c1715e5c2f1b5c8ed821",
+  "source_n_examples": 5874,
+  "subsample_seed": 20261007,
+  "teacher_index": 0,
+  "selected_prompt_ids_sha256": "c819e60a42a875e25915bdbc99b87e02c8d6138d8a5f108fda5bf5a5b60635ef",
+  "sha256": "6e75078ab7eae107e11560633f372346385474bcaf24f0f3f9d3b8161cebf5ec",
+  "built_at": "2026-10-07T07:24:52+00:00"
+}

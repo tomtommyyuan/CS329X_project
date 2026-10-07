@@ -182,3 +182,14 @@ E1 在 dev 上显示：三个 aligned teacher 的训练标签两两一致 93–9
 | 不变 | §6 全部判定规则与 `19`；§4 训练集（SFT 文件 sha256 不变）；readout；dev / test |
 | 程序 | (1) 试训：`data/sft_e2c/claude46_O_s1.jsonl` 以 `STUDENT_SHORT=qwen3-4b-e2c-pilot5 CONFIG=configs/train_e2c.yaml` 训 1 run，train readout（`EXTRA_ARGS="--prompts data/prompts/e2c_C_prompts.jsonl"`），算 E1a；≥ 0.95 → (3)。(2) 阶梯只有一级：仍 < 0.95 则把 `train_e2c.yaml` 的 `num_epochs` 改为 6 再试一次（HPC agent 改并提交、写明）；6 仍不过 → 停，写 BLOCKED，不再调任何别的量。(3) 归档 3 epoch 版：`git mv runs/qwen3-4b-e2c runs/qwen3-4b-e2c-3ep`、`git mv runs/qwen3-4b-e2ck runs/qwen3-4b-e2ck-3ep`、`git mv results/e2c_dev results/e2c_dev-3ep`，删其 checkpoint；重新复制 S_0 到新目录。(4) 全部 30 run 以 `CONFIG=configs/train_e2c.yaml` 重训（§8 行 6 命令加 CONFIG），train / dev readout，13（C 加 `--prompts-train data/prompts/e2c_C_prompts.jsonl`，K 同理）与 19 dev，复核门：C 15 run E1a ≥ 0.95 且 E1b 六对过，K 15 run E1a ≥ 0.95。(5) 过门后 §8 行 7 的 test 只跑一次，`19 --frozen-commit` 填本修订的提交 hash |
 
+### 追加 robustness 实验（2026-10-07，主结果之后决定；描述性，不改 §6）
+
+主结果（test）：primary PARTIAL（deepseek_v4 过；claude46 CI > 0 但 gap 0.028 < q95 0.032；gpt4o 0.003），归因 C − K 2/3。两个追加条件回答两个最直接的质疑，数据只用已提交的示范重建，不调 API：
+
+| 条件 | 定义 | 文件（meta + runs.txt 已提交，jsonl 由 HPC 重建） | n_examples（gpt4o / claude46 / deepseek_v4） | 回答 | 比较与输出 |
+|---|---|---|---|---|---|
+| **K_n**（规模匹配对照） | 每个 teacher 把 K 的 SFT 按 variant 随机抽到 C 的样例数，5 seed 同一集合、各自保留 K 文件的顺序（`scripts/10b_subsample_sft.py`，seed 20261007；`tests/test_subsample_sft.py`） | `data/sft_e2ckn/` | 4,964 / 4,838 / 2,497（= C） | "C 学生更不稳定、跟谁都不太一致，是否只因例子少"；归因的规模混杂 | `19 --split {dev,test} --k-glob "runs/qwen3-4b-e2ckn/*_O_s*/eval/{split}_responses.jsonl" --out results/e2c_robust{_dev,}/Kn`；门：E1a（13 `--student qwen3-4b-e2ckn --sft-dir data/sft_e2ckn --prompts-train data/prompts/e2c_K_prompts.jsonl`） |
+| **Cnf**（C − flip_only，§6 预注册灵敏度集） | C 去掉 553 个仅因 Claude 顺序翻转 / 单 teacher 翻转入选的 family，剩 932 族（`data/families/contested_selected_noflip.jsonl`，`data/prompts/e2c_Cnf_prompts.jsonl` 7,456 条），示范与 C 相同 | `data/sft_e2cnf/` | 2,924 / 2,764 / 1,990 | "学到的是不是只是顺序翻转那类噪音" | `19 --split {dev,test} --c-glob "runs/qwen3-4b-e2cnf/*_O_s*/eval/{split}_responses.jsonl" --out results/e2c_robust{_dev,}/Cnf`（对照仍是 K；Cnf 更小，规模混杂方向保守）；门：E1a + E1b（13 `--student qwen3-4b-e2cnf --sft-dir data/sft_e2cnf --prompts-train data/prompts/e2c_Cnf_prompts.jsonl`） |
+
+程序与 §8 行 6–7 相同：`CONFIG=configs/train_e2c.yaml`，`STUDENT_SHORT` 为 `qwen3-4b-e2ckn` / `qwen3-4b-e2cnf`，`DATA_LIST` 为各自的 runs.txt；重建后 30 个 sha256 须与 meta 一致；S_0 复制到两个新目录；train / dev readout → 13 门 → dev 的 19（描述）→ test 每 run 一次 → 13、19 test，`--frozen-commit` 填本节提交的 hash；看 test 后不改任何量；删 checkpoint。结果作为论文的 robustness 表（exploratory），不改变 §6 的确认性判定。
+

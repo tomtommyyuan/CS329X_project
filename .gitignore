@@ -21,6 +21,8 @@ data/sft_paired/
 # E2c SFT files are rebuilt on the cluster from the committed demos; keep only *.meta.json and runs.txt
 data/sft_e2c/*.jsonl
 data/sft_e2ck/*.jsonl
+data/sft_e2ckn/*.jsonl
+data/sft_e2cnf/*.jsonl
 # derived E2c prompt files (cat of the committed wave files; 17b new-prompts output)
 data/prompts/contested_pool_T1_screened.jsonl
 data/prompts/e2c_*_new_prompts.jsonl

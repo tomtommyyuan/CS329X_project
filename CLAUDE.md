@@ -37,9 +37,9 @@
 1. `git pull --rebase` 到最新 main；读 `tasks/hpc_log.md` 的最后两段（前任 agent 的约定与现状），再读当前阶段的计划（E2c：`tasks/e2c_plan.md` §4–§6、§8 行 6–7、§11 行 I；E1 / E2 / E3 已全部完成）。
 2. 环境与 gate run 按 `slurm/README.md` §0 到 §1；`train.sbatch` / `eval.sbatch` 里的 `--account=ingrai`、`--partition=hai`、`--exclude=haic-hgx-2` 是占位，先用 `sacctmgr show user $USER withassoc format=user,account%20,qos%30` 核实再提交。
 3. 在 compute 分配里建训练文件（`scripts/10_build_sft_data.py`）。E2c：先 `scripts/17b_e2c_demo_inputs.py assemble`（每 teacher 两个条件，必须 11880 / 11880、missing 0），再按 e2c_plan §11 行 I 建 `data/sft_e2c/`（C）与 `data/sft_e2ck/`（K），核对 30 个 sha256。
-4. 训练、评估、分析、清理、提交，按当前阶段计划的表走（E2c：e2c_plan §8 行 6–7；C 用 `STUDENT_SHORT=qwen3-4b-e2c`，K 用 `qwen3-4b-e2ck`，run id 前缀随之变化，不与 E1 撞名）。
+4. 训练、评估、分析、清理、提交，按当前阶段计划的表走（E2c：e2c_plan §8 行 6–7；C 用 `STUDENT_SHORT=qwen3-4b-e2c`，K 用 `qwen3-4b-e2ck`，run id 前缀随之变化，不与 E1 撞名；robustness 轮见 e2c_plan §12 追加表：K_n → `qwen3-4b-e2ckn`，Cnf → `qwen3-4b-e2cnf`，都用 `CONFIG=configs/train_e2c.yaml`）。
 5. 每个阶段结束在 `tasks/hpc_log.md` 追加一段（日期、做了什么、关键数字、异常、下一步），卡住时写一行以 `BLOCKED:` 开头的说明，然后提交推送；Mac 侧会读这个文件。
-6. 提交只包含：`runs/<student>/*/train_manifest.json`、`train_log.jsonl`、`eval/`（student 目录 `qwen3-4b`、`qwen3-4b-paired`、`qwen3-4b-e2c`、`qwen3-4b-e2ck`）、`results/e1*`、`results/e3*`、`results/e2c*`、`tasks/hpc_log.md`、以及你确实改了的代码和测试。先 `git pull --rebase` 再 `push`；冲突只会出现在 markdown，保留双方内容。
+6. 提交只包含：`runs/<student>/*/train_manifest.json`、`train_log.jsonl`、`eval/`（student 目录 `qwen3-4b`、`qwen3-4b-paired`、`qwen3-4b-e2c`、`qwen3-4b-e2ck`、robustness 轮的 `qwen3-4b-e2ckn`、`qwen3-4b-e2cnf`，归档的 `*-3ep`、`*-pilot5`）、`results/e1*`、`results/e3*`、`results/e2c*`、`tasks/hpc_log.md`、以及你确实改了的代码和测试。先 `git pull --rebase` 再 `push`；冲突只会出现在 markdown，保留双方内容。
 
 ## 代码改动的规矩
 

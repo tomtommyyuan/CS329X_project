@@ -1,0 +1,56 @@
+{
+  "n_prompts_in": 7456,
+  "n_prompts_variant": 7456,
+  "n_demos_in": 11880,
+  "n_demos_unmatched": 4424,
+  "n_demos_duplicate": 0,
+  "n_dropped_category": 6,
+  "n_dropped_format": 0,
+  "n_missing_demo": 0,
+  "n_items_answered": 3727,
+  "n_items_stable": 2924,
+  "n_dropped_order_unstable": 803,
+  "order_stable_rate": 0.7845452106251677,
+  "order_policy": "stable_one",
+  "order_seed": 20261002,
+  "n_selected_O": 2924,
+  "teacher": "gpt4o",
+  "version": "O",
+  "seed": 1,
+  "paired": false,
+  "versions_built": [
+    "O"
+  ],
+  "variants": [
+    "T1",
+    "T3",
+    "T5",
+    "T6"
+  ],
+  "prompts_path": "/Users/yuansir/workspace/CS329X_Project/data/prompts/e2c_Cnf_prompts.jsonl",
+  "demos_path": "/Users/yuansir/workspace/CS329X_Project/data/teacher_e2c/gpt4o_e2c_C_demo.jsonl",
+  "rewrites_dir": null,
+  "n_examples": 2924,
+  "n_families": 908,
+  "variant_counts": {
+    "T1": 690,
+    "T3": 747,
+    "T5": 738,
+    "T6": 749
+  },
+  "order_counts": {
+    "1": 1457,
+    "2": 1467
+  },
+  "letter_counts": {
+    "A": 1504,
+    "B": 1420
+  },
+  "mean_target_chars": 251.43878248974008,
+  "max_target_chars": 474,
+  "mean_target_words": 40.86935704514364,
+  "mean_prompt_chars": 597.3755129958961,
+  "prompt_ids_sha256": "1b3a4f74eaccaec627979c5b0ec787e42786a1c72f38326f254a72d0959157a3",
+  "sha256": "e8a23bdaf2600020bf6b65ae6348a6b60cba7904b6d9090188e6f661fa1d78c5",
+  "built_at": "2026-10-07T07:24:51+00:00"
+}
