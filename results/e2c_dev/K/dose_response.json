@@ -1,0 +1,60 @@
+{
+  "slope": 1.1496653455558794,
+  "intercept": -0.0016061484029060435,
+  "pearson": 0.9560827205291563,
+  "p": 2.6428597857169285e-06,
+  "n_runs": 15,
+  "n_teachers": 3,
+  "method": "exact",
+  "n_perm": 756756,
+  "null_mean": 9.614667890553132e-18,
+  "null_sd": 0.321374899304616,
+  "seed_noise_sd": 0.01458593895310223,
+  "ordering_preserved": true,
+  "teachers": {
+    "claude46": {
+      "s_teacher": 0.05561594202898551,
+      "s_student_mean": 0.05908446645026381,
+      "s_student_sd": 0.013629971849956811,
+      "n_runs": 5
+    },
+    "deepseek_v4": {
+      "s_teacher": 0.14445213055661904,
+      "s_student_mean": 0.16352287454243045,
+      "s_student_sd": 0.017182143339961584,
+      "n_runs": 5
+    },
+    "gpt4o": {
+      "s_teacher": 0.07559253290508793,
+      "s_student_mean": 0.08949165906618757,
+      "s_student_sd": 0.012539803150180377,
+      "n_runs": 5
+    }
+  },
+  "teacher_exact": {
+    "p": 0.16666666666666666,
+    "rank": 1,
+    "n_assignments": 6,
+    "floor": 0.16666666666666666,
+    "null": [
+      1.1496653455558796,
+      -0.023800148729962996,
+      -0.9860389619413399,
+      -0.645609437429729,
+      -0.5040559081261511,
+      1.009839110671303
+    ],
+    "method": "teacher-exact"
+  },
+  "unit_note": "run-level p is pseudo-replicated (seeds of one teacher are near-replicates); descriptive only",
+  "n_common_families": 138,
+  "descriptive": {
+    "R_runs": {},
+    "base_gated": {
+      "qwen3-4b.base_B_s0": 0.14566552395342322
+    },
+    "base_prior": {
+      "qwen3-4b.base_B_s0": 0.16323605262061236
+    }
+  }
+}

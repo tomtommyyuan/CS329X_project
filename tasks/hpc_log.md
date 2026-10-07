@@ -20,7 +20,7 @@
 | E2c train / dev readout + 13 / 19 dev | 完成 2026-10-06 | `results/e2c_dev/{C,K}`、`results/e2c_dev/e2c_*` |
 | E2c-E1 门（§6），3 epoch 版 | 未过（已处理） | C claude46 E1a 0.902–0.912；归档为 `runs/qwen3-4b-e2c{,k}-3ep`、`results/e2c_dev-3ep`，checkpoint 已删 |
 | E2c 修订 1 试训（5 epoch） | 完成 2026-10-06 | claude46 C s1 E1a 0.9752 ≥ 0.95 → 不需要 6 epoch |
-| E2c 5 epoch 30 run | 进行中 | C array 131081、K array 131097；follower 131082–131096 / 131098–131112；dev 分析 131113 |
+| E2c 5 epoch 30 run | 完成 2026-10-07 | 61 个作业全部 COMPLETED；dev 门通过（C E1a ≥ 0.975、E1b 6/6；K E1a ≥ 0.998） |
 
 ## 日志
 
@@ -524,3 +524,25 @@ BLOCKED: E2c-E1 门（e2c_plan §6）在 C 上未过——claude46 C 五个 run 
 - **其余 33 个作业都在 PD**：24 个训练任务（131081_6–14、131097_0–14），follower 131082–131112，分析 131113。原因是 `Priority`：hai 分区的 H100 被其他用户占满，约 1.5 小时内没有新作业启动。作业本身没有问题，空出 GPU 后会按依赖链自动跑完，readout 在 follower 里、dev 分析在 131113 里，不需要人工介入。
 - 交互分配的 GPU 按指示没有用于本地训练或 readout。
 - **恢复后**按上一段"会话恢复后从这里接"的 1–4 步做。可以先用 `squeue --me` 和 `sacct -j 131081,131097,131082-131113 -X --format=JobID,State,Elapsed,ExitCode` 看进度；若 131113 已结束，GATE 行在 `logs/vcd-e2c-dev-analysis-131113.out`。
+
+### 2026-10-07 E2c 5 epoch：dev 门通过（e2c_plan §6 + §12 修订 1 程序 (4)）
+
+新交互分配 131218（haic-hgx-4）。网格作业 131081 / 131097 / 131082–131113 共 61 个，全部 COMPLETED、exit 0。
+
+**核对项（30 个 run 全过）：**
+- manifest：`hyperparameters.num_epochs` 为 5，`config_path` 为 configs/train_e2c.yaml，run_id 前缀为 `qwen3-4b-e2c.` / `qwen3-4b-e2ck.`，与 E1 无重名，data_sha256 等于 meta。
+- readout：fp32；train 行数等于 n_examples；dev 每个 run 1,500 行；没有任何 test 文件。
+- E1a 用 `vcd_diag/e1a_check.py` 独立重算，与 13 一致。
+
+**门：**
+
+| 条件 | teacher | E1a（s1–s5） | E1b 最低 ci_lo |
+|---|---|---|---|
+| C | claude46 | 0.975 / 0.984 / 0.980 / 0.980 / 0.977 | 6/6 过，全条件最低 0.946 |
+| C | deepseek_v4 | 0.992 / 0.995 / 0.994 / 0.996 / 0.993 | |
+| C | gpt4o | 0.990 / 0.990 / 0.991 / 0.989 / 0.991 | |
+| K | 三个 teacher | 0.998–0.9996（15/15） | （K 不要求 E1b；实际 6/6，最低 0.713） |
+
+**dev 描述**（`results/e2c_dev/`，按 §5 只作描述）：19 primary（C）PASS 2/3（claude46 gap 0.038 [0.000, 0.077]，deepseek_v4 0.041 [0.002, 0.074]）；归因 C − K 2/3。13 C 的 E1 PASS。
+
+E2c 5 epoch 门通过。下一步按 §8 行 7 跑 test（每个 run 只 readout 一次），19 用 `--frozen-commit 1421b1f`。
