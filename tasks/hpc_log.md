@@ -517,3 +517,10 @@ BLOCKED: E2c-E1 门（e2c_plan §6）在 C 上未过——claude46 C 五个 run 
 2. 131113 的日志 `logs/vcd-e2c-dev-analysis-131113.out` 最后一行是 GATE。另外要核对每个 manifest 的 `hyperparameters.num_epochs` 为 5、run_id 前缀正确、data_sha256 等于 meta。
 3. 门过：在本文件写一行"E2c 5 epoch 门通过"，提交推送，然后运行 `vcd_diag/e2c_test_submit.sh`。它会提交 30 个 test readout，再挂一个只用 CPU 的分析作业（13 C / K `--split test` 带 `--prompts-train`、`19 --split test --out results/e2c --frozen-commit 1421b1f`）。没有那一行时脚本拒绝运行；它也不会覆盖已有的 test 文件。
 4. 门不过：写 BLOCKED，停下。
+
+### 2026-10-06 E2c 5 epoch 网格进度（交互分配 130319 约 1 小时后到期，此后 session 结束）
+
+- **已完成 6 / 30 训练**，都 exit 0：C claude46 s1–s5 与 C deepseek_v4 s1（131081_0–5，用时 17–29 分钟）。这 6 个 manifest 都满足 `num_epochs` 5、steps 760（deepseek 395）、`config_path` 为 configs/train_e2c.yaml、data_sha256 等于 meta。
+- **其余 33 个作业都在 PD**：24 个训练任务（131081_6–14、131097_0–14），follower 131082–131112，分析 131113。原因是 `Priority`：hai 分区的 H100 被其他用户占满，约 1.5 小时内没有新作业启动。作业本身没有问题，空出 GPU 后会按依赖链自动跑完，readout 在 follower 里、dev 分析在 131113 里，不需要人工介入。
+- 交互分配的 GPU 按指示没有用于本地训练或 readout。
+- **恢复后**按上一段"会话恢复后从这里接"的 1–4 步做。可以先用 `squeue --me` 和 `sacct -j 131081,131097,131082-131113 -X --format=JobID,State,Elapsed,ExitCode` 看进度；若 131113 已结束，GATE 行在 `logs/vcd-e2c-dev-analysis-131113.out`。
