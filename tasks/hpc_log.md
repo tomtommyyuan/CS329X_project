@@ -649,3 +649,19 @@ BLOCKED: Cnf 的 robustness 门未过（claude46 Cnf E1a 0.942–0.952，4/5 < 0
 - K_n 的 gap 是 −0.005 / 0.002 / 0.003，CI 都跨 0。C 行与主轮相同（primary PARTIAL）。
 - 13 K_n：E1 PASS、E2 primary FAIL、E2 secondary fail。
 - **清理**：15 个 K_n checkpoint 已删。15 个 Cnf checkpoint 保留（Cnf 仍是 BLOCKED，见上一段，等 Mac 侧在 (a) / (b) 中选择）。
+
+### 2026-10-07 E2c 修订 2：Cnf 按与 C 相同的步数重训，已提交
+
+在交互分配 131218 上做，`git pull --rebase` 到 22c7e9b。
+
+- **归档**：`git mv` 把 `runs/qwen3-4b-e2cnf` → `runs/qwen3-4b-e2cnf-5ep`、`results/e2c_robust_dev/Cnf` → `results/e2c_robust_dev/Cnf-5ep`。5 epoch 的 15 个 checkpoint 已删，现在 `runs/` 下没有任何 checkpoint。S_0 已复制到新的 `runs/qwen3-4b-e2cnf/base_B_s0/eval/`，`cmp` 与原件一致。
+- `data/sft_e2cnf` 的 15 个 jsonl 仍在本地，sha256 与 meta 一致。
+- **作业**（`CONFIG=configs/train_e2c_cnf.yaml`，`STUDENT_SHORT=qwen3-4b-e2cnf`；清单在 `vcd_diag/e2cnf2_ids.txt`）：
+
+| teacher | 训练 array | `--max-steps` | follower（train readout 带 `e2c_Cnf_prompts`，加 dev） |
+|---|---|---|---|
+| gpt4o | **131498** | 780 | 131499–131503 |
+| claude46 | **131504** | 760 | 131505–131509 |
+| deepseek_v4 | **131510** | 395 | 131511–131515 |
+
+- **下一步**：15 个 readout 齐后核对 manifest（`steps` 等于 780 / 760 / 395、`max_steps` 已记录、`num_epochs` 为 9、前缀正确、data_sha256 等于 meta），然后在交互分配里跑 13 和 19 的 dev 并判门。门过后跑 test（`--frozen-commit 22c7e9b`）；不过门就写 BLOCKED 停下。
