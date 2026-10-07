@@ -603,3 +603,30 @@ claude46 的 gap CI 在 0 以上，但没超过 seed-pair null q95（0.028 < 0.0
 1. 看 `logs/vcd-e2cr-analysis-131335.out` 最后的 GATE 行，并核对 manifest：`num_epochs` 为 5、run_id 前缀正确、data_sha256 等于 meta。
 2. 门过：在本文件写一行"E2c robustness 门通过"，然后 30 个 run 各做一次 test readout，再跑 `e2cr_analysis.sh test`（`--frozen-commit a694423`）。
 3. 门不过：写 BLOCKED，停下。
+
+### 2026-10-07 E2c robustness 轮：dev 门与描述
+
+- **网格**：131303 / 131319 两个 array 和 30 个 follower 全部 COMPLETED。30 个 manifest 都满足：`num_epochs` 5、前缀为 `qwen3-4b-e2ckn.` / `qwen3-4b-e2cnf.`、data_sha256 等于 meta；dev readout 每个 run 1,500 行。
+- **分析作业 131335 超时**：它是只用 CPU 的作业，在 haic-hgx-1 上 1 小时内连 13 K_n 都没有输出，原因未查明。同一个脚本 `e2cr_analysis.sh dev` 在交互分配 131218 里 3 分钟跑完，所以此后的分析都在交互分配里跑。
+
+| 条件 | 门的要求 | claude46 E1a（s1–s5） | gpt4o E1a | deepseek_v4 E1a | E1b | 门 |
+|---|---|---|---|---|---|---|
+| K_n | E1a | 0.999 / 0.999 / 0.999 / 1.000 / 0.999 | 0.998–1.000 | 0.998–1.000 | — | **过**（15/15，最低 0.998） |
+| Cnf | E1a + E1b | **0.946 / 0.952 / 0.947 / 0.942 / 0.943** | 0.982–0.988 | 0.992–0.996 | 6/6（最低 0.922） | **未过**（E1a 11/15） |
+
+**dev 描述**（只作描述）：
+
+| 条件 | 19 primary（C 行） | gap gpt4o / claude46 / deepseek_v4 | 归因（相对的对照） | diff gpt4o / claude46 / deepseek_v4 |
+|---|---|---|---|---|
+| C vs K_n | PASS 2/3（C 行与主轮相同） | 0.009 / 0.038 / 0.041 | 2/3（C − K_n） | 0.012 / 0.035 [0.012, 0.072] / 0.057 [0.031, 0.095] |
+| Cnf vs K | PASS 2/3 | −0.007 / 0.039 / 0.046 | 2/3（Cnf − K） | −0.011 / 0.035 [0.008, 0.070] / 0.061 [0.032, 0.106] |
+
+**Cnf 的诊断与建议（我的推荐，等 Mac 侧决定）。** Cnf 的 claude46 只有 2,764 条，5 epoch 只走 435 步，C 是 760 步，3 epoch 的 C 是 456 步。欠拟合与 3 epoch C 门失败时的模式相同，也就是字母 token 的训练剂量不够；gpt4o（460 步）和 deepseek 都过了。可选的处理：
+
+- (a) **推荐**：论文的 robustness 表把 Cnf 记为"训练门未过，不解读"，dev 描述照实列出。
+- (b) 按步数匹配重训 Cnf，让每个 teacher 的步数约等于 C（claude46 约 8.7 epoch）。这是新的协议改动，需要 Mac 侧书面决定并重新冻结。
+
+阶梯式改成 6 epoch 只到 522 步，大概率仍然不够，所以不建议。
+
+E2c robustness 门通过（仅 K_n）：K_n 进入 test，每个 run 只跑一次 readout。
+BLOCKED: Cnf 的 robustness 门未过（claude46 Cnf E1a 0.942–0.952，4/5 < 0.95）。按指示停在 dev，不跑 Cnf 的 test，15 个 Cnf checkpoint 保留，等 Mac 侧在 (a) / (b) 中选择。
