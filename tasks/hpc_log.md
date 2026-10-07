@@ -21,6 +21,7 @@
 | E2c-E1 门（§6），3 epoch 版 | 未过（已处理） | C claude46 E1a 0.902–0.912；归档为 `runs/qwen3-4b-e2c{,k}-3ep`、`results/e2c_dev-3ep`，checkpoint 已删 |
 | E2c 修订 1 试训（5 epoch） | 完成 2026-10-06 | claude46 C s1 E1a 0.9752 ≥ 0.95 → 不需要 6 epoch |
 | E2c 5 epoch 30 run | 完成 2026-10-07 | 61 个作业全部 COMPLETED；dev 门通过（C E1a ≥ 0.975、E1b 6/6；K E1a ≥ 0.998） |
+| E2c test（确认性） | 完成 2026-10-07 | primary PARTIAL（1/3，deepseek_v4）；归因 2/3；checkpoint 已清 |
 
 ## 日志
 
@@ -575,3 +576,4 @@ E2c 5 epoch 门通过。下一步按 §8 行 7 跑 test（每个 run 只 readout
 | E2 secondary | pass（D 0.051 [0.009, 0.094]，p 0.012；D_specific 0.077 [0.031, 0.125]） | fail（D 0.032 [−0.008, 0.071]） |
 
 claude46 的 gap CI 在 0 以上，但没超过 seed-pair null q95（0.028 < 0.032），所以按 §6 不计过。修订 1 的披露见 e2c_plan §12：3 epoch 版的 dev 在修订前已经看过。
+- **清理**：30 个 5 epoch run 的 train / dev / test 都已齐，checkpoint 已删，试训 run 的 checkpoint 也已删，只留 manifest、train_log 和 eval。`runs/` 下已没有任何 checkpoint。E2c 的 HPC 步骤（§8 行 6–7、§12 修订 1）全部完成，没有 BLOCKED。
