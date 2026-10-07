@@ -193,5 +193,15 @@ E1 在 dev 上显示：三个 aligned teacher 的训练标签两两一致 93–9
 
 程序与 §8 行 6–7 相同：`CONFIG=configs/train_e2c.yaml`，`STUDENT_SHORT` 为 `qwen3-4b-e2ckn` / `qwen3-4b-e2cnf`，`DATA_LIST` 为各自的 runs.txt；重建后 30 个 sha256 须与 meta 一致；S_0 复制到两个新目录；train / dev readout → 13 门 → dev 的 19（描述）→ test 每 run 一次 → 13、19 test，`--frozen-commit` 填本节提交的 hash；看 test 后不改任何量；删 checkpoint。结果作为论文的 robustness 表（exploratory），不改变 §6 的确认性判定。
 
-**结果（2026-10-07，hpc_log）**：K_n 门过（E1a ≥ 0.998），test 一次：C − K_n 归因 gpt4o 0.008 [−0.008, 0.031]、claude46 0.026 [0.001, 0.049]、deepseek_v4 0.032 [0.012, 0.059] → 2/3，与 C − K 相同；K_n 学生的翻转率 / suggestibility / 与各 teacher 一致率与 K、E1 同水平（如 deepseek 翻转 0.078 vs C 0.258），所以 C 的不稳定不是样例少造成的。**Cnf 门未过**：claude46 E1a 0.942 / 0.952 / 0.947 / 0.942 / 0.943（4/5 < 0.95；5 epoch 只有 435 步，C 为 760 步），gpt4o 0.982–0.988、deepseek_v4 0.992–0.996 过，E1b 6/6 过；dev 描述（已见）：Cnf gap −0.007 / 0.039 / 0.046，Cnf − K 归因 2/3。按 §6 "不过则先修训练"，Cnf 停在 dev，checkpoint 保留，处置待 Mac 侧决定（如实记为未过门 / 按与 C 相同的优化步数重训 = 修订 2）。
+**结果（2026-10-07，hpc_log）**：K_n 门过（E1a ≥ 0.998），test 一次：C − K_n 归因 gpt4o 0.008 [−0.008, 0.031]、claude46 0.026 [0.001, 0.049]、deepseek_v4 0.032 [0.012, 0.059] → 2/3，与 C − K 相同；K_n 学生的翻转率 / suggestibility / 与各 teacher 一致率与 K、E1 同水平（如 deepseek 翻转 0.078 vs C 0.258），所以 C 的不稳定不是样例少造成的。**Cnf 门未过**：claude46 E1a 0.942 / 0.952 / 0.947 / 0.942 / 0.943（4/5 < 0.95；5 epoch 只有 435 步，C 为 760 步），gpt4o 0.982–0.988、deepseek_v4 0.992–0.996 过，E1b 6/6 过；dev 描述（已见）：Cnf gap −0.007 / 0.039 / 0.046，Cnf − K 归因 2/3。按 §6 "不过则先修训练"，Cnf 停在 dev，checkpoint 保留，处置：**修订 2（下）**，按与 C 相同的优化步数重训。
+
+### 修订 2（2026-10-07）：灵敏度集 Cnf 按与 C 相同的优化步数重训
+
+| 项 | 内容 |
+|---|---|
+| 触发 | Cnf 的训练门未过：claude46 E1a 0.942–0.952（4/5 < 0.95）；5 epoch 在 2,764 条上只有 435 步（C 为 760 步）；gpt4o / deepseek_v4 过，E1b 6/6 过 |
+| 决定 | Cnf 的每个 run 用 `configs/train_e2c_cnf.yaml`（与 train_e2c.yaml 只差 `num_epochs: 9`，上界）并以 `--max-steps` 钉到**同一 teacher 的 C run 的步数**：gpt4o 780、claude46 760、deepseek_v4 395（`data/sft_e2cnf/max_steps.json`，取自 C 的 manifest）。sft 的 cosine 调度按上限计算，所以更新次数与 LR 曲线都与 C 相同，唯一差别是训练集换成 932 族子集。9 epoch 对三个 teacher 都够上限生效（每 epoch 92 / 87 / 63 步）。`tests/test_train_e2c_config.py` 钉住配置差 |
+| 已看到的 | 5 epoch 版 Cnf 的 dev 描述（gap −0.007 / 0.039 / 0.046，Cnf − K 归因 2/3，`results/e2c_robust_dev/Cnf-5ep/`）；修订只依据门，规则不变，论文披露 |
+| 不变 | §6 规则、`19`、SFT 文件（sha256 不变）、readout、dev / test；K_n 已过门，不重训 |
+| 程序 | (1) 归档：`git mv runs/qwen3-4b-e2cnf runs/qwen3-4b-e2cnf-5ep`、`git mv results/e2c_robust_dev/Cnf results/e2c_robust_dev/Cnf-5ep`，删 5 epoch 的 15 个 checkpoint；S_0 复制到新的 `runs/qwen3-4b-e2cnf/base_B_s0/eval/`。(2) 每个 teacher 一个 array：`STUDENT_SHORT=qwen3-4b-e2cnf CONFIG=configs/train_e2c_cnf.yaml DATA_LIST=data/sft_e2cnf/runs_{teacher}.txt EXTRA_ARGS="--max-steps {780|760|395}" sbatch --array=0-4%8 slurm/train.sbatch`（11 会打印 "overriding protocol hyperparameters" 警告，这是预期的）；核对 manifest：`steps` 等于 C 同 teacher 的步数、`max_steps` 已记录、data_sha256 等于 meta。(3) train / dev readout → 13（`--sft-dir data/sft_e2cnf --prompts-train data/prompts/e2c_Cnf_prompts.jsonl`）→ 门 E1a ≥ 0.95 且 E1b 六对 ci_lo > 0.5 → 19 dev（`--c-glob` 指向 e2cnf）→ test 一次 → 13 / 19 test，`--frozen-commit` 填本节提交的 hash → 删 checkpoint。仍不过门则如实记为未过，不再修 |
 
