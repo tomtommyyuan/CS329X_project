@@ -577,3 +577,29 @@ E2c 5 epoch 门通过。下一步按 §8 行 7 跑 test（每个 run 只 readout
 
 claude46 的 gap CI 在 0 以上，但没超过 seed-pair null q95（0.028 < 0.032），所以按 §6 不计过。修订 1 的披露见 e2c_plan §12：3 epoch 版的 dev 在修订前已经看过。
 - **清理**：30 个 5 epoch run 的 train / dev / test 都已齐，checkpoint 已删，试训 run 的 checkpoint 也已删，只留 manifest、train_log 和 eval。`runs/` 下已没有任何 checkpoint。E2c 的 HPC 步骤（§8 行 6–7、§12 修订 1）全部完成，没有 BLOCKED。
+
+### 2026-10-07 E2c robustness 轮（e2c_plan §12 追加表）：数据重建、S_0、网格已提交
+
+在交互分配 131218（haic-hgx-4）上做，`git pull --rebase` 到 a694423。
+
+- **K_n**：`scripts/10b_subsample_sft.py` 用默认参数写 `data/sft_e2ckn`，n_examples 与 C 相同（4,964 / 4,838 / 2,497）。
+- **Cnf**：`10 --prompts data/prompts/e2c_Cnf_prompts.jsonl --demos data/teacher_e2c/{t}_e2c_C_demo.jsonl --out-dir data/sft_e2cnf`，n_examples 为 2,924 / 2,764 / 1,990。
+- 两个目录共 30 个 jsonl 的 sha256 与已提交的 meta 逐一相同，行数等于 n_examples。核对后本地 meta 已 `git checkout` 回提交版本。
+- **S_0**：已复制到 `runs/qwen3-4b-e2ckn/base_B_s0/eval/` 与 `runs/qwen3-4b-e2cnf/base_B_s0/eval/`，`cmp` 与原件一致。
+- follower 脚本 `vcd_diag/e2c_eval_run.sh` 新增两个 student 的映射：e2ckn 的 train readout 用 `e2c_K_prompts.jsonl`，e2cnf 用 `e2c_Cnf_prompts.jsonl`。
+
+**作业**（`CONFIG=configs/train_e2c.yaml`；作业清单在 `vcd_diag/e2cr_ids.txt`，提交脚本是 `e2cr_submit_grid.sh`）：
+
+| 作业 | id | 依赖 |
+|---|---|---|
+| K_n 训练 array（`STUDENT_SHORT=qwen3-4b-e2ckn`） | **131303** | — |
+| K_n 的 train + dev readout follower | **131304–131318** | afterok 131303_0–14 |
+| Cnf 训练 array（`qwen3-4b-e2cnf`） | **131319** | — |
+| Cnf 的 follower | **131320–131334** | afterok 131319_0–14 |
+| dev 分析（只用 CPU；`vcd_diag/e2cr_analysis.sh dev`：13 K_n / Cnf 带 `--prompts-train`，19 K_n / Cnf，最后打印 GATE 行） | **131335** | afterok 全部 30 个 follower |
+
+**恢复后：**
+
+1. 看 `logs/vcd-e2cr-analysis-131335.out` 最后的 GATE 行，并核对 manifest：`num_epochs` 为 5、run_id 前缀正确、data_sha256 等于 meta。
+2. 门过：在本文件写一行"E2c robustness 门通过"，然后 30 个 run 各做一次 test readout，再跑 `e2cr_analysis.sh test`（`--frozen-commit a694423`）。
+3. 门不过：写 BLOCKED，停下。
