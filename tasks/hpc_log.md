@@ -546,3 +546,32 @@ BLOCKED: E2c-E1 门（e2c_plan §6）在 C 上未过——claude46 C 五个 run 
 **dev 描述**（`results/e2c_dev/`，按 §5 只作描述）：19 primary（C）PASS 2/3（claude46 gap 0.038 [0.000, 0.077]，deepseek_v4 0.041 [0.002, 0.074]）；归因 C − K 2/3。13 C 的 E1 PASS。
 
 E2c 5 epoch 门通过。下一步按 §8 行 7 跑 test（每个 run 只 readout 一次），19 用 `--frozen-commit 1421b1f`。
+
+### 2026-10-07 E2c test：readout 与确认性分析（e2c_plan §8 行 7，只跑一次）
+
+- **readout**：在交互分配 131218 上用 `slurm/eval.sbatch` 顺序跑了 30 个 test readout（用户明确同意在本节点跑）。每个 run 只跑一次，30 个都 exit 0，各 3,000 行，fp32。
+- **分析**：13 C / K 用 `--split test --prompts-train data/prompts/e2c_{C,K}_prompts.jsonl --out results/e2c/{C,K}`；19 用 `--split test --out results/e2c --frozen-commit 1421b1f`。看到 test 之后没有改任何量。
+
+**确认性结论（`results/e2c/e2c_summary.md`）：E2c primary PARTIAL（1/3）；C − K 归因 2/3 → attributed to contestedness。**
+
+| 条件 | teacher | gap | CI | null q95 | 过 null | CI > 0 | primary |
+|---|---|---|---|---|---|---|---|
+| C | gpt4o | 0.003 | [−0.018, 0.021] | 0.015 | 否 | 否 | 否 |
+| C | claude46 | 0.028 | [0.005, 0.047] | 0.032 | 否 | 是 | 否 |
+| C | deepseek_v4 | 0.035 | [0.015, 0.054] | 0.030 | 是 | 是 | **是** |
+| K | 三个 teacher | −0.003 / 0.001 / 0.001 | 都跨 0 | | | | 参照 |
+| E1 | 三个 teacher | 0.002 / 0.020 / 0.009 | 都跨 0 | | | | 参照 |
+
+| 归因 C − K | diff | CI | 过 |
+|---|---|---|---|
+| gpt4o | 0.005 | [−0.010, 0.027] | 否 |
+| claude46 | 0.027 | [0.004, 0.049] | 是 |
+| deepseek_v4 | 0.034 | [0.013, 0.063] | 是 |
+
+| 13（冻结规则） | C | K |
+|---|---|---|
+| E1（E1a / E1b） | PASS（E1a 最低 0.975，E1b 最低 0.946） | PASS（0.998 / 0.713） |
+| E2 primary | PARTIAL（deepseek_v4 Δρ 0.221，p_holm 0.003） | FAIL |
+| E2 secondary | pass（D 0.051 [0.009, 0.094]，p 0.012；D_specific 0.077 [0.031, 0.125]） | fail（D 0.032 [−0.008, 0.071]） |
+
+claude46 的 gap CI 在 0 以上，但没超过 seed-pair null q95（0.028 < 0.032），所以按 §6 不计过。修订 1 的披露见 e2c_plan §12：3 epoch 版的 dev 在修订前已经看过。

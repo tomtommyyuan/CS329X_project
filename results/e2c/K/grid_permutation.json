@@ -1,0 +1,26 @@
+{
+  "observed": -0.022442054038433565,
+  "null_mean": -0.05795726383372724,
+  "null_sd": 0.012027642360570223,
+  "p": 0.00029997000299970003,
+  "n_perm": 10000,
+  "n_runs": 15,
+  "method": "random",
+  "per_run": {
+    "qwen3-4b-e2ck.claude46_O_s1": -0.0939792696477404,
+    "qwen3-4b-e2ck.claude46_O_s2": -0.12436506569243386,
+    "qwen3-4b-e2ck.claude46_O_s3": -0.10188123588000134,
+    "qwen3-4b-e2ck.claude46_O_s4": -0.10775499695099935,
+    "qwen3-4b-e2ck.claude46_O_s5": -0.10326869582202394,
+    "qwen3-4b-e2ck.deepseek_v4_O_s1": 0.11130649333558251,
+    "qwen3-4b-e2ck.deepseek_v4_O_s2": 0.15710584454885032,
+    "qwen3-4b-e2ck.deepseek_v4_O_s3": 0.11411046293862004,
+    "qwen3-4b-e2ck.deepseek_v4_O_s4": 0.13035979953027876,
+    "qwen3-4b-e2ck.deepseek_v4_O_s5": 0.10806270461519263,
+    "qwen3-4b-e2ck.gpt4o_O_s1": -0.12263916345816003,
+    "qwen3-4b-e2ck.gpt4o_O_s2": -0.08661336632133049,
+    "qwen3-4b-e2ck.gpt4o_O_s3": -0.08114103329578348,
+    "qwen3-4b-e2ck.gpt4o_O_s4": -0.0531841054451353,
+    "qwen3-4b-e2ck.gpt4o_O_s5": -0.08274918303141965
+  }
+}
