@@ -18,7 +18,9 @@
 | E2c S_0 复制 | 完成 2026-10-06 | `runs/qwen3-4b-e2c{,k}/base_B_s0/eval/` 与原件 sha256 相同 |
 | E2c 训练 30 run | 完成 2026-10-06 | 30 / 30 exit 0；8 个在交互分配上（K gpt4o s2–s5 训练 + readout，K deepseek s3–s5 / gpt4o s1 readout） |
 | E2c train / dev readout + 13 / 19 dev | 完成 2026-10-06 | `results/e2c_dev/{C,K}`、`results/e2c_dev/e2c_*` |
-| **E2c-E1 门（§6）** | **未过 → BLOCKED** | C claude46 五个 run E1a 0.902–0.912 < 0.95；test 未跑，checkpoint 全部保留 |
+| E2c-E1 门（§6），3 epoch 版 | 未过（已处理） | C claude46 E1a 0.902–0.912；归档为 `runs/qwen3-4b-e2c{,k}-3ep`、`results/e2c_dev-3ep`，checkpoint 已删 |
+| E2c 修订 1 试训（5 epoch） | 完成 2026-10-06 | claude46 C s1 E1a 0.9752 ≥ 0.95 → 不需要 6 epoch |
+| E2c 5 epoch 30 run | 进行中 | C array 131081、K array 131097；follower 131082–131096 / 131098–131112；dev 分析 131113 |
 
 ## 日志
 
@@ -478,3 +480,40 @@ BLOCKED: E2c-E1 门（e2c_plan §6）在 C 上未过——claude46 C 五个 run 
   - DATA_LIST 放在共享盘 `/hai/scratch/tomyyc/vcd_diag/pilot5.txt`，内容即 `data/sft_e2c/claude46_O_s1.jsonl` 一行。没用 `/tmp/pilot5.txt` 是因为 /tmp 是节点本地盘，作业可能落在别的节点上读不到。
 - **下一步**：131069 结束后，用与上次相同的方法算 E1a（readout `letter` 对 SFT `letter`，n_missing 必须为 0）。≥ 0.95 则归档 3 epoch 版并重训 30 run；< 0.95 则按 §12 的唯一一级阶梯改 6 epoch 再试训一次。
 - **交互分配 130319 约 20:10 到期**，此后所有步骤都用 sbatch 提交。
+
+### 2026-10-06 E2c 修订 1：试训过门、归档 3 epoch 版、重训 30 run 已提交（e2c_plan §12 程序 (1)、(3)、(4)）
+
+**试训结果。** train 131068_0 用时 29:31，readout 131069 用时 5:36，都 exit 0。
+
+| run | epochs / steps | n_examples | n_match | 门槛 | E1a | n_missing | 其他 |
+|---|---|---|---|---|---|---|---|
+| `qwen3-4b-e2c-pilot5.claude46_O_s1` | 5 / 760 | 4,838 | 4,718 | 4,597 | **0.9752** | 0 | malformed 1；sha256 一致；`config_path` 为 configs/train_e2c.yaml；peak 71.97 GiB |
+| 3 epoch 同一 run（参照） | 3 / 456 | 4,838 | 4,363 | 4,597 | 0.9018 | 0 | |
+
+- E1a 用与上次相同的方法计算（`vcd_diag/e1a_check.py`，不导入 vcd）。它对 3 epoch 的 claude46 s1 和 gpt4o s4 复现出 0.901819 / 0.950242，与 13 一致。
+- 0.9752 ≥ 0.95，所以不进入 6 epoch 阶梯，`configs/train_e2c.yaml` 不改。
+- 试训 run 的 manifest、train_log 和 train readout 一并提交作为证据。它的 checkpoint 不用于网格，最后清理时删除。
+- pytest（分配内，含新增的 config 测试）：169 passed、1 skipped。
+
+**归档（程序 (3)）。**
+
+- 用 `git mv` 把 `runs/qwen3-4b-e2c` → `runs/qwen3-4b-e2c-3ep`、`runs/qwen3-4b-e2ck` → `runs/qwen3-4b-e2ck-3ep`、`results/e2c_dev` → `results/e2c_dev-3ep`，共 249 个已跟踪文件改名。
+- 30 个 3 epoch checkpoint 已删（每个 run 删除前都确认 manifest、train_log、train 与 dev readout 齐全）。归档目录现在只剩 53 MB 和 67 MB。
+- 把 `runs/qwen3-4b/base_B_s0/eval/` 重新复制到新的 `runs/qwen3-4b-e2c{,k}/base_B_s0/eval/`，`cmp` 与原件一致。
+
+**重训（程序 (4)）。** 所有作业都用 sbatch 提交，HF_HOME 为 `/hai/scratch/tomyyc/hf`，`CONFIG=configs/train_e2c.yaml`。作业清单在 `/hai/scratch/tomyyc/vcd_diag/e2c5_ids.txt`，提交脚本是 `e2c5_submit_grid.sh`。
+
+| 作业 | id | 依赖 |
+|---|---|---|
+| C 训练 array（`STUDENT_SHORT=qwen3-4b-e2c`，`data/sft_e2c/runs.txt`，`%8`） | **131081** | — |
+| K 训练 array（`qwen3-4b-e2ck`，`data/sft_e2ck/runs.txt`） | **131097** | — |
+| C 的 train + dev readout follower（`e2c_eval_run.sh`；train 带 `--prompts data/prompts/e2c_C_prompts.jsonl`） | **131082–131096**（对应 131081_0–14） | `afterok` |
+| K 的 follower（带 e2c_K_prompts） | **131098–131112**（对应 131097_0–14） | `afterok` |
+| dev 分析（只用 CPU；`vcd_diag/e2c_dev_analysis.sh`：先检查 30 个 run 都有 train / dev readout 且 manifest 为 5 epoch，再跑 13 C / K 带 `--prompts-train`、19 dev，最后打印门表） | **131113** | `afterok` 全部 30 个 follower |
+
+**会话恢复后从这里接：**
+
+1. 用 `sacct -j 131081,131097,131082-131113 -X` 查状态。若有任务失败，131113 会因依赖失效被取消；这时只给缺的 run 重交（`sbatch slurm/eval.sbatch runs/<student>/<run> {train,dev}`，train 要加 `EXTRA_ARGS="--prompts data/prompts/e2c_{C,K}_prompts.jsonl"`），再手动 `sbatch vcd_diag/e2c_dev_analysis.sh`。
+2. 131113 的日志 `logs/vcd-e2c-dev-analysis-131113.out` 最后一行是 GATE。另外要核对每个 manifest 的 `hyperparameters.num_epochs` 为 5、run_id 前缀正确、data_sha256 等于 meta。
+3. 门过：在本文件写一行"E2c 5 epoch 门通过"，提交推送，然后运行 `vcd_diag/e2c_test_submit.sh`。它会提交 30 个 test readout，再挂一个只用 CPU 的分析作业（13 C / K `--split test` 带 `--prompts-train`、`19 --split test --out results/e2c --frozen-commit 1421b1f`）。没有那一行时脚本拒绝运行；它也不会覆盖已有的 test 文件。
+4. 门不过：写 BLOCKED，停下。
