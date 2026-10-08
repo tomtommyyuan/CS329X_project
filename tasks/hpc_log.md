@@ -785,3 +785,4 @@ BLOCKED: deepseek_v4 的 F vs C register 可分性未过冻结门（最近质心
 - 13 只读 train readout 来判 E1a / E1b，可以照跑。
 - 训练（gpt4o / claude46 的 30 个，deepseek_v4 的 O 5 个）照常进行。
 - 不跑 test，checkpoint 全部保留。
+- deepseek_v4 的 O 作业已提交（2026-10-08 04:47）：训练 array **131837**（`--array=10-14`，即 O_s1–s5，`--max-steps 395`），follower **131838–131842**。gpt4o 的 array 131749 已有 9 个任务训完或在跑。
