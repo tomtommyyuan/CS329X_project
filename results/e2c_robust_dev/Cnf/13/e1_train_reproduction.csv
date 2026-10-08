@@ -1,0 +1,16 @@
+run_id,teacher,version,seed,n_rows,answer_rate,n_targets,n_scored,n_missing,n_no_letter,n_match,accuracy,passed,sft_source
+qwen3-4b-e2cnf.claude46_O_s1,claude46,O,1,2764,1.0,2764,2764,0,0,2758,0.9978292329956585,True,data/sft_e2cnf/claude46_O_s1.jsonl
+qwen3-4b-e2cnf.claude46_O_s2,claude46,O,2,2764,1.0,2764,2764,0,0,2762,0.9992764109985528,True,data/sft_e2cnf/claude46_O_s1.jsonl
+qwen3-4b-e2cnf.claude46_O_s3,claude46,O,3,2764,1.0,2764,2764,0,0,2746,0.9934876989869754,True,data/sft_e2cnf/claude46_O_s1.jsonl
+qwen3-4b-e2cnf.claude46_O_s4,claude46,O,4,2764,1.0,2764,2764,0,0,2760,0.9985528219971056,True,data/sft_e2cnf/claude46_O_s1.jsonl
+qwen3-4b-e2cnf.claude46_O_s5,claude46,O,5,2764,1.0,2764,2764,0,0,2762,0.9992764109985528,True,data/sft_e2cnf/claude46_O_s1.jsonl
+qwen3-4b-e2cnf.deepseek_v4_O_s1,deepseek_v4,O,1,1990,1.0,1990,1990,0,0,1983,0.9964824120603015,True,data/sft_e2cnf/deepseek_v4_O_s1.jsonl
+qwen3-4b-e2cnf.deepseek_v4_O_s2,deepseek_v4,O,2,1990,1.0,1990,1990,0,0,1983,0.9964824120603015,True,data/sft_e2cnf/deepseek_v4_O_s1.jsonl
+qwen3-4b-e2cnf.deepseek_v4_O_s3,deepseek_v4,O,3,1990,1.0,1990,1990,0,0,1983,0.9964824120603015,True,data/sft_e2cnf/deepseek_v4_O_s1.jsonl
+qwen3-4b-e2cnf.deepseek_v4_O_s4,deepseek_v4,O,4,1990,1.0,1990,1990,0,0,1984,0.9969849246231156,True,data/sft_e2cnf/deepseek_v4_O_s1.jsonl
+qwen3-4b-e2cnf.deepseek_v4_O_s5,deepseek_v4,O,5,1990,1.0,1990,1990,0,0,1981,0.9954773869346734,True,data/sft_e2cnf/deepseek_v4_O_s1.jsonl
+qwen3-4b-e2cnf.gpt4o_O_s1,gpt4o,O,1,2924,1.0,2924,2924,0,0,2924,1.0,True,data/sft_e2cnf/gpt4o_O_s1.jsonl
+qwen3-4b-e2cnf.gpt4o_O_s2,gpt4o,O,2,2924,1.0,2924,2924,0,0,2921,0.9989740082079344,True,data/sft_e2cnf/gpt4o_O_s1.jsonl
+qwen3-4b-e2cnf.gpt4o_O_s3,gpt4o,O,3,2924,1.0,2924,2924,0,0,2922,0.9993160054719562,True,data/sft_e2cnf/gpt4o_O_s1.jsonl
+qwen3-4b-e2cnf.gpt4o_O_s4,gpt4o,O,4,2924,1.0,2924,2924,0,0,2917,0.9976060191518468,True,data/sft_e2cnf/gpt4o_O_s1.jsonl
+qwen3-4b-e2cnf.gpt4o_O_s5,gpt4o,O,5,2924,1.0,2924,2924,0,0,2923,0.9996580027359782,True,data/sft_e2cnf/gpt4o_O_s1.jsonl

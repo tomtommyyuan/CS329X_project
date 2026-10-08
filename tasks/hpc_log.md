@@ -665,3 +665,19 @@ BLOCKED: Cnf 的 robustness 门未过（claude46 Cnf E1a 0.942–0.952，4/5 < 0
 | deepseek_v4 | **131510** | 395 | 131511–131515 |
 
 - **下一步**：15 个 readout 齐后核对 manifest（`steps` 等于 780 / 760 / 395、`max_steps` 已记录、`num_epochs` 为 9、前缀正确、data_sha256 等于 meta），然后在交互分配里跑 13 和 19 的 dev 并判门。门过后跑 test（`--frozen-commit 22c7e9b`）；不过门就写 BLOCKED 停下。
+
+### 2026-10-07 E2c 修订 2：Cnf（按步数匹配）的 dev 门
+
+- 131498 / 131504 / 131510 三个 array 与 15 个 follower 全部 COMPLETED。
+- 15 个 manifest 都满足：`steps` 与 `max_steps` 为 780 / 760 / 395（与同 teacher 的 C 相同）、`num_epochs` 9、`config_path` 为 configs/train_e2c_cnf.yaml、前缀为 `qwen3-4b-e2cnf.`、data_sha256 等于 meta。dev 每个 run 1,500 行。
+- 13 与 19 的 dev 都在交互分配里跑。
+
+| 门 | 值 | 结果 |
+|---|---|---|
+| E1a（s1–s5） | claude46 0.998 / 0.999 / 0.993 / 0.999 / 0.999；gpt4o 0.998–1.000；deepseek_v4 0.995–0.997 | 15/15 |
+| E1b | 六对最低 ci_lo 0.988 | 6/6 |
+
+**dev 描述**（只作描述）：19 primary（Cnf）PARTIAL 1/3。gap 为 gpt4o −0.017、claude46 0.035 [−0.002, 0.068]、deepseek_v4 0.042 [0.008, 0.073]。Cnf − K 归因 2/3（claude46 0.031、deepseek_v4 0.057）。
+
+E2c Cnf2 门通过：进入 test，每个 run 只跑一次 readout，19 用 `--frozen-commit 22c7e9b`。
+- Cnf test readout 作业：131602–131616（15 个，清单 `vcd_diag/e2cnf2_test_ids.txt`）。
