@@ -23,7 +23,7 @@
 | E2c 5 epoch 30 run | 完成 2026-10-07 | 61 个作业全部 COMPLETED；dev 门通过（C E1a ≥ 0.975、E1b 6/6；K E1a ≥ 0.998） |
 | E2c test（确认性） | 完成 2026-10-07 | primary PARTIAL（1/3，deepseek_v4）；归因 2/3；checkpoint 已清 |
 | E2c robustness K_n | 完成 2026-10-07 | dev 门过；test：C − K_n 归因 2/3；checkpoint 已清 |
-| E2c robustness Cnf | **BLOCKED** | dev 门未过（claude46 E1a 0.942–0.952，435 步）；checkpoint 保留，等 Mac 侧 (a) / (b) |
+| E2c robustness Cnf | 完成 2026-10-07（修订 2） | 5 epoch 版门未过 → 按步数匹配重训：门过；test：primary PASS 2/3，Cnf − K 归因 1/3；checkpoint 已清 |
 
 ## 日志
 
@@ -681,3 +681,19 @@ BLOCKED: Cnf 的 robustness 门未过（claude46 Cnf E1a 0.942–0.952，4/5 < 0
 
 E2c Cnf2 门通过：进入 test，每个 run 只跑一次 readout，19 用 `--frozen-commit 22c7e9b`。
 - Cnf test readout 作业：131602–131616（15 个，清单 `vcd_diag/e2cnf2_test_ids.txt`）。
+
+### 2026-10-07 E2c 修订 2：Cnf test（只跑一次，冻结于 22c7e9b）
+
+- **readout**：131602–131616 全部 COMPLETED、exit 0，各 3,000 行。
+- **分析**：在交互分配里跑 13 `--split test --out results/e2c_robust/Cnf/13` 和 19 `--split test --c-glob "runs/qwen3-4b-e2cnf/*_O_s*/eval/test_responses.jsonl" --out results/e2c_robust/Cnf --frozen-commit 22c7e9b`。看到 test 之后没有改任何量。
+
+| Cnf（test） | gap | CI | q95 | primary | Cnf − K | CI | 归因 |
+|---|---|---|---|---|---|---|---|
+| gpt4o | −0.007 | [−0.025, 0.011] | 0.020 | 否 | −0.005 | [−0.022, 0.023] | 否 |
+| claude46 | 0.026 | [0.003, 0.049] | 0.024 | **是** | 0.025 | [−0.0004, 0.052] | 否（下界刚好低于 0） |
+| deepseek_v4 | 0.037 | [0.016, 0.058] | 0.034 | **是** | 0.037 | [0.014, 0.067] | 是 |
+
+- **19 的判定**：Cnf primary PASS（2/3）；Cnf − K 归因 1/3 → not attributed。
+- **13 Cnf**：E1 PASS、E2 primary PARTIAL、E2 secondary fail。
+- **对照主轮 C**：primary PARTIAL（claude46 的 gap 0.028 < q95 0.032），归因 2/3。Cnf 是去掉 flip_only 的子集，方向一致；claude46 在 Cnf 上过了 primary，但归因 CI 的下界落在 0 附近。
+- **清理**：15 个 Cnf checkpoint 已删，现在 `runs/` 下没有任何 checkpoint。E2c robustness 轮（K_n、修订 2 的 Cnf）的 HPC 步骤全部完成。
