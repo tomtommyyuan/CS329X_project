@@ -837,3 +837,4 @@ BLOCKED: deepseek_v4 的 F vs C register 可分性未过冻结门（最近质心
 | register（F vs C，两项准确率都 ≥ 0.90） | gpt4o 0.9005 / 0.949 过；claude46 0.9007 / 0.954 过；deepseek_v4 0.885 / 0.936 未过，**按修订 1 豁免** |
 
 E3c 门通过（deepseek_v4 register 门按修订 1 豁免），冻结 45f3d30
+- **test readout**：45 个 sbatch 作业 132029–132073（`slurm/eval.sbatch <run> test`，每个 run 一次；清单在 `vcd_diag/e3c_test_ids.txt`）。全部完成后在交互分配里跑 13 / 15 / 20 / 19_O 的 test（`--frozen-commit 45f3d30`）。
