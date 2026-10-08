@@ -744,3 +744,44 @@ BLOCKED: deepseek_v4 的 F vs C register 可分性未过冻结门（最近质心
 - (c) 明确豁免、照常训练 deepseek_v4 的 F / C。这属于看了数据后改门，需要书面披露。
 
 在 Mac 侧决定之前，其余步骤照常进行。
+
+### 2026-10-08 E3c：deepseek_v4 register 门失败的独立复核（只读 workflow，5 个 agent，含 skeptic 复核）
+
+**1. 失败成立，但属于阈值效应。**
+
+- 用不调用 vcd 的独立实现重算，最近质心 LOO 为 0.9005 / 0.9007 / 0.8851，与冻结代码逐项一致。
+  - deepseek_v4 答对 3,944 / 4,456，门槛需要 4,011，差 67 条。Wilson CI 0.875–0.894，family-cluster bootstrap 为 0.875–0.895，都完全低于 0.90。
+  - gpt4o、claude46 只比门槛多 4 和 5 条，family-cluster CI 都跨 0.90（0.893–0.908 / 0.893–0.909）。
+- 从 E3 到 E3c，三个 teacher 的可分性都降了约 0.02（−0.021 / −0.026 / −0.022）。原因是争议集的 O 示范本身正式词更少：O 里既无正式词也无正式连接词的比例，E3c 为 38.6 / 41.5 / 63.4%，E3 为 15.1 / 16.6 / 36.2%。deepseek_v4 在 E3 的余量本来就最小（多 69 条，另两家多 218 / 249）。
+- 差距全部在 F 一侧：deepseek_v4 的 F 错误率 0.155，另两家 0.123 / 0.132；C 的错误率三家相同。
+- 最近质心对短文本不利。deepseek_v4 的 rationale 最短（O 平均 32 词，61.9% 的 F 只有一句）。按 O 的长度分布重新加权后，可以补回 75–90% 的差距；在相同长度档内，deepseek_v4 与 gpt4o 一样可分。logistic 对三家都 ≥ 0.934。
+- 来源构成解释不了这个差距（重加权后 0.878 / 0.879）。改写器三家相同（kept 的全部是 gemini38_flash），重试比例也相近。
+- 弯引号 ’ 不计为缩写（冻结的正则只认直引号），改成直引号后最近质心仍是 0.890，不改变结论。
+
+**2. 只训 deepseek_v4 的 O 时会怎样**（在 E3 旧网格上用软链接模拟，没有 test 文件）：
+
+- 15 和 20 用默认参数时，全部判定行都是 `pending (n_teachers 2 < 3)`。
+- 用 `--teachers gpt4o,claude46` 能出判定，但会改变参照 teacher、ΔρPartial 里的 max ρ(other)、null 的组成和 df，相当于改冻结定义，不推荐。
+- 新增一个只改 n_required 的参数（默认不变）时，统计量、参照 teacher 和 null 都与全网格相同，判定要求 2/2 同号。
+- 13 在只有 deepseek O 的情况下运行正常，但 E1a 的 pass 列只覆盖 O，F / C 要看 `accuracy` 列。
+
+**3. 其他发现：**
+
+- 步 5 的 `19 --c-glob …_F_s*` / `…_C_s*` 无论怎么决定都会是 pending，因为 19 只给 O 版本算 gap（`e2c_metrics.GAP_VERSION = 'O'`，没有命令行参数）。e3c §3(c) 的 F / C 描述需要改代码，或者只跑 19_O。
+- `data/rewrites_e2c/deepseek_v4/rewrites.jsonl` 有 428 行完全重复的 F 行（attempt 0），SFT 文本不受影响，但 15 报告的 deepseek F mean_attempts（1.296）偏高，需要加脚注。
+
+**更新后的建议（替代上一段的 (a)）：**
+
+| 选项 | 内容 | 代价 |
+|---|---|---|
+| **(c′) 推荐** | 豁免 deepseek_v4 的 register 门并训练它的 F / C（`--array=0-9`，`--max-steps 395`）。理由：失败是三家共同下降约 0.02 后的阈值效应；最近质心对短 rationale 偏严，相同长度下 deepseek 与 gpt4o 一样可分；logistic 0.936；E3 本身只把这项检查当描述。保留完整的三 teacher 设计，不改代码 | 属于看了数据（训练文件，不是结果）后改门，论文要披露；必须在任何 F / C 的 dev 结果被看之前写入 e3c_plan |
+| (a′) | deepseek_v4 只保留 O，给 15 / 20 加一个只改 n_required 的参数（默认不变，需加测试），判定改为 2/2 | 要改代码和修订计划，功效更低 |
+| (a″) | 完全照冻结文字执行 | 所有判定行 pending，E3c 只能作描述 |
+| (b) | 重做 deepseek_v4 的改写 | 付费，且不保证能过（E3 时只有 0.907），O 的 paired 集也会变 |
+
+**为保持干净，在 Mac 侧决定之前：**
+
+- 不看任何 F / C 的结果，所以 15 / 20 的 dev 暂缓。
+- 13 只读 train readout 来判 E1a / E1b，可以照跑。
+- 训练（gpt4o / claude46 的 30 个，deepseek_v4 的 O 5 个）照常进行。
+- 不跑 test，checkpoint 全部保留。
