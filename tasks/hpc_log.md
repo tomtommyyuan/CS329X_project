@@ -697,3 +697,24 @@ E2c Cnf2 门通过：进入 test，每个 run 只跑一次 readout，19 用 `--f
 - **13 Cnf**：E1 PASS、E2 primary PARTIAL、E2 secondary fail。
 - **对照主轮 C**：primary PARTIAL（claude46 的 gap 0.028 < q95 0.032），归因 2/3。Cnf 是去掉 flip_only 的子集，方向一致；claude46 在 Cnf 上过了 primary，但归因 CI 的下界落在 0 附近。
 - **清理**：15 个 Cnf checkpoint 已删，现在 `runs/` 下没有任何 checkpoint。E2c robustness 轮（K_n、修订 2 的 Cnf）的 HPC 步骤全部完成。
+
+### 2026-10-08 E3c（tasks/e3c_plan.md）：数据重建、S_0、网格提交
+
+在交互分配 131665（haic-hgx-1）上做，`git pull --rebase` 到 ca97bd6。
+
+- **数据**：三个 teacher 都跑 `10 --versions O,F,C --rewrites-dir data/rewrites_e2c --prompts data/prompts/e2c_C_prompts.jsonl --demos data/teacher_e2c/{t}_e2c_C_demo.jsonl --out-dir data/sft_e2c_paired`。
+  - 45 个 jsonl 的 sha256 与已提交的 meta 逐一相同，行数等于 n_examples，meta 中除路径和时间戳外的字段全部相同；核对后已 `git checkout` 回提交版本。
+  - paired n_examples：gpt4o 4,527（O 的 91.2%）、claude46 4,122（85.2%）、deepseek_v4 2,228（89.2%）。
+- **S_0**：已复制到 `runs/qwen3-4b-e2c-paired/base_B_s0/eval/`，`cmp` 与原件一致。
+- **follower 脚本**：`vcd_diag/e2c_eval_run.sh` 新增 `qwen3-4b-e2c-paired` → C 的映射，train readout 带 `--prompts data/prompts/e2c_C_prompts.jsonl`。
+- **作业**（`STUDENT_SHORT=qwen3-4b-e2c-paired`，`CONFIG=configs/train_e2c_cnf.yaml`，`--array=0-14%8`；清单在 `vcd_diag/e3c_ids.txt`）：
+
+| teacher | 训练 array | `--max-steps` | train + dev readout follower |
+|---|---|---|---|
+| gpt4o | **131749** | 780 | 131750–131764（对应 131749_0–14） |
+| claude46 | **131765** | 760 | 131766–131780（对应 131765_0–14） |
+| deepseek_v4 | 延后提交（见下） | 395 | — |
+
+- **异常**：deepseek_v4 的 array 被拒（`QOSMaxSubmitJobPerUserLimit`）。QOS ingrai 的 MaxSubmitPU 为 64，而且每个 array 任务单独计数：30 个训练任务、30 个 follower 加交互分配已占 61 个。因此 deepseek_v4 的 15 个 follower 也因依赖失败没有提交，没有任何 deepseek 作业或 run 目录。
+- **处理**：交互节点上运行 `vcd_diag/e3c_submit_deepseek.sh`，日志在 `vcd_diag/e3c_submit_deepseek.log`。它等到 QOS 空出 ≥ 31 个位置后，用同一条命令提交 deepseek_v4 的 array（`--max-steps 395`）和 15 个 follower，作业号追加到 `e3c_ids.txt`。如果交互分配先到期：先查 `grep deepseek vcd_diag/e3c_ids.txt`，没有记录就手动运行该脚本，它已提交时会自动跳过。
+- **下一步**：45 个 readout 齐后在交互分配里跑 13 / 15 / 20 的 dev，按 §2 判门。
