@@ -14,6 +14,16 @@ qwen3-4b-e2c-paired.claude46_O_s2,claude46,O,2,4122,1.0,4122,4122,0,0,4094,0.993
 qwen3-4b-e2c-paired.claude46_O_s3,claude46,O,3,4122,1.0,4122,4122,0,0,4084,0.9907811741872877,True,data/sft_e2c_paired/claude46_O_s1.jsonl
 qwen3-4b-e2c-paired.claude46_O_s4,claude46,O,4,4122,1.0,4122,4122,0,0,4080,0.9898107714701602,True,data/sft_e2c_paired/claude46_O_s1.jsonl
 qwen3-4b-e2c-paired.claude46_O_s5,claude46,O,5,4122,1.0,4122,4122,0,0,4084,0.9907811741872877,True,data/sft_e2c_paired/claude46_O_s1.jsonl
+qwen3-4b-e2c-paired.deepseek_v4_C_s1,deepseek_v4,C,1,2228,1.0,2228,2228,0,0,2221,0.9968581687612208,,data/sft_e2c_paired/deepseek_v4_C_s1.jsonl
+qwen3-4b-e2c-paired.deepseek_v4_C_s2,deepseek_v4,C,2,2228,1.0,2228,2228,0,0,2224,0.9982046678635548,,data/sft_e2c_paired/deepseek_v4_C_s2.jsonl
+qwen3-4b-e2c-paired.deepseek_v4_C_s3,deepseek_v4,C,3,2228,1.0,2228,2228,0,0,2222,0.9973070017953322,,data/sft_e2c_paired/deepseek_v4_C_s3.jsonl
+qwen3-4b-e2c-paired.deepseek_v4_C_s4,deepseek_v4,C,4,2228,1.0,2228,2228,0,0,2227,0.9995511669658886,,data/sft_e2c_paired/deepseek_v4_C_s4.jsonl
+qwen3-4b-e2c-paired.deepseek_v4_C_s5,deepseek_v4,C,5,2228,1.0,2228,2228,0,0,2219,0.9959605026929982,,data/sft_e2c_paired/deepseek_v4_C_s5.jsonl
+qwen3-4b-e2c-paired.deepseek_v4_F_s1,deepseek_v4,F,1,2228,1.0,2228,2228,0,0,2222,0.9973070017953322,,data/sft_e2c_paired/deepseek_v4_F_s1.jsonl
+qwen3-4b-e2c-paired.deepseek_v4_F_s2,deepseek_v4,F,2,2228,1.0,2228,2228,0,0,2222,0.9973070017953322,,data/sft_e2c_paired/deepseek_v4_F_s2.jsonl
+qwen3-4b-e2c-paired.deepseek_v4_F_s3,deepseek_v4,F,3,2228,1.0,2228,2228,0,0,2226,0.9991023339317774,,data/sft_e2c_paired/deepseek_v4_F_s3.jsonl
+qwen3-4b-e2c-paired.deepseek_v4_F_s4,deepseek_v4,F,4,2228,1.0,2228,2228,0,0,2223,0.9977558348294434,,data/sft_e2c_paired/deepseek_v4_F_s4.jsonl
+qwen3-4b-e2c-paired.deepseek_v4_F_s5,deepseek_v4,F,5,2228,1.0,2228,2228,0,0,2220,0.9964093357271095,,data/sft_e2c_paired/deepseek_v4_F_s5.jsonl
 qwen3-4b-e2c-paired.deepseek_v4_O_s1,deepseek_v4,O,1,2228,1.0,2228,2228,0,0,2219,0.9959605026929982,True,data/sft_e2c_paired/deepseek_v4_O_s1.jsonl
 qwen3-4b-e2c-paired.deepseek_v4_O_s2,deepseek_v4,O,2,2228,1.0,2228,2228,0,0,2220,0.9964093357271095,True,data/sft_e2c_paired/deepseek_v4_O_s1.jsonl
 qwen3-4b-e2c-paired.deepseek_v4_O_s3,deepseek_v4,O,3,2228,1.0,2228,2228,0,0,2220,0.9964093357271095,True,data/sft_e2c_paired/deepseek_v4_O_s1.jsonl

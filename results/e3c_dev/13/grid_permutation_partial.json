@@ -1,0 +1,46 @@
+{
+  "observed": -0.011689979256866543,
+  "null_mean": -0.0645078810604551,
+  "null_sd": 0.01550165068749991,
+  "p": 0.00011496440067868639,
+  "n_perm": 756756,
+  "n_runs": 15,
+  "method": "exact",
+  "per_run": {
+    "qwen3-4b-e2c-paired.claude46_O_s1": -0.17768127996605795,
+    "qwen3-4b-e2c-paired.claude46_O_s2": -0.14053165803398304,
+    "qwen3-4b-e2c-paired.claude46_O_s3": -0.13781038973673904,
+    "qwen3-4b-e2c-paired.claude46_O_s4": -0.11011256585456075,
+    "qwen3-4b-e2c-paired.claude46_O_s5": -0.08988407133824919,
+    "qwen3-4b-e2c-paired.deepseek_v4_O_s1": 0.02445976998523758,
+    "qwen3-4b-e2c-paired.deepseek_v4_O_s2": 0.11580175131442894,
+    "qwen3-4b-e2c-paired.deepseek_v4_O_s3": -0.003291717378183151,
+    "qwen3-4b-e2c-paired.deepseek_v4_O_s4": 0.07073980140615332,
+    "qwen3-4b-e2c-paired.deepseek_v4_O_s5": 0.0074312289709190515,
+    "qwen3-4b-e2c-paired.gpt4o_O_s1": 0.07123819125734374,
+    "qwen3-4b-e2c-paired.gpt4o_O_s2": 0.02093905992033951,
+    "qwen3-4b-e2c-paired.gpt4o_O_s3": 0.050810905407007056,
+    "qwen3-4b-e2c-paired.gpt4o_O_s4": 0.09212151401851426,
+    "qwen3-4b-e2c-paired.gpt4o_O_s5": 0.030419771174831495
+  },
+  "control": "qwen3-4b.base_B_s0",
+  "n_assignments": 756756,
+  "teacher_exact": {
+    "observed": -0.011689979256866543,
+    "p": 0.16666666666666666,
+    "rank": 1,
+    "n_assignments": 6,
+    "floor": 0.16666666666666666,
+    "null": [
+      -0.011689979256866543,
+      -0.07577934940041213,
+      -0.027735301087128947,
+      -0.08310058313830262,
+      -0.09873308078619614,
+      -0.09000899269382427
+    ],
+    "method": "teacher-exact",
+    "n_runs": 15
+  },
+  "unit_note": "run-level p is pseudo-replicated (seeds of one teacher are near-replicates); descriptive only"
+}

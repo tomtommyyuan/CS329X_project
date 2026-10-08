@@ -822,3 +822,18 @@ BLOCKED: deepseek_v4 的 F vs C register 可分性未过冻结门（最近质心
 - 已 `git pull --rebase` 到 45f3d30。`runs_deepseek_v4.txt` 的第 1–10 行（array 索引 0–9）是 C_s1–5 和 F_s1–5，已核对；这 10 个 jsonl 的 sha256 与 meta 一致。
 - **作业**：训练 array **132000**（`--array=0-9%8`，`--max-steps 395`，`CONFIG=configs/train_e2c_cnf.yaml`），follower **132001–132010**（train readout 带 `--prompts data/prompts/e2c_C_prompts.jsonl`，加 dev）。清单在 `vcd_diag/e3c_ids.txt`。
 - 在门判完之前，继续不看任何 F / C 学生的结果。
+
+### 2026-10-08 E3c dev 门（e3c_plan §2 + §7 修订 1）
+
+- deepseek_v4 的 F / C：array 132000 与 follower 132001–132010 全部 COMPLETED、exit 0（训练 11–16 分钟，readout 约 4 分钟）。
+- 在交互分配 131665 里跑了 13（`--out results/e3c_dev/13`）、15（`--out results/e3c_dev`）和 20（`--out results/e3c_dev`），都是 dev。门由 `vcd_diag/e3c_gate.py` 判定，只读门的输入。
+- 45 个 manifest 都满足：`steps` 为 780 / 760 / 395、`num_epochs` 9、run_id 前缀与版本字母正确、data_sha256 等于 meta。train readout 行数等于 n_examples，dev 每个 run 1,500 行。
+
+| 门 | 结果 |
+|---|---|
+| E1a（45 个 run，13 的 accuracy 列；用 `e1a_check.py` 独立重算，结果相同） | 45/45，最低 0.9852。gpt4o 0.992–0.995，claude46 0.985–0.993，deepseek_v4 0.996–0.9996 |
+| E1b（O run，六对） | 6/6，最低 ci_lo 0.977 |
+| 内容检查（三版本 prompt 集与 O 相同、字母一致率） | 9/9 行为 True / 1.0（claude46 C 的 `letter_matches_rewrite` 0.99976，是已知的那 1 条） |
+| register（F vs C，两项准确率都 ≥ 0.90） | gpt4o 0.9005 / 0.949 过；claude46 0.9007 / 0.954 过；deepseek_v4 0.885 / 0.936 未过，**按修订 1 豁免** |
+
+E3c 门通过（deepseek_v4 register 门按修订 1 豁免），冻结 45f3d30
