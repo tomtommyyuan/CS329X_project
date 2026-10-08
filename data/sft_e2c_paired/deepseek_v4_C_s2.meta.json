@@ -1,0 +1,61 @@
+{
+  "n_prompts_in": 11880,
+  "n_prompts_variant": 11880,
+  "n_demos_in": 11880,
+  "n_demos_unmatched": 0,
+  "n_demos_duplicate": 0,
+  "n_dropped_category": 0,
+  "n_dropped_format": 0,
+  "n_missing_demo": 0,
+  "n_items_answered": 5940,
+  "n_items_stable": 2497,
+  "n_dropped_order_unstable": 3443,
+  "order_stable_rate": 0.4203703703703704,
+  "order_policy": "stable_one",
+  "order_seed": 20261002,
+  "n_selected_O": 2497,
+  "n_dropped_no_rewrite": 207,
+  "n_dropped_rewrite_format": 0,
+  "n_dropped_choice_mismatch": 0,
+  "teacher": "deepseek_v4",
+  "version": "C",
+  "seed": 2,
+  "paired": true,
+  "versions_built": [
+    "O",
+    "F",
+    "C"
+  ],
+  "variants": [
+    "T1",
+    "T3",
+    "T5",
+    "T6"
+  ],
+  "prompts_path": "/Users/yuansir/workspace/CS329X_Project/data/prompts/e2c_C_prompts.jsonl",
+  "demos_path": "/Users/yuansir/workspace/CS329X_Project/data/teacher_e2c/deepseek_v4_e2c_C_demo.jsonl",
+  "rewrites_dir": "/Users/yuansir/workspace/CS329X_Project/data/rewrites_e2c",
+  "n_examples": 2228,
+  "n_families": 1061,
+  "variant_counts": {
+    "T1": 531,
+    "T3": 630,
+    "T5": 548,
+    "T6": 519
+  },
+  "order_counts": {
+    "1": 1095,
+    "2": 1133
+  },
+  "letter_counts": {
+    "A": 1132,
+    "B": 1096
+  },
+  "mean_target_chars": 205.8491921005386,
+  "max_target_chars": 480,
+  "mean_target_words": 36.04308797127469,
+  "mean_prompt_chars": 579.931328545781,
+  "prompt_ids_sha256": "26568932a39e30bed7b13aa12f8f2632b5625d9f838d856be8bbce16c926c44e",
+  "sha256": "4f218f8af9ad347f28661ccc6446af4f315cb502283932213d3c3699b25413e4",
+  "built_at": "2026-10-08T07:20:53+00:00"
+}

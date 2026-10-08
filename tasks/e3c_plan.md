@@ -1,6 +1,6 @@
 # E3c 预注册：争议集上的文风改写（Form modulation where a teacher-specific signal exists）
 
-> 状态：**2026-10-07 写于任何 F / C run 存在之前**；改写（Mac 侧，付费）与本文件同日开始。上游：[e3_plan](e3_plan.md) §2–§3（统计量与判定规则，原样复用）、[e2c_plan](e2c_plan.md) §4–§6、§12（争议集与其结果）、[docs/story.md](../docs/story.md) §6。付费 API 只在 Mac 侧。
+> 状态：**2026-10-07 写于任何 F / C run 存在之前**；改写（Mac 侧，付费）与本文件同日开始；**2026-10-08 改写完成、paired 文件已建；训练前把预算改为与 E2c-C 相同的步数（§1，仍在任何 F / C run 之前）**。上游：[e3_plan](e3_plan.md) §2–§3（统计量与判定规则，原样复用）、[e2c_plan](e2c_plan.md) §4–§6、§12（争议集与其结果）、[docs/story.md](../docs/story.md) §6。付费 API 只在 Mac 侧。
 
 ## 0. 问题
 
@@ -12,15 +12,15 @@ E3 在原训练集上没有检出文风改写的任何效应（13 行判定 12 i
 |---|---|
 | 待改写的示范 | E2c-C 的 O 训练项：`data/sft_e2c/{teacher}_O_s1.jsonl` 的 prompt_id（gpt4o 4,964 / claude46 4,838 / deepseek_v4 2,497 = 12,299 条），示范文本取 `data/teacher_e2c/{teacher}_e2c_C_demo.jsonl`，prompt 取 `data/prompts/e2c_C_prompts.jsonl` |
 | 改写层 | 与 E1 训练集改写**完全相同**：`scripts/06b_rewrite_train.py`，rewriter B = Gemini 3.8 Flash，judge J = GLM-5.3-Flash（fallback GLM-5.3），`configs/e0_v2.yaml`，F = register only、C = conversational wording（`STYLE_INSTRUCTIONS_CONV_C`），词汇层检查、反馈重试 2 次；输出 `data/rewrites_e2c/{teacher}/rewrites.jsonl` |
-| 训练文件 | `10 --versions O,F,C --rewrites-dir data/rewrites_e2c --prompts data/prompts/e2c_C_prompts.jsonl --demos data/teacher_e2c/{t}_e2c_C_demo.jsonl --out-dir data/sft_e2c_paired`：paired（三版本同一 prompt 集 = F 与 C 都保留的项），`stable_one`、`order_seed` 不变；预期保留 85–95%。jsonl 不入库，meta + runs.txt 提交 |
-| 学生 | 45 run：3 teacher × {O, F, C} × 5 seed，`STUDENT_SHORT=qwen3-4b-e2c-paired`，`CONFIG=configs/train_e2c.yaml`（5 epoch，E2c 修订 1 的配方） |
+| 训练文件 | `10 --versions O,F,C --rewrites-dir data/rewrites_e2c --prompts data/prompts/e2c_C_prompts.jsonl --demos data/teacher_e2c/{t}_e2c_C_demo.jsonl --out-dir data/sft_e2c_paired`：paired（三版本同一 prompt 集 = F 与 C 都保留的项），`stable_one`、`order_seed` 不变；预期保留 85–95%。**实际（2026-10-08）**：F / C 都保留的项 gpt4o 4,527（91.2%）/ claude46 4,122（85.2%）/ deepseek_v4 2,228（89.2%）；单风格保留 F 94.7 / 92.5 / 92.7%，C 93.6 / 87.4 / 91.7%；record 抽取失败 24 / 51 / 16 项；6 个 worker 曾因 Gemini 对个别 Reddit 来源题返回空候选而崩溃，修复后续跑（f6e0fb2）。jsonl 不入库，meta + runs_{teacher}.txt 提交 |
+| 学生 | 45 run：3 teacher × {O, F, C} × 5 seed，`STUDENT_SHORT=qwen3-4b-e2c-paired`，`CONFIG=configs/train_e2c_cnf.yaml`（9 epoch 上界）+ 每 teacher `--max-steps` 780 / 760 / 395（= 同 teacher E2c-C run 的步数，`data/sft_e2c_paired/max_steps.json`；修订 2 的步数匹配做法，O / F / C 三版本相同）。**训练前的调整**：paired 集比 C 小，5 epoch 只有 710 / 645 / 350 步，而 Cnf 的经验是 Claude 在 435 步时 E1a 0.94–0.95 过不了门；直接给与 C 相同的优化预算，也使 paired-O 与 E2c-C 可比 |
 | 评估 | 冻结的 dev 150 / test 300 family；transformers fp32 readout，0.9 门；S_0 复用 `runs/qwen3-4b/base_B_s0/eval/` |
 
 ## 2. 训练门与预先写好的阶梯
 
 | 门 | 规则 | 不过时 |
 |---|---|---|
-| E1a | 45 个 run 都复现自己训练目标字母 ≥ 0.95（F / C 的目标字母与 O 相同，内容检查会核对 100%） | paired 集比 C 小，步数随之减少；若某 teacher 任一版本未过，则该 teacher 的 **O / F / C 三个版本一起**改为与其 E2c-C run 相同的步数（`--max-steps` 780 / 760 / 395，`configs/train_e2c_cnf.yaml` 的 9 epoch 上界，即修订 2 的做法）重训；只此一级，仍不过则如实报告 |
+| E1a | 45 个 run 都复现自己训练目标字母 ≥ 0.95（F / C 的目标字母与 O 相同，内容检查会核对 100%） | 步数已预先匹配到 C（§1）；若仍有版本未过，如实报告，不再调整 |
 | E1b | O run 的争议项上站自己 teacher（六对 ci_lo > 0.5） | 同上 |
 | 内容 / register 检查（e3_plan §2 第 6 行） | 三版本 prompt 集与字母 100% 一致；F vs C register 可分性 ≥ 0.90 | 可分性不足 → 改写无效，不训练 F / C |
 
@@ -49,7 +49,7 @@ E3 在原训练集上没有检出文风改写的任何效应（13 行判定 12 i
 | # | 侧 | 做什么 | 验收 |
 |---|---|---|---|
 | 1 | Mac | 提交本文件；`06b` 改写三个 teacher（Gemini 日配额 5 个项目 × 10k，可一天内完成）；`10` 建 paired；提交 `data/rewrites_e2c/`、`data/sft_e2c_paired/*.meta.json` + runs.txt；`20` 在 E3 旧网格上冒烟后提交 | 保留率、三版本 n_examples 相同；20 的冒烟**已做**（2026-10-07，`runs/qwen3-4b-paired`）：dev / test 两行均 inconclusive（与 E3 一致），family 单位的 agree_own 与 results/e3* 的 run_scalars 逐 run 相同，cell 加权聚合与 `teacher_agreement` 相同；11 个单测 |
-| 2 | HPC | 重建 45 个 SFT（sha256 对 meta）；S_0 复制到 `runs/qwen3-4b-e2c-paired/base_B_s0/eval/`；训练 45 run（`DATA_LIST=data/sft_e2c_paired/runs.txt --array=0-44%8`）；train / dev readout | manifest：5 epoch、前缀 `qwen3-4b-e2c-paired.`、sha256 |
+| 2 | HPC | 重建 45 个 SFT（sha256 对 meta）；S_0 复制到 `runs/qwen3-4b-e2c-paired/base_B_s0/eval/`；训练 45 run，每 teacher 一个 array：`STUDENT_SHORT=qwen3-4b-e2c-paired CONFIG=configs/train_e2c_cnf.yaml DATA_LIST=data/sft_e2c_paired/runs_{teacher}.txt EXTRA_ARGS="--max-steps {780|760|395}" sbatch --array=0-14%8 slurm/train.sbatch`；train readout 带 `--prompts data/prompts/e2c_C_prompts.jsonl`；dev readout | manifest：`steps` = 780 / 760 / 395、`num_epochs` 9、前缀 `qwen3-4b-e2c-paired.`、data_sha256 = meta |
 | 3 | HPC | 13（`--sft-dir data/sft_e2c_paired --prompts-train data/prompts/e2c_C_prompts.jsonl`，对 O / F / C 全部 run 的 E1a）→ §2 的门；`15 --split dev --out results/e3c_dev`、`20 --split dev --out results/e3c_dev`（描述，看表齐不齐）；hpc_log 写冻结行 | 门过 |
 | 4 | HPC | test readout 每 run 一次；`15 --split test --out results/e3c --frozen-commit <本文件提交 hash>`、`20 --split test --out results/e3c --frozen-commit <同>`、`19` 三次（描述） | `results/e3c/summary.md`、`e3c_summary.md` |
 | 5 | Mac | 论文表：E3（原集）vs E3c（争议集）的 13 + 1 行并排 | — |

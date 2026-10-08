@@ -23,6 +23,7 @@ data/sft_e2c/*.jsonl
 data/sft_e2ck/*.jsonl
 data/sft_e2ckn/*.jsonl
 data/sft_e2cnf/*.jsonl
+data/sft_e2c_paired/*.jsonl
 # derived E2c prompt files (cat of the committed wave files; 17b new-prompts output)
 data/prompts/contested_pool_T1_screened.jsonl
 data/prompts/e2c_*_new_prompts.jsonl

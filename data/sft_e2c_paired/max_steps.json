@@ -1,0 +1,6 @@
+{
+  "note": "E3c: --max-steps per teacher = steps of the E2c-C run of the same teacher (runs/qwen3-4b-e2c/*_O_s1/train_manifest.json); applied to O, F and C",
+  "gpt4o": 780,
+  "claude46": 760,
+  "deepseek_v4": 395
+}
