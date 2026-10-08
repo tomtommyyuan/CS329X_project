@@ -839,3 +839,54 @@ BLOCKED: deepseek_v4 的 F vs C register 可分性未过冻结门（最近质心
 E3c 门通过（deepseek_v4 register 门按修订 1 豁免），冻结 45f3d30
 - **test readout**：45 个 sbatch 作业 132029–132073（`slurm/eval.sbatch <run> test`，每个 run 一次；清单在 `vcd_diag/e3c_test_ids.txt`）。全部完成后在交互分配里跑 13 / 15 / 20 / 19_O 的 test（`--frozen-commit 45f3d30`）。
 - **test 分析**已跑一次（冻结于 45f3d30）：15 的 13 行为 2 effect（disagreement F vs C、O vs C）、11 inconclusive；20 的两行 inconclusive；19_O primary PASS 2/3、归因 1/3。汇总表见下一段（独立复核之后写）。
+
+### 2026-10-08 E3c test：确认性判定汇总（冻结于 45f3d30，只跑一次）
+
+- **readout**：45 个 sbatch 作业 132029–132073 全部 COMPLETED、exit 0，各 3,000 行，fp32。有 4 行 malformed，没有插补：claude46_C_s3 1 行、claude46_F_s4 2 行、deepseek_v4_F_s3 1 行。
+- **分析**：13 / 15 / 20 / 19_O 都在交互分配里各跑一次，三份 summary 都带 "frozen at commit 45f3d30"。看到 test 之后没有改任何量。
+- **清理**：45 个 checkpoint 已删，`runs/` 下没有任何 checkpoint（`runs/qwen3-4b-e2c-paired` 现为 224 MB）。
+
+**判定**（15 的 13 行加 20 的 2 行；per-teacher 列为配对差与 null sd 倍数，带 * 的表示超过 q95）：
+
+| 行 | tier | claude46 | deepseek_v4 † | gpt4o | 过 q95 / TOST | 判定 |
+|---|---|---|---|---|---|---|
+| 分歧率 F vs C | primary | +0.007（1.44） | +0.019（3.96）* | +0.009（2.05）* | 2/3（+）/ 0/3 | **effect** |
+| 分歧率 O vs F | secondary | −0.005 | −0.002 | −0.005 | 0/3 / 0/3 | inconclusive |
+| 分歧率 O vs C | secondary | +0.007（1.41） | +0.019（3.85）* | +0.009（2.16）* | 2/3（+）/ 0/3 | **effect** |
+| flip rate F − O | primary | −0.003 | −0.009 | +0.026* | 1/3 / 0/3 | inconclusive |
+| 跨 framing JSD F − O | primary | −0.004 | +0.000 | +0.013* | 1/3 / 0/3 | inconclusive |
+| agreement F − O | secondary | −0.006 | +0.002 | +0.004 | 0/3 / 0/3 | inconclusive |
+| excess drift F − O | primary | +0.005 | +0.001 | +0.001 | 0/3 / 0/3 | inconclusive |
+| ΔρPartial F − O | primary | −0.029* | +0.009 | +0.018 | 1/3 / 0/3 | inconclusive |
+| flip rate C − O | primary | −0.013 | −0.013 | +0.025* | 1/3 / 0/3 | inconclusive |
+| 跨 framing JSD C − O | primary | −0.009 | −0.005 | +0.011* | 1/3 / 0/3 | inconclusive |
+| agreement C − O | secondary | −0.007 | 0.000 | −0.005 | 0/3 / 0/3 | inconclusive |
+| excess drift C − O | primary | +0.003 | +0.002 | +0.004 | 0/3 / 0/3 | inconclusive |
+| ΔρPartial C − O | primary | −0.034* | −0.017 | −0.008 | 1/3 / 0/3 | inconclusive |
+| **gap F − O**（20） | 新主行 | −0.009（−2.57）* | +0.003 | +0.006 | 1/3 / 0/3 | inconclusive |
+| **gap C − O**（20） | 新主行 | −0.009（−2.64）* | +0.004 | −0.006 | 1/3 / 0/3 | inconclusive |
+
+† deepseek_v4 的 F vs C register 门未过（最近质心 0.885，logistic 0.936），按 e3c_plan §7 修订 1 书面豁免。
+
+**合计**：15 的 13 行为 2 effect、11 inconclusive、0 no effect；20 的 2 行都是 inconclusive。
+
+**描述项：**
+
+| teacher | gap 水平 O / F / C（20，family 单位） | 参照 teacher（test） | 19_O：paired-O 的 gap（CI） | 19_O：paired-O − K |
+|---|---|---|---|---|
+| gpt4o | −0.002 / +0.004 / −0.008 | deepseek_v4 | 0.002 [−0.019, 0.020] | 0.005 [−0.010, 0.025] |
+| claude46 | +0.012 / +0.002 / +0.002 | deepseek_v4（dev 上是 gpt4o，按规则在本 split 内选） | 0.023 [0.000, 0.043] | 0.022 [−0.002, 0.047] |
+| deepseek_v4 | +0.033 / +0.036 / +0.037（CI 都不含 0） | gpt4o | 0.031 [0.012, 0.049] | 0.030 [0.009, 0.058] |
+
+19_O：paired-O 的 primary PASS 2/3（claude46、deepseek_v4），对 K 的归因 1/3。
+
+**独立复核**（只读 workflow，5 个 agent 含 skeptic）：
+
+- 不导入 vcd 的独立实现把 15 的分歧率三行、20 的两行、参照 teacher 和 family 集逐项复现到 ≤ 1e-16。
+- 协议代码与 45f3d30 逐字节相同。冻结行所在的 commit（967294d）早于任何已训 run 的 test 文件，45 个 run 各只有一个 test 作业。
+- 复核同时指出以下几点（只作披露，不改任何量）：
+  - **effect 依赖两个 teacher**：deepseek_v4（3.96 null sd，正是被豁免的那个），和 gpt4o（只比它自己的 q95 多 0.0011，约 7 个 cell）。按单对 null 的敏感性列，只有 deepseek_v4 过。primary 的 row 级 Holm p 为 0.285。
+  - **分歧来自 C**：O vs F 三家都为负，即 F 学生和 O 学生一样，多出来的分歧来自口语 C 学生，F vs C 与 O vs C 是同一个发现。C 学生整体并不更不自信；只看 |p − 0.5| ≥ 0.1 的 cell，F vs C 的超额三家仍都为正。
+  - **20 的两行在这批数据上不可能判 no effect**：family bootstrap 的 CI 宽 0.011–0.030，而 TOST 要求宽度 ≤ 2 × SD_stat = 0.0071，所以没有效应时结果必然是 inconclusive。
+  - **test 上只有 deepseek_v4 的 O 学生有可测的 own-teacher 信号**（gap 的 CI 不含 0）。gpt4o 和 claude46 的 V − O 是在 O 本身信号不显著的地方测的。
+  - **e3c §3(b) 的 family 集措辞有歧义**："两侧 cell 都非平局"。代码是逐侧丢掉平局 cell；若改成严格读法（任何 family 只要有平局 cell 就整个丢掉），claude46 不再过 q95，gpt4o 两行以相反符号过 q95，两行判定仍是 inconclusive。
