@@ -79,3 +79,15 @@ E3c 在看到 E2c（含 robustness）的 test 结果之后决定；统计量与�
 | 决定时未见的 | 任何 F / C 学生的 dev / test 结果（HPC agent 把 dev readout 留在本地未提交、未查看；15 / 20 未跑） |
 | 披露 | 论文的 E3c 结果表给 deepseek_v4 行加注"register 门以最近质心 0.885 未过，logistic 0.936 过，经披露豁免"；可分性门在三家都只是勉强或未过，说明争议集上 F / C 的文风对比弱于原集，解读效应时须一并说明 |
 
+## 8. 结果（2026-10-08，test 一次，冻结 45f3d30；`results/e3c/`，过程与独立复核见 hpc_log）
+
+| 项 | 结果 |
+|---|---|
+| 门 | E1a 45/45（最低 0.985）、E1b 6/6（最低 0.977）、内容检查 100%、register：gpt4o 0.9005 / 0.949、claude46 0.9007 / 0.954 过，deepseek_v4 0.885 / 0.936 按修订 1 豁免；O vs F 可分性只有 0.66–0.68（F 与原文接近），O vs C 0.80–0.82 |
+| 15 的 13 行 | **2 effect**：分歧率 F vs C（超额 claude46 +0.007 / deepseek_v4 +0.019 / gpt4o +0.009，后两家超 q95，方向一致）、分歧率 O vs C（同样两家超 q95）；O vs F 三家 ≈ 0（−0.002 到 −0.005）→ 分歧全部来自口语体 C。其余 11 行（flip rate、跨 framing JSD、agreement、excess drift、ΔρPartial 的 F − O / C − O）inconclusive，0 no effect |
+| 20 的 2 行 | gap F − O、gap C − O 均 inconclusive：claude46 −0.009（−2.6 null sd，CI 含 0）、deepseek_v4 +0.003 / +0.004、gpt4o +0.006 / −0.006；TOST 不可能过（family bootstrap CI 宽 0.011–0.030 > 等价界 0.007） |
+| gap 水平（20） | deepseek_v4 O / F / C = 0.033 / 0.036 / 0.037（CI 均不含 0）；claude46 0.012 / 0.002 / 0.002；gpt4o −0.002 / 0.004 / −0.008 |
+| 19_O | paired-O primary PASS 2/3（claude46 0.023、deepseek_v4 0.031），对 K 归因 1/3 |
+| 复核的提醒 | effect 两行依赖 deepseek_v4（被豁免者，3.96 null sd）与 gpt4o（只超 q95 0.0011），单对 null 下只有 deepseek 过，primary 行 Holm p 0.285；test 上只有 deepseek_v4 的 O 学生有 CI 不含 0 的 own-teacher 信号；§3(b) 的 family 集措辞（"两侧 cell 都非平局"）代码按逐侧丢平局 cell 实现，严格读法下两行仍 inconclusive |
+| 一句话 | 在有信号的争议集上，口语体改写让学生在约 1–2% 的未见 cell 上改答，正式体与原文无差；一致性、对 teacher 的漂移、own-teacher gap 都没有可检出的变化，deepseek 的 gap 原样穿过改写 |
+

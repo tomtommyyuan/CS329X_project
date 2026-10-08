@@ -10,8 +10,8 @@ Moore et al.（Findings EMNLP 2024）发现 aligned 模型在价值问题上比 
 |---|---|---|
 | RQ1 Heritability | 训练未见的题上，学生更像自己的 teacher 吗——判断本身，以及换问法后的不一致性 profile | 不一致性 profile：**未检出**（E2）；判断倾向：**只在示范有分歧时出现**（E2c，PARTIAL） |
 | RQ2 Data origin | 学生的一致性随示范的一致性变化吗 | 未单独做；E2c 的"争议训练有代价"是它的一个侧面（待 K_n 确认） |
-| RQ3 Form modulation | 只改 register 的改写会改变学生的判断 / 一致性 / 继承吗 | **未检出**（E3），但测在没有可被调节的信号的设定上，证据力弱 |
-| RQ4 Provenance | 改写后还能从学生行为识别 teacher 吗 | 未跑分类器；E2c 给出了可用的信号，E1 设定下不可能 |
+| RQ3 Form modulation | 只改 register 的改写会改变学生的判断 / 一致性 / 继承吗 | E3（原集）：未检出。**E3c（争议集）**：口语体改写让学生在未见题上比 O 学生多改约 1–2% 的判断（2/3 teacher 超 seed null，effect），正式体与 O 无差；一致性、对 teacher 的漂移、继承 gap 都没有可检出的变化（等价性因 CI 太宽无法确立） |
+| RQ4 Provenance | 改写后还能从学生行为识别 teacher 吗 | 未跑分类器；E3c 显示 DeepSeek 学生的 own-teacher gap 在 F / C 改写后原样保留（0.033 → 0.036 / 0.037），即可用于溯源的信号穿过了改写；gpt4o 本来就没有信号 |
 
 ## 2. 故事线
 
@@ -25,7 +25,8 @@ Moore et al.（Findings EMNLP 2024）发现 aligned 模型在价值问题上比 
 | 诊断 | 为什么全是 null | 示范里没有 teacher 特有的信号，学生自然无从继承，文风也无从调节 |
 | E2c | 新建 1,485 个 **teacher 彼此不一致** 的 family（公开数据集规则转换 + 三 teacher 筛选）训学生；同来源、同规模的共识集 K 作对照 | **teacher 特有的判断倾向出现了**：3 个 teacher 里 2 个的学生更像自己的 teacher，且差别归因于争议性而非换数据源；共识对照和原训练集都为零 |
 | 分解 | 按 teacher 是否"唱独角"拆 test 格子 | 继承的是**系统性倾向**（DeepSeek 的摇摆习惯学到 83%），不是逐题立场（GPT-4o 居中、独有立场最少、多为逐题判断，学不到） |
-| robustness（进行中） | K_n 规模匹配对照；Cnf 去掉顺序翻转项 | 回答"代价是否只是训练量少"、"学到的是否只是顺序噪音" |
+| robustness | K_n 规模匹配对照；Cnf 去掉顺序翻转项 | 代价不是训练量少造成的；去掉顺序翻转项后 own > other 更干净（PASS 2/3） |
+| E3c | 把争议集 C 的示范改写成 F / C，45 个 paired 学生，E3 的 13 行 + 新预注册的 gap 行 | 口语体改写让学生在约 1–2% 的未见 cell 上改答（F vs C、O vs C 两行 effect），其余 13 行 inconclusive：文风扰动个别判断，但没有可检出地改变一致性或继承；DeepSeek 的 gap 原样穿过改写 |
 
 ## 3. 现在能说的主张与证据强度
 
@@ -37,6 +38,7 @@ Moore et al.（Findings EMNLP 2024）发现 aligned 模型在价值问题上比 
 | 4. 继承的是系统性倾向，不是逐题立场 | 在"只有自己 teacher 持该立场"的格子上，C 学生跟随率 DeepSeek 0.83 / Claude 0.58 / GPT-4o 0.51（对照 0.39–0.45）；GPT-4o 的独有立场只有 34 格且多在内容问法 T1 / T3 | 探索性，格子数 34–48 |
 | 5. 争议训练有代价：学生更不稳定、跟所有 teacher 都更不一致，**且不是训练量少造成的** | DeepSeek C 翻转率 0.258 vs K 0.086 vs 规模匹配对照 K_n 0.078；suggestibility 0.452 vs 0.146 vs 0.128；GPT-4o C 与自己 teacher 一致 0.812 vs K 0.841 vs K_n 0.844。K_n 与 C 的样例数相同，却和 K、E1 一样稳定 | 探索性但已去混杂（K_n，test 一次）。去掉顺序翻转项的 Cnf 学生更不稳定（翻转 0.241 / 0.162 / 0.272），所以代价来自真正有分歧的题，不是翻转项 |
 | 6. suggestibility 的排序 DeepSeek > GPT-4o > Claude 在学生上保留 | E1 / E2c 学生均如此 | 描述性，与基座先验（像 DeepSeek）混杂 |
+| 7. 在有信号的争议集上，文风改写只扰动少数判断，不改变继承 | E3c（test 一次，冻结 45f3d30）：分歧率 F vs C / O vs C 两行 effect（超额分歧 DeepSeek +0.019、GPT-4o +0.009、Claude +0.007；O vs F 三家 ≈ 0，即分歧全来自口语体）；flip rate、JSD、漂移、ΔρPartial、gap 的 V − O 共 13 行 inconclusive；gap 水平：DeepSeek O / F / C = 0.033 / 0.036 / 0.037（CI 均不含 0），Claude 0.012 → 0.002 / 0.002（−0.009，2.6 null sd，CI 含 0），GPT-4o ≈ 0 | 确认性 effect 两行依赖 DeepSeek（register 门豁免）与刚过 q95 的 GPT-4o，primary 行 Holm p 0.285；no effect 无法判定因 family bootstrap CI（0.011–0.030）宽于等价界 0.007 |
 
 ## 4. 叙事上的三个转折
 
@@ -48,11 +50,11 @@ Moore et al.（Findings EMNLP 2024）发现 aligned 模型在价值问题上比 
 
 | 项 | 内容 |
 |---|---|
-| 规则修订 | E1 / E2 判定规则改过多版（含一次伪重复的统计错误，被 HPC 侧发现并修正），全部版本列在 `tasks/e2_plan.md` §2；E2c 修订 1：3 epoch 配方在争议标签上欠拟合（Claude 复现 0.90–0.91），改为 5 epoch 重训，修订前已见 3 epoch 的 dev 描述（`tasks/e2c_plan.md` §12） |
+| 规则修订 | E1 / E2 判定规则改过多版（含一次伪重复的统计错误，被 HPC 侧发现并修正），全部版本列在 `tasks/e2_plan.md` §2；E2c 修订 1：3 epoch 配方在争议标签上欠拟合（Claude 复现 0.90–0.91），改为 5 epoch 重训，修订前已见 3 epoch 的 dev 描述；E2c 修订 2：Cnf 按与 C 相同步数重训（`tasks/e2c_plan.md` §12）；E3c 修订 1：DeepSeek 的 F vs C register 门（最近质心 0.885 < 0.90，logistic 0.936 过）书面豁免，决定时未见任何 F / C 学生结果（`tasks/e3c_plan.md` §7） |
 | E0 可靠度门 | test split 上 2/3 teacher 的 profile 可靠度 < 0.5，按预注册 E2 降为 exploratory，主线转到 E3 / E2c |
 | E2c 数据 | 目标 1,500 实得 1,485；2b 先于 2a 启用；hendrycks 的波次标签与实际筛选文件相差 47 族（不影响选择）；Moral Stories 规则转换残余缺陷约 7%；C 与 K 的样例数不等（stable_one 对争议题丢得多，DeepSeek 尤甚） |
 | 改写审计 | 单 AI 审计员通过率虚高（Claude 93–97% vs GPT-5.5 75–93%，κ 0.2–0.45）；口语体在严格标准下 75–80% |
-| 效应量 | 主张 3 的效应约 3 个百分点，PARTIAL 而非 PASS；GPT-4o 为零 |
+| 效应量 | 主张 3 的效应约 3 个百分点，PARTIAL 而非 PASS；GPT-4o 为零。E3c 的两行 effect 超额分歧 0.7–1.9 个百分点，且争议集上 F / C 的文风对比弱于原集（三家可分性都只是勉强或未过） |
 
 ## 6. 下一步及其在故事里的位置
 
@@ -60,10 +62,11 @@ Moore et al.（Findings EMNLP 2024）发现 aligned 模型在价值问题上比 
 |---|---|---|
 | K_n（规模匹配对照） | 主张 5 是否只是训练量少 | **完成**：不是；归因与主轮一致 |
 | Cnf（去顺序翻转项，932 族） | 主张 3 是否被顺序噪音驱动 | **完成**（修订 2，与 C 同步数）：primary PASS 2/3，归因 1/3；5 epoch 版因训练门未过而归档（`*-5ep`） |
-| 在争议集上做 F / C 文风改写 | RQ3 的真正检验（有信号可被调节时文风是否改变继承）；也是 RQ4 provenance 的前提 | 待定，Mac 侧需先改写约 1.4 万条示范 |
+| E3c（争议集上的 F / C 改写） | RQ3 的真正检验 | **完成**：文风只扰动少数判断，不改变继承（主张 7） |
+| RQ4 provenance 分类器（E7） | 行为最近邻 vs 词汇 baseline，leave-one-style-out | 待定；E3c 的 paired 学生已是现成输入 |
 | 第二个基座 | 主张 3 / 4 是否依赖 Qwen 及其像 DeepSeek 的先验 | 待定 |
 | 争议比例的剂量反应 | "分歧越多继承越多"的曲线 | 待定 |
 
 ## 7. 一句话
 
-**teacher 之间的差异要先体现在示范里，学生才有东西可继承；在前沿 teacher 高度一致的常规数据上，无论怎么改写文风，既测不出继承也测不出文风效应——而一旦示范来自 teacher 彼此不一致的题，学生就开始像自己的 teacher，学到的是它系统性的判断倾向而不是逐题的立场。**
+**teacher 之间的差异要先体现在示范里，学生才有东西可继承；在前沿 teacher 高度一致的常规数据上，无论怎么改写文风，既测不出继承也测不出文风效应——而一旦示范来自 teacher 彼此不一致的题，学生就开始像自己的 teacher，学到的是它系统性的判断倾向而不是逐题的立场；把这些示范改成口语体只会扰动少数判断，继承本身原样穿过改写。**
