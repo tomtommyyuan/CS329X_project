@@ -816,3 +816,9 @@ BLOCKED: deepseek_v4 的 F vs C register 可分性未过冻结门（最近质心
 - 选 (c′)：在 e3c_plan 写豁免，然后我提交 deepseek_v4 的 F / C（`--array=0-9 --max-steps 395` 加 follower），齐后跑 15 / 20 的 dev，写冻结行，再跑 test。
 - 选 (a′)：先改代码（加 n_required 参数和测试），再跑 15 / 20。
 - 选 (a″)：直接跑 15 / 20，所有判定行都会是 pending。
+
+### 2026-10-08 E3c 修订 1（e3c_plan §7）：deepseek_v4 的 F / C 已提交
+
+- 已 `git pull --rebase` 到 45f3d30。`runs_deepseek_v4.txt` 的第 1–10 行（array 索引 0–9）是 C_s1–5 和 F_s1–5，已核对；这 10 个 jsonl 的 sha256 与 meta 一致。
+- **作业**：训练 array **132000**（`--array=0-9%8`，`--max-steps 395`，`CONFIG=configs/train_e2c_cnf.yaml`），follower **132001–132010**（train readout 带 `--prompts data/prompts/e2c_C_prompts.jsonl`，加 dev）。清单在 `vcd_diag/e3c_ids.txt`。
+- 在门判完之前，继续不看任何 F / C 学生的结果。
