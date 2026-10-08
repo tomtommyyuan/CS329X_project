@@ -52,6 +52,13 @@ class OpenAICompatClient:
             if e.status_code >= 500 or e.status_code in _RETRY_STATUS:
                 raise RetryableError(str(e)) from e
             raise
+        if not resp.choices or resp.choices[0].message is None:
+            # Gemini's OpenAI-compatible endpoint returns a choice without a message when the candidate is blocked
+            # (safety / recitation) or empty. Return an empty text: the rewrite pipeline then fails that attempt on the
+            # format check and retries / drops the item instead of the whole worker dying (2026-10-07, E3c rewrites).
+            fr = (getattr(resp.choices[0], "finish_reason", None) if resp.choices else None) or ("empty" if resp.choices else "no_choices")
+            usage = {} if resp.usage is None else {"input_tokens": resp.usage.prompt_tokens, "output_tokens": resp.usage.completion_tokens}
+            return LLMResponse(text="", model=resp.model or req.model, finish_reason=fr, token_logprobs=None, usage=usage)
         choice = resp.choices[0]
         text = choice.message.content or ""
         toks = None
