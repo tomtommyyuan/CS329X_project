@@ -718,3 +718,29 @@ E2c Cnf2 门通过：进入 test，每个 run 只跑一次 readout，19 用 `--f
 - **异常**：deepseek_v4 的 array 被拒（`QOSMaxSubmitJobPerUserLimit`）。QOS ingrai 的 MaxSubmitPU 为 64，而且每个 array 任务单独计数：30 个训练任务、30 个 follower 加交互分配已占 61 个。因此 deepseek_v4 的 15 个 follower 也因依赖失败没有提交，没有任何 deepseek 作业或 run 目录。
 - **处理**：交互节点上运行 `vcd_diag/e3c_submit_deepseek.sh`，日志在 `vcd_diag/e3c_submit_deepseek.log`。它等到 QOS 空出 ≥ 31 个位置后，用同一条命令提交 deepseek_v4 的 array（`--max-steps 395`）和 15 个 follower，作业号追加到 `e3c_ids.txt`。如果交互分配先到期：先查 `grep deepseek vcd_diag/e3c_ids.txt`，没有记录就手动运行该脚本，它已提交时会自动跳过。
 - **下一步**：45 个 readout 齐后在交互分配里跑 13 / 15 / 20 的 dev，按 §2 判门。
+
+### 2026-10-08 E3c：训练前的内容 / register 检查（e3c_plan §2 第 3 行）——deepseek_v4 的 F vs C 可分性未过
+
+15 的内容 / register 检查只读训练文件，不需要 run，所以先跑了一遍（`15 --student qwen3-4b-e2c-paired --split dev --sft-dir data/sft_e2c_paired --rewrites-dir data/rewrites_e2c`，输出写到草稿目录，正式输出仍按步 4 写到 `results/e3c_dev`）。
+
+| teacher | 三版本 prompt 集与 O 相同 | 字母与 O 一致 | judge 六项检查 | F vs C 最近质心 LOO（Wilson 95%） | F vs C logistic 10 折 | 冻结门（两者都 ≥ 0.90） |
+|---|---|---|---|---|---|---|
+| gpt4o | 是 | 1.0 / 1.0 | 全 1.0 | 0.9005（0.894–0.906） | 0.949 | pass |
+| claude46 | 是 | 1.0 / 1.0 | 全 1.0（C 的 `letter_matches_rewrite` 0.99976，与 E3 同类的已知 1 条） | 0.9007（0.894–0.907） | 0.954 | pass |
+| deepseek_v4 | 是 | 1.0 / 1.0 | 全 1.0 | **0.885（0.875–0.895）** | 0.936 | **fail** |
+
+（E3 原训练集上同一检查为 0.921 / 0.927 / 0.907。）
+
+**决定（我做的，最保守、不碰规则）：**
+
+- gpt4o 和 claude46 的 30 个 run（O / F / C）照常训练，它们的改写过了门。
+- deepseek_v4 只训 O 的 5 个 run（同一命令，`--array=10-14`，加 5 个 follower）。不论 Mac 侧怎么决定，E1b 的六对和 20 的参照 teacher 都需要三个 teacher 的 O 学生。脚本是 `vcd_diag/e3c_submit_deepseek_O.sh`，等 QOS 空出位置后提交，作业号追加到 `e3c_ids.txt`。
+- deepseek_v4 的 F / C 共 10 个 run 暂不训练。原先的 deepseek 延后提交脚本已在提交前停掉，没有任何 deepseek 作业被提交过。
+
+BLOCKED: deepseek_v4 的 F vs C register 可分性未过冻结门（最近质心 LOO 0.885 < 0.90；logistic 0.936）。按 e3c_plan §2，"可分性不足 → 改写无效，不训练 F / C"，deepseek_v4 的 F / C 暂不训练。请 Mac 侧决定：
+
+- (a) **推荐**：E3c 按 2 个 teacher（gpt4o、claude46）报告，deepseek_v4 记为"改写无效"。注意 15 / 20 的判定要求 3 个 teacher 都有 paired run，否则输出 pending，需要 Mac 侧写明 2 teacher 时的判定口径（例如 2/2）。
+- (b) Mac 侧重做 deepseek_v4 的改写（新的付费调用），通过检查后再训。
+- (c) 明确豁免、照常训练 deepseek_v4 的 F / C。这属于看了数据后改门，需要书面披露。
+
+在 Mac 侧决定之前，其余步骤照常进行。
