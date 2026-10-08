@@ -1,0 +1,26 @@
+{
+  "observed": -0.013396348815000125,
+  "null_mean": -0.0773563656780348,
+  "null_sd": 0.01916403062020387,
+  "p": 9.999000099990002e-05,
+  "n_perm": 10000,
+  "n_runs": 15,
+  "method": "random",
+  "per_run": {
+    "qwen3-4b-e2c-paired.claude46_O_s1": -0.13599305362874475,
+    "qwen3-4b-e2c-paired.claude46_O_s2": -0.12047375483590385,
+    "qwen3-4b-e2c-paired.claude46_O_s3": -0.1405929608822019,
+    "qwen3-4b-e2c-paired.claude46_O_s4": -0.12342651207314052,
+    "qwen3-4b-e2c-paired.claude46_O_s5": -0.08937631466095661,
+    "qwen3-4b-e2c-paired.deepseek_v4_O_s1": 0.22320713062594677,
+    "qwen3-4b-e2c-paired.deepseek_v4_O_s2": 0.2104980872733726,
+    "qwen3-4b-e2c-paired.deepseek_v4_O_s3": 0.2239005704822759,
+    "qwen3-4b-e2c-paired.deepseek_v4_O_s4": 0.21402620765009495,
+    "qwen3-4b-e2c-paired.deepseek_v4_O_s5": 0.20488029128290913,
+    "qwen3-4b-e2c-paired.gpt4o_O_s1": -0.1384905291123622,
+    "qwen3-4b-e2c-paired.gpt4o_O_s2": -0.1242807765409969,
+    "qwen3-4b-e2c-paired.gpt4o_O_s3": -0.14089852328374253,
+    "qwen3-4b-e2c-paired.gpt4o_O_s4": -0.10967274397515997,
+    "qwen3-4b-e2c-paired.gpt4o_O_s5": -0.15425235054639197
+  }
+}

@@ -838,3 +838,4 @@ BLOCKED: deepseek_v4 的 F vs C register 可分性未过冻结门（最近质心
 
 E3c 门通过（deepseek_v4 register 门按修订 1 豁免），冻结 45f3d30
 - **test readout**：45 个 sbatch 作业 132029–132073（`slurm/eval.sbatch <run> test`，每个 run 一次；清单在 `vcd_diag/e3c_test_ids.txt`）。全部完成后在交互分配里跑 13 / 15 / 20 / 19_O 的 test（`--frozen-commit 45f3d30`）。
+- **test 分析**已跑一次（冻结于 45f3d30）：15 的 13 行为 2 effect（disagreement F vs C、O vs C）、11 inconclusive；20 的两行 inconclusive；19_O primary PASS 2/3、归因 1/3。汇总表见下一段（独立复核之后写）。
