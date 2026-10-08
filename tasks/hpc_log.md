@@ -786,3 +786,33 @@ BLOCKED: deepseek_v4 的 F vs C register 可分性未过冻结门（最近质心
 - 训练（gpt4o / claude46 的 30 个，deepseek_v4 的 O 5 个）照常进行。
 - 不跑 test，checkpoint 全部保留。
 - deepseek_v4 的 O 作业已提交（2026-10-08 04:47）：训练 array **131837**（`--array=10-14`，即 O_s1–s5，`--max-steps 395`），follower **131838–131842**。gpt4o 的 array 131749 已有 9 个任务训完或在跑。
+
+### 2026-10-08 E3c：35 个 run 训完与训练门（gpt4o / claude46 的 O / F / C，deepseek_v4 只有 O）
+
+- **作业**：array 131749 / 131765 / 131837 和 35 个 follower 全部 COMPLETED、exit 0。
+- **35 个 manifest** 都满足：`steps` 与 `max_steps` 为 780 / 760 / 395、`num_epochs` 9、`config_path` 为 configs/train_e2c_cnf.yaml、run_id 为 `qwen3-4b-e2c-paired.{t}_{V}_s{k}` 且版本字母正确、data_sha256 与 n_examples 等于 meta。train readout 行数等于 n_examples，dev 每个 run 1,500 行。
+- **13**：`13 --student qwen3-4b-e2c-paired --split dev --sft-dir data/sft_e2c_paired --prompts-train data/prompts/e2c_C_prompts.jsonl --out results/e3c_dev/13`，只读了 E1 两张表。E1a 用 `e1a_check.py` 独立重算，与 13 逐 run 一致。
+
+| teacher | 版本 | E1a 范围 | 过门 |
+|---|---|---|---|
+| gpt4o | O / F / C | 0.9929–0.9949 / 0.9929–0.9954 / 0.9923–0.9947 | 15/15 |
+| claude46 | O / F / C | 0.9898–0.9932 / 0.9852–0.9925 / 0.9879–0.9927 | 15/15 |
+| deepseek_v4 | O | 0.9960–0.9987 | 5/5 |
+
+| E1b（O run） | 六对 | 最低 ci_lo |
+|---|---|---|
+| | 6/6 过 | 0.977（claude46 vs gpt4o） |
+
+**§2 门的状态**：E1a 35/35、E1b 6/6、内容检查（prompt 集与字母 100% 一致）都过；register 可分性只有 deepseek_v4 未过（见上两段）。所以整体门还取决于 Mac 侧对 deepseek_v4 的决定，冻结行"E3c 门通过，冻结 ca97bd6"暂不写。
+
+**为了让决定不受结果影响：**
+
+- 本次只提交 35 个 run 的 manifest、train_log、train readout，以及 `results/e3c_dev/13/e1_train_reproduction.csv` 和 `e1_contested.csv`。
+- dev readout（`runs/qwen3-4b-e2c-paired/*/eval/dev_*`）和 13 的其余 dev 表留在本地、不提交，我也没有看。
+- 15 / 20 的 dev 暂缓，test 不跑，checkpoint 全部保留。
+
+**Mac 侧决定后：**
+
+- 选 (c′)：在 e3c_plan 写豁免，然后我提交 deepseek_v4 的 F / C（`--array=0-9 --max-steps 395` 加 follower），齐后跑 15 / 20 的 dev，写冻结行，再跑 test。
+- 选 (a′)：先改代码（加 n_required 参数和测试），再跑 15 / 20。
+- 选 (a″)：直接跑 15 / 20，所有判定行都会是 pending。
