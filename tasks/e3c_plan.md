@@ -37,7 +37,9 @@ E3 在原训练集上没有检出文风改写的任何效应（13 行判定 12 i
 | 参照他家 teacher | 每个 teacher T 固定一个：与 T 的 **O** 学生（本网格，同 split）seed 均值 agreement 最高的另一家；O / F / C 共用；写入输出 |
 | 统计量 | e3_metrics.paired_delta：每 (teacher, V ∈ {F, C}) 的 5 个 seed 配对差 mean_f d_f(V) − mean_f d_f(O) 的均值，family bootstrap 10,000 的 CI（同 teacher 各 seed 联动） |
 | null | 同一 teacher 两个 O seed 的 mean_f d_f 之差（带符号），跨 teacher 合并 30 个；尺度匹配、df = 12、TOST 与 e3_plan §3 相同（`e3_verdict`） |
-| 判定 | 两行："gap F − O"、"gap C − O"；effect（≥ 2/3 teacher 超 q95 且同号）/ no effect（≥ 2/3 过 TOST）/ inconclusive / pending |
+| 判定 | 两行：`gap F - O`、`gap C - O`；effect（≥ 2/3 teacher 超 q95 且同号）/ no effect（≥ 2/3 过 TOST）/ inconclusive / pending |
+| family 集 | 每 teacher 一个集：该 teacher 所有 run（三版本）都完整的 family ∩ 两侧（自己 / 参照 teacher）cell 都非平局的 family；null、水平表、配对差共用 |
+| 参照 teacher 平局 | 浮点完全相等时取字母序第一个并标 tie |
 | 预测 | 无预设方向。**no effect** = 继承对 register 稳健（文风不携带判断信息）；**effect** = register 调节继承（方向与大小如实报）。两者都是可发表的回答；inconclusive 则报功效不足 |
 
 **(c) 描述项**：`19 --split test --c-glob` 分别指向 O / F / C 的 run，给每版本的 gap_T 与对 K（`runs/qwen3-4b-e2ck`）的归因；每版本 n_examples；改写保留率与 attempt 数；register 特征表。
@@ -46,7 +48,7 @@ E3 在原训练集上没有检出文风改写的任何效应（13 行判定 12 i
 
 | # | 侧 | 做什么 | 验收 |
 |---|---|---|---|
-| 1 | Mac | 提交本文件；`06b` 改写三个 teacher（Gemini 日配额 5 个项目 × 10k，可一天内完成）；`10` 建 paired；提交 `data/rewrites_e2c/`、`data/sft_e2c_paired/*.meta.json` + runs.txt；`20` 在 E3 旧网格上冒烟后提交 | 保留率、三版本 n_examples 相同；20 的 dev 冒烟表齐 |
+| 1 | Mac | 提交本文件；`06b` 改写三个 teacher（Gemini 日配额 5 个项目 × 10k，可一天内完成）；`10` 建 paired；提交 `data/rewrites_e2c/`、`data/sft_e2c_paired/*.meta.json` + runs.txt；`20` 在 E3 旧网格上冒烟后提交 | 保留率、三版本 n_examples 相同；20 的冒烟**已做**（2026-10-07，`runs/qwen3-4b-paired`）：dev / test 两行均 inconclusive（与 E3 一致），family 单位的 agree_own 与 results/e3* 的 run_scalars 逐 run 相同，cell 加权聚合与 `teacher_agreement` 相同；11 个单测 |
 | 2 | HPC | 重建 45 个 SFT（sha256 对 meta）；S_0 复制到 `runs/qwen3-4b-e2c-paired/base_B_s0/eval/`；训练 45 run（`DATA_LIST=data/sft_e2c_paired/runs.txt --array=0-44%8`）；train / dev readout | manifest：5 epoch、前缀 `qwen3-4b-e2c-paired.`、sha256 |
 | 3 | HPC | 13（`--sft-dir data/sft_e2c_paired --prompts-train data/prompts/e2c_C_prompts.jsonl`，对 O / F / C 全部 run 的 E1a）→ §2 的门；`15 --split dev --out results/e3c_dev`、`20 --split dev --out results/e3c_dev`（描述，看表齐不齐）；hpc_log 写冻结行 | 门过 |
 | 4 | HPC | test readout 每 run 一次；`15 --split test --out results/e3c --frozen-commit <本文件提交 hash>`、`20 --split test --out results/e3c --frozen-commit <同>`、`19` 三次（描述） | `results/e3c/summary.md`、`e3c_summary.md` |
