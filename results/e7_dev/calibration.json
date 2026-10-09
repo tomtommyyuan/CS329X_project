@@ -1,0 +1,319 @@
+{
+  "split": "dev",
+  "seed": 0,
+  "fpr_max": 0.05,
+  "n_neg_min": 20,
+  "teachers": [
+    "gpt4o",
+    "claude46",
+    "deepseek_v4"
+  ],
+  "variants": [
+    "T1",
+    "T3",
+    "T5",
+    "T6"
+  ],
+  "n_families": 150,
+  "n_rep": 200,
+  "base_reference": "prior",
+  "base_reference_cells": 596,
+  "disagreement_cells": 91,
+  "n_cells": 600,
+  "logo_grids": [
+    "E1",
+    "K",
+    "K_n"
+  ],
+  "loso_versions": [
+    "O",
+    "R",
+    "B"
+  ],
+  "negatives": {
+    "n": 34,
+    "run_ids": [
+      "qwen3-4b.random_R_s1",
+      "qwen3-4b.random_R_s2",
+      "qwen3-4b.random_R_s3",
+      "qwen3-4b-e2ck.claude46_O_s1",
+      "qwen3-4b-e2ck.claude46_O_s2",
+      "qwen3-4b-e2ck.claude46_O_s3",
+      "qwen3-4b-e2ck.claude46_O_s4",
+      "qwen3-4b-e2ck.claude46_O_s5",
+      "qwen3-4b-e2ck.deepseek_v4_O_s1",
+      "qwen3-4b-e2ck.deepseek_v4_O_s2",
+      "qwen3-4b-e2ck.deepseek_v4_O_s3",
+      "qwen3-4b-e2ck.deepseek_v4_O_s4",
+      "qwen3-4b-e2ck.deepseek_v4_O_s5",
+      "qwen3-4b-e2ck.gpt4o_O_s1",
+      "qwen3-4b-e2ck.gpt4o_O_s2",
+      "qwen3-4b-e2ck.gpt4o_O_s3",
+      "qwen3-4b-e2ck.gpt4o_O_s4",
+      "qwen3-4b-e2ck.gpt4o_O_s5",
+      "qwen3-4b-e2ckn.claude46_O_s1",
+      "qwen3-4b-e2ckn.claude46_O_s2",
+      "qwen3-4b-e2ckn.claude46_O_s3",
+      "qwen3-4b-e2ckn.claude46_O_s4",
+      "qwen3-4b-e2ckn.claude46_O_s5",
+      "qwen3-4b-e2ckn.deepseek_v4_O_s1",
+      "qwen3-4b-e2ckn.deepseek_v4_O_s2",
+      "qwen3-4b-e2ckn.deepseek_v4_O_s3",
+      "qwen3-4b-e2ckn.deepseek_v4_O_s4",
+      "qwen3-4b-e2ckn.deepseek_v4_O_s5",
+      "qwen3-4b-e2ckn.gpt4o_O_s1",
+      "qwen3-4b-e2ckn.gpt4o_O_s2",
+      "qwen3-4b-e2ckn.gpt4o_O_s3",
+      "qwen3-4b-e2ckn.gpt4o_O_s4",
+      "qwen3-4b-e2ckn.gpt4o_O_s5",
+      "qwen3-4b.base_B_s0"
+    ],
+    "grids": [
+      "E1",
+      "K",
+      "K_n"
+    ]
+  },
+  "tau": {
+    "main|probability|all|base_known": {
+      "tau": 0.0355920559966828,
+      "n_neg": 34,
+      "n_margins": 34,
+      "n_attributed": 1,
+      "fpr_at_tau": 0.029411764705882353,
+      "fallback": false,
+      "note": "34 negatives, at most 1 may be attributed"
+    },
+    "main|probability|all|base_unknown": {
+      "tau": 0.017365903169308305,
+      "n_neg": 34,
+      "n_margins": 34,
+      "n_attributed": 1,
+      "fpr_at_tau": 0.029411764705882353,
+      "fallback": false,
+      "note": "34 negatives, at most 1 may be attributed"
+    },
+    "main|probability|disagreement|base_known": {
+      "tau": 0.21978021978021972,
+      "n_neg": 34,
+      "n_margins": 34,
+      "n_attributed": 1,
+      "fpr_at_tau": 0.029411764705882353,
+      "fallback": false,
+      "note": "34 negatives, at most 1 may be attributed"
+    },
+    "main|probability|disagreement|base_unknown": {
+      "tau": 0.08791208791208793,
+      "n_neg": 34,
+      "n_margins": 34,
+      "n_attributed": 1,
+      "fpr_at_tau": 0.029411764705882353,
+      "fallback": false,
+      "note": "34 negatives, at most 1 may be attributed"
+    },
+    "loso|probability|all|base_known": {
+      "tau": 0.0355920559966828,
+      "n_neg": 34,
+      "n_margins": 34,
+      "n_attributed": 1,
+      "fpr_at_tau": 0.029411764705882353,
+      "fallback": false,
+      "note": "34 negatives, at most 1 may be attributed",
+      "population": "core negatives with version in O/R/B",
+      "n_population": 34
+    },
+    "loso|probability|all|base_unknown": {
+      "tau": 0.017365903169308305,
+      "n_neg": 34,
+      "n_margins": 34,
+      "n_attributed": 1,
+      "fpr_at_tau": 0.029411764705882353,
+      "fallback": false,
+      "note": "34 negatives, at most 1 may be attributed",
+      "population": "core negatives with version in O/R/B",
+      "n_population": 34
+    },
+    "logo|probability|all|base_known": {
+      "tau": 0.039620995042733975,
+      "n_neg": 49,
+      "n_margins": 49,
+      "n_attributed": 2,
+      "fpr_at_tau": 0.04081632653061224,
+      "fallback": false,
+      "note": "49 negatives, at most 2 may be attributed",
+      "population": "core runs of grids ['E1', 'K', 'K_n'] (positives treated as rejects)",
+      "n_population": 49
+    },
+    "logo|probability|all|base_unknown": {
+      "tau": 0.023307195771780087,
+      "n_neg": 49,
+      "n_margins": 49,
+      "n_attributed": 2,
+      "fpr_at_tau": 0.04081632653061224,
+      "fallback": false,
+      "note": "49 negatives, at most 2 may be attributed",
+      "population": "core runs of grids ['E1', 'K', 'K_n'] (positives treated as rejects)",
+      "n_population": 49
+    },
+    "main|sampled_n1|all|base_known": {
+      "tau": 0.03871512410113476,
+      "n_neg": 6800,
+      "n_margins": 6800,
+      "n_attributed": 340,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "6800 negatives, at most 340 may be attributed",
+      "n_draws": 1,
+      "pooled_over_reps": 200
+    },
+    "main|sampled_n1|all|base_unknown": {
+      "tau": 0.02242942242942242,
+      "n_neg": 6800,
+      "n_margins": 6800,
+      "n_attributed": 340,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "6800 negatives, at most 340 may be attributed",
+      "n_draws": 1,
+      "pooled_over_reps": 200
+    },
+    "main|sampled_n3|all|base_known": {
+      "tau": 0.03768629093158049,
+      "n_neg": 6800,
+      "n_margins": 6800,
+      "n_attributed": 340,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "6800 negatives, at most 340 may be attributed",
+      "n_draws": 3,
+      "pooled_over_reps": 200
+    },
+    "main|sampled_n3|all|base_unknown": {
+      "tau": 0.022904644482294068,
+      "n_neg": 6800,
+      "n_margins": 6800,
+      "n_attributed": 340,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "6800 negatives, at most 340 may be attributed",
+      "n_draws": 3,
+      "pooled_over_reps": 200
+    },
+    "main|sampled_n10|all|base_known": {
+      "tau": 0.03762980213756584,
+      "n_neg": 6800,
+      "n_margins": 6800,
+      "n_attributed": 340,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "6800 negatives, at most 340 may be attributed",
+      "n_draws": 10,
+      "pooled_over_reps": 200
+    },
+    "main|sampled_n10|all|base_unknown": {
+      "tau": 0.025079113924050656,
+      "n_neg": 6800,
+      "n_margins": 6800,
+      "n_attributed": 340,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "6800 negatives, at most 340 may be attributed",
+      "n_draws": 10,
+      "pooled_over_reps": 200
+    },
+    "main|probability|budget30|base_known": {
+      "tau": 0.0859194256082968,
+      "n_neg": 6800,
+      "n_margins": 6800,
+      "n_attributed": 340,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "6800 negatives, at most 340 may be attributed",
+      "budget_families": 30,
+      "pooled_over_reps": 200
+    },
+    "main|probability|budget30|base_unknown": {
+      "tau": 0.06929824561403508,
+      "n_neg": 6800,
+      "n_margins": 6800,
+      "n_attributed": 339,
+      "fpr_at_tau": 0.049852941176470586,
+      "fallback": false,
+      "note": "6800 negatives, at most 340 may be attributed",
+      "budget_families": 30,
+      "pooled_over_reps": 200
+    },
+    "main|probability|budget60|base_known": {
+      "tau": 0.06558741905642929,
+      "n_neg": 6800,
+      "n_margins": 6800,
+      "n_attributed": 340,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "6800 negatives, at most 340 may be attributed",
+      "budget_families": 60,
+      "pooled_over_reps": 200
+    },
+    "main|probability|budget60|base_unknown": {
+      "tau": 0.044553464156988354,
+      "n_neg": 6800,
+      "n_margins": 6800,
+      "n_attributed": 340,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "6800 negatives, at most 340 may be attributed",
+      "budget_families": 60,
+      "pooled_over_reps": 200
+    },
+    "main|probability|budget100|base_known": {
+      "tau": 0.04569632495164411,
+      "n_neg": 6800,
+      "n_margins": 6800,
+      "n_attributed": 340,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "6800 negatives, at most 340 may be attributed",
+      "budget_families": 100,
+      "pooled_over_reps": 200
+    },
+    "main|probability|budget100|base_unknown": {
+      "tau": 0.03209230172580957,
+      "n_neg": 6800,
+      "n_margins": 6800,
+      "n_attributed": 340,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "6800 negatives, at most 340 may be attributed",
+      "budget_families": 100,
+      "pooled_over_reps": 200
+    }
+  },
+  "frozen": "E7 detector, tau rule, metrics and verdict pre-registered in tasks/e7_plan.md §3-§4 before any provenance result; not yet frozen (freeze commit pending)",
+  "runs_dir": "/Users/yuansir/workspace/CS329X_Project/runs",
+  "namespaces": [
+    "qwen3-4b",
+    "qwen3-4b-paired",
+    "qwen3-4b-e2c",
+    "qwen3-4b-e2ck",
+    "qwen3-4b-e2ckn",
+    "qwen3-4b-e2cnf",
+    "qwen3-4b-e2c-paired"
+  ],
+  "descriptive_namespaces": [
+    "qwen3-4b-e2c-3ep",
+    "qwen3-4b-e2ck-3ep",
+    "qwen3-4b-e2cnf-5ep"
+  ],
+  "grid_map": {
+    "qwen3-4b": "E1",
+    "qwen3-4b-paired": "E3",
+    "qwen3-4b-e2c": "E2c_C",
+    "qwen3-4b-e2ck": "K",
+    "qwen3-4b-e2ckn": "K_n",
+    "qwen3-4b-e2cnf": "Cnf",
+    "qwen3-4b-e2c-paired": "E3c",
+    "qwen3-4b-e2c-3ep": "E2c_C_3ep",
+    "qwen3-4b-e2ck-3ep": "K_3ep",
+    "qwen3-4b-e2cnf-5ep": "Cnf_5ep"
+  }
+}
