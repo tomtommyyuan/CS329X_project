@@ -1,0 +1,7 @@
+set,teacher,n,kept_F,removed_F,kept_C,removed_C
+original,gpt4o,20,17,"it's, it's important, . it's",12,"it is, is crucial, is important, ensures that, provide, ensuring, , it, allows you"
+original,claude46,20,20,—,18,", as, as"
+original,deepseek_v4,20,14,"’, ’ s, s, helps, the right, especially",14,"’, ’ s, s, ;, is to, preserves"
+contested,gpt4o,20,16,"it's, be a, is a, can help",13,"it would, it is, is important, is likely, provide, allows, allows you"
+contested,claude46,20,18,"since, doesn't",16,", as, as, since, is"
+contested,deepseek_v4,20,10,"’, s, ’ s, ’ t, t, it ’, especially, helps, you ’, since she",8,"’, s, ’ s, ;, ’ t, t, it ’, harm, is more, is to, you ’, since she"

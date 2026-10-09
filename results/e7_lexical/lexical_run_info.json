@@ -1,0 +1,80 @@
+{
+  "sets": {
+    "original": {
+      "sft_dir": "data/sft_paired",
+      "files_sha256": {
+        "gpt4o_O_s1.jsonl": "0afdaad0fa7261c80c0de277d964cc63f61da7b6da53791716162f80acca1fe9",
+        "gpt4o_F_s1.jsonl": "12edc2e67f2baae040cecd3d19b4e0eb0602b3c1ce929807647475af4869ed54",
+        "gpt4o_C_s1.jsonl": "61eed2e522e641b488c278c01206ac7fb27954eb97f6c77cc72ba24c32ab8009",
+        "claude46_O_s1.jsonl": "3eb89b79c1cd19ab25fa00fceb594e0a3c7991e15829f06d459fff5f6ff184bf",
+        "claude46_F_s1.jsonl": "22af8b4e8d9b0fc7b7604e91bae1d0558b144887d2a5021ae23b235c4c86e8f8",
+        "claude46_C_s1.jsonl": "62da0a7050bec66e5969df410a261d0f1ad8b4cdd061e7b771092eb76d0b38b0",
+        "deepseek_v4_O_s1.jsonl": "b453287d4a250dea1f0e70f79c18c15108b561efe07a40959ccc30ba0324444a",
+        "deepseek_v4_F_s1.jsonl": "8a17bd42be2a36b72a1d8448789ccf93f3d1f6fe959b01e012cbe9cd32e963c4",
+        "deepseek_v4_C_s1.jsonl": "528be02a6ed63ad12ad67865ea3576050f1b67ec167e79d363ca4c6df32a77ab"
+      },
+      "set": "original",
+      "n_texts": 43446,
+      "n_families": 1493,
+      "n_folds": 5,
+      "seed": 0,
+      "C": 1.0,
+      "hash_bits": 18,
+      "n_features": 524288,
+      "nnz": 36425669,
+      "backend": "sklearn",
+      "runtime_s": 228.8442690372467
+    },
+    "contested": {
+      "sft_dir": "data/sft_e2c_paired",
+      "files_sha256": {
+        "gpt4o_O_s1.jsonl": "2a011e4a4a1f48c6483fb7875cccd2905f96f47125f6fc9e94229ae2a9d333a0",
+        "gpt4o_F_s1.jsonl": "93305fec2663c1de1e700f78d491ca84e4294639a5c9525732636d0fb6717042",
+        "gpt4o_C_s1.jsonl": "65e6f013caadd4aab547928e186784ac5014238f2c78356d8eb236907304ff2b",
+        "claude46_O_s1.jsonl": "b6b7817f9606013ec9dcd340b602fe782f1b014fd55035548064877173a55f28",
+        "claude46_F_s1.jsonl": "bf9f91556fcec1fede6223eff7584427ad78d061c5740f527d498977b6d67dcc",
+        "claude46_C_s1.jsonl": "9898e199dd677476913c59e8b584af1d6574e7b283010919715b30a34129b14d",
+        "deepseek_v4_O_s1.jsonl": "bf0c0e0593984bb7306d59091ce755f7d9109621d92d283a3c527e34ee02e449",
+        "deepseek_v4_F_s1.jsonl": "6ce8edfbfdd217222e080300a965ccd62316995d7d771d410d19587cd57a7799",
+        "deepseek_v4_C_s1.jsonl": "354e5145ce734139f79aa3f6b5dce66f4d1339b6b09cde9b91b04b377c1b6ed5"
+      },
+      "set": "contested",
+      "n_texts": 32631,
+      "n_families": 1485,
+      "n_folds": 5,
+      "seed": 0,
+      "C": 1.0,
+      "hash_bits": 18,
+      "n_features": 524288,
+      "nnz": 25725777,
+      "backend": "sklearn",
+      "runtime_s": 201.94887709617615
+    }
+  },
+  "teachers": [
+    "gpt4o",
+    "claude46",
+    "deepseek_v4"
+  ],
+  "styles": [
+    "O",
+    "F",
+    "C"
+  ],
+  "sft_seed": 1,
+  "seed": 0,
+  "hash_bits": 18,
+  "n_folds": 5,
+  "C": 1.0,
+  "max_iter": 1000,
+  "backend_requested": "auto",
+  "top_k": 20,
+  "min_df": 20,
+  "pos_tagger": null,
+  "pos_features": "skipped (no offline tagger)",
+  "sklearn_version": "1.9.1",
+  "numpy_version": "2.5.3",
+  "python": "3.12.4",
+  "total_runtime_s": 437.7654640674591,
+  "command": "scripts/22_lexical_provenance.py --sets original,contested --sft-dirs data/sft_paired,data/sft_e2c_paired --out results/e7_lexical --seed 0 --hash-bits 18"
+}
