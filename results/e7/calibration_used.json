@@ -1,0 +1,124 @@
+{
+  "split": "test",
+  "seed": 0,
+  "fpr_max": 0.05,
+  "n_neg_min": 20,
+  "teachers": [
+    "gpt4o",
+    "claude46",
+    "deepseek_v4"
+  ],
+  "variants": [
+    "T1",
+    "T3",
+    "T5",
+    "T6"
+  ],
+  "n_families": 300,
+  "n_rep": 200,
+  "base_reference": "prior",
+  "base_reference_cells": 1200,
+  "disagreement_cells": 127,
+  "n_cells": 1200,
+  "logo_grids": [
+    "E1",
+    "K",
+    "K_n"
+  ],
+  "loso_versions": [
+    "O",
+    "R",
+    "B"
+  ],
+  "negatives": {
+    "n": 34,
+    "run_ids": [
+      "qwen3-4b.random_R_s1",
+      "qwen3-4b.random_R_s2",
+      "qwen3-4b.random_R_s3",
+      "qwen3-4b-e2ck.claude46_O_s1",
+      "qwen3-4b-e2ck.claude46_O_s2",
+      "qwen3-4b-e2ck.claude46_O_s3",
+      "qwen3-4b-e2ck.claude46_O_s4",
+      "qwen3-4b-e2ck.claude46_O_s5",
+      "qwen3-4b-e2ck.deepseek_v4_O_s1",
+      "qwen3-4b-e2ck.deepseek_v4_O_s2",
+      "qwen3-4b-e2ck.deepseek_v4_O_s3",
+      "qwen3-4b-e2ck.deepseek_v4_O_s4",
+      "qwen3-4b-e2ck.deepseek_v4_O_s5",
+      "qwen3-4b-e2ck.gpt4o_O_s1",
+      "qwen3-4b-e2ck.gpt4o_O_s2",
+      "qwen3-4b-e2ck.gpt4o_O_s3",
+      "qwen3-4b-e2ck.gpt4o_O_s4",
+      "qwen3-4b-e2ck.gpt4o_O_s5",
+      "qwen3-4b-e2ckn.claude46_O_s1",
+      "qwen3-4b-e2ckn.claude46_O_s2",
+      "qwen3-4b-e2ckn.claude46_O_s3",
+      "qwen3-4b-e2ckn.claude46_O_s4",
+      "qwen3-4b-e2ckn.claude46_O_s5",
+      "qwen3-4b-e2ckn.deepseek_v4_O_s1",
+      "qwen3-4b-e2ckn.deepseek_v4_O_s2",
+      "qwen3-4b-e2ckn.deepseek_v4_O_s3",
+      "qwen3-4b-e2ckn.deepseek_v4_O_s4",
+      "qwen3-4b-e2ckn.deepseek_v4_O_s5",
+      "qwen3-4b-e2ckn.gpt4o_O_s1",
+      "qwen3-4b-e2ckn.gpt4o_O_s2",
+      "qwen3-4b-e2ckn.gpt4o_O_s3",
+      "qwen3-4b-e2ckn.gpt4o_O_s4",
+      "qwen3-4b-e2ckn.gpt4o_O_s5",
+      "qwen3-4b.base_B_s0"
+    ],
+    "grids": [
+      "E1",
+      "K",
+      "K_n"
+    ]
+  },
+  "tau": {},
+  "reused_from": {
+    "split": "dev",
+    "seed": 0,
+    "fpr_max": 0.05,
+    "n_neg_min": 20,
+    "teachers": [
+      "gpt4o",
+      "claude46",
+      "deepseek_v4"
+    ],
+    "variants": [
+      "T1",
+      "T3",
+      "T5",
+      "T6"
+    ]
+  },
+  "frozen": "E7 detector, tau rule, metrics and verdict pre-registered in tasks/e7_plan.md §3-§4 before any provenance result; frozen at commit 7b7249a",
+  "runs_dir": "/Users/yuansir/workspace/CS329X_Project/runs",
+  "namespaces": [
+    "qwen3-4b",
+    "qwen3-4b-paired",
+    "qwen3-4b-e2c",
+    "qwen3-4b-e2ck",
+    "qwen3-4b-e2ckn",
+    "qwen3-4b-e2cnf",
+    "qwen3-4b-e2c-paired"
+  ],
+  "descriptive_namespaces": [
+    "qwen3-4b-e2c-3ep",
+    "qwen3-4b-e2ck-3ep",
+    "qwen3-4b-e2cnf-5ep"
+  ],
+  "grid_map": {
+    "qwen3-4b": "E1",
+    "qwen3-4b-paired": "E3",
+    "qwen3-4b-e2c": "E2c_C",
+    "qwen3-4b-e2ck": "K",
+    "qwen3-4b-e2ckn": "K_n",
+    "qwen3-4b-e2cnf": "Cnf",
+    "qwen3-4b-e2c-paired": "E3c",
+    "qwen3-4b-e2c-3ep": "E2c_C_3ep",
+    "qwen3-4b-e2ck-3ep": "K_3ep",
+    "qwen3-4b-e2cnf-5ep": "Cnf_5ep"
+  },
+  "calibration_file": "results/e7_dev/calibration.json"
+}
