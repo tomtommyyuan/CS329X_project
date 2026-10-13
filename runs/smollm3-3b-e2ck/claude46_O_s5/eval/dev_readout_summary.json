@@ -1,0 +1,29 @@
+{
+  "n": 1500,
+  "category_counts": {
+    "answer": 1500
+  },
+  "category_rates": {
+    "answer": 1.0
+  },
+  "mean_mass_AB": 0.9998844200963449,
+  "top1_histogram": [
+    {
+      "token": " B",
+      "count": 766
+    },
+    {
+      "token": " A",
+      "count": 734
+    }
+  ],
+  "backend": "transformers",
+  "seconds": 37.98837924003601,
+  "run_id": "smollm3-3b-e2ck.claude46_O_s5",
+  "model": "runs/smollm3-3b-e2ck/claude46_O_s5/checkpoint",
+  "split": "dev",
+  "prompts_path": "/hai/scratch/tomyyc/CS329X_project/data/prompts/dev_prompts_v2.jsonl",
+  "answer_mass_min": 0.9,
+  "dtype": "float32",
+  "batch_size": 64
+}

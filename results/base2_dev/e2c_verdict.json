@@ -1,0 +1,216 @@
+{
+  "split": "dev",
+  "freeze": "rule pre-registered in tasks/e2c_plan.md §6 before any E2c run existed; freeze commit not given (tasks/e2c_plan.md §9)",
+  "rule": "gap_T = seed mean over the teacher's O runs of [agree_own - max_other agree_other] (symmetrized majority action, e1_metrics.teacher_agreement); seed-pair null = |agree_own(a) - agree_own(b)| over the seed pairs of (teacher, condition), q95; family bootstrap 95% CI of gap_T (B resamples, fixed seed, shared across conditions). Primary (condition C): per teacher gap_T > q95 AND ci_lo > 0; >= 2/3 teachers PASS, 1/3 PARTIAL, 0/3 FAIL. Attribution: gap_T(C) - gap_T(K) with ci_lo > 0 for >= 2/3 teachers -> effect attributed to contestedness.",
+  "primary": {
+    "verdict": "FAIL",
+    "n_pass": 0,
+    "n_teachers": 3,
+    "passing": [],
+    "missing": [],
+    "deviations": [],
+    "rule": "gap_T = seed mean over the teacher's O runs of [agree_own - max_other agree_other] (symmetrized majority action, e1_metrics.teacher_agreement); seed-pair null = |agree_own(a) - agree_own(b)| over the seed pairs of (teacher, condition), q95; family bootstrap 95% CI of gap_T (B resamples, fixed seed, shared across conditions). Primary (condition C): per teacher gap_T > q95 AND ci_lo > 0; >= 2/3 teachers PASS, 1/3 PARTIAL, 0/3 FAIL. Attribution: gap_T(C) - gap_T(K) with ci_lo > 0 for >= 2/3 teachers -> effect attributed to contestedness."
+  },
+  "attribution": {
+    "verdict": "attributed to contestedness",
+    "n_pass": 2,
+    "n_teachers": 3,
+    "passing": [
+      "claude46",
+      "deepseek_v4"
+    ],
+    "missing": []
+  },
+  "reference_rows_under_the_same_rule": {
+    "K": {
+      "n_pass": 0,
+      "n_teachers": 3
+    }
+  },
+  "teachers": [
+    "gpt4o",
+    "claude46",
+    "deepseek_v4"
+  ],
+  "variants": [
+    "T1",
+    "T3",
+    "T5",
+    "T6"
+  ],
+  "n_boot": 2000,
+  "seed": 0,
+  "n_families": 150,
+  "globs": {
+    "C": "runs/smollm3-3b-e2c/*_O_s*/eval/dev_responses.jsonl",
+    "K": "runs/smollm3-3b-e2ck/*_O_s*/eval/dev_responses.jsonl",
+    "E1": "runs/smollm3-3b/*_O_s*/eval/dev_responses.jsonl"
+  },
+  "n_files": {
+    "C": 15,
+    "K": 15,
+    "E1": 0
+  },
+  "missing_conditions": [
+    "E1"
+  ],
+  "missing_profiles": [],
+  "gaps": [
+    {
+      "condition": "C",
+      "teacher": "gpt4o",
+      "n_seeds": 5,
+      "seeds": "1,2,3,4,5",
+      "agree_own": 0.8177700348432054,
+      "agree_other_max": 0.7986554621848739,
+      "gap": 0.019114572658331587,
+      "ci_lo": -0.01727909113400085,
+      "ci_hi": 0.042290589956935555,
+      "n_boot": 2000,
+      "n_boot_nan": 0,
+      "null_n_pairs": 10,
+      "null_mean": 0.008710801393728217,
+      "null_sd": 0.005062600399001949,
+      "null_q95": 0.015853658536585342,
+      "exceeds_null": true,
+      "ci_above_zero": false,
+      "passed": false
+    },
+    {
+      "condition": "C",
+      "teacher": "claude46",
+      "n_seeds": 5,
+      "seeds": "1,2,3,4,5",
+      "agree_own": 0.8344582593250445,
+      "agree_other_max": 0.7986062717770035,
+      "gap": 0.035851987548040955,
+      "ci_lo": -0.0032403232131685495,
+      "ci_hi": 0.0777653629521952,
+      "n_boot": 2000,
+      "n_boot_nan": 0,
+      "null_n_pairs": 10,
+      "null_mean": 0.009946714031971626,
+      "null_sd": 0.006220923877590888,
+      "null_q95": 0.017761989342806483,
+      "exceeds_null": true,
+      "ci_above_zero": false,
+      "passed": false
+    },
+    {
+      "condition": "C",
+      "teacher": "deepseek_v4",
+      "n_seeds": 5,
+      "seeds": "1,2,3,4,5",
+      "agree_own": 0.7667226890756302,
+      "agree_other_max": 0.7400696864111499,
+      "gap": 0.026653002664480386,
+      "ci_lo": -0.006810645705921469,
+      "ci_hi": 0.056808867657557285,
+      "n_boot": 2000,
+      "n_boot_nan": 0,
+      "null_n_pairs": 10,
+      "null_mean": 0.007394957983193317,
+      "null_sd": 0.004700543857345251,
+      "null_q95": 0.013445378151260567,
+      "exceeds_null": true,
+      "ci_above_zero": false,
+      "passed": false
+    },
+    {
+      "condition": "K",
+      "teacher": "gpt4o",
+      "n_seeds": 5,
+      "seeds": "1,2,3,4,5",
+      "agree_own": 0.8435540069686411,
+      "agree_other_max": 0.8401420959147424,
+      "gap": 0.0034119110538986864,
+      "ci_lo": -0.03624189413254565,
+      "ci_hi": 0.035460557535273746,
+      "n_boot": 2000,
+      "n_boot_nan": 0,
+      "null_n_pairs": 10,
+      "null_mean": 0.008362369337979092,
+      "null_sd": 0.005309700093222968,
+      "null_q95": 0.01663763066202088,
+      "exceeds_null": false,
+      "ci_above_zero": false,
+      "passed": false
+    },
+    {
+      "condition": "K",
+      "teacher": "claude46",
+      "n_seeds": 5,
+      "seeds": "1,2,3,4,5",
+      "agree_own": 0.8309058614564832,
+      "agree_other_max": 0.8425087108013937,
+      "gap": -0.011602849344910581,
+      "ci_lo": -0.05465166367545349,
+      "ci_hi": 0.02714077993590986,
+      "n_boot": 2000,
+      "n_boot_nan": 0,
+      "null_n_pairs": 10,
+      "null_mean": 0.022735346358792173,
+      "null_sd": 0.013443947405077537,
+      "null_q95": 0.03925399644760207,
+      "exceeds_null": false,
+      "ci_above_zero": false,
+      "passed": false
+    },
+    {
+      "condition": "K",
+      "teacher": "deepseek_v4",
+      "n_seeds": 5,
+      "seeds": "1,2,3,4,5",
+      "agree_own": 0.8184873949579832,
+      "agree_other_max": 0.845993031358885,
+      "gap": -0.027505636400901867,
+      "ci_lo": -0.06792962853470279,
+      "ci_hi": 0.004591365187157211,
+      "n_boot": 2000,
+      "n_boot_nan": 0,
+      "null_n_pairs": 10,
+      "null_mean": 0.013781512605042012,
+      "null_sd": 0.013695158848714872,
+      "null_q95": 0.03117647058823529,
+      "exceeds_null": false,
+      "ci_above_zero": false,
+      "passed": false
+    }
+  ],
+  "attribution_table": [
+    {
+      "teacher": "gpt4o",
+      "gap_C": 0.019114572658331587,
+      "gap_K": 0.0034119110538986864,
+      "diff": 0.0157026616044329,
+      "ci_lo": -0.015992229347363503,
+      "ci_hi": 0.04823585981138497,
+      "n_boot": 2000,
+      "n_boot_nan": 0,
+      "ci_above_zero": false
+    },
+    {
+      "teacher": "claude46",
+      "gap_C": 0.035851987548040955,
+      "gap_K": -0.011602849344910581,
+      "diff": 0.04745483689295153,
+      "ci_lo": 0.01161185039942061,
+      "ci_hi": 0.0974341409238448,
+      "n_boot": 2000,
+      "n_boot_nan": 0,
+      "ci_above_zero": true
+    },
+    {
+      "teacher": "deepseek_v4",
+      "gap_C": 0.026653002664480386,
+      "gap_K": -0.027505636400901867,
+      "diff": 0.05415863906538225,
+      "ci_lo": 0.02308291052542346,
+      "ci_hi": 0.09574451776814254,
+      "n_boot": 2000,
+      "n_boot_nan": 0,
+      "ci_above_zero": true
+    }
+  ],
+  "descriptive_only": true
+}

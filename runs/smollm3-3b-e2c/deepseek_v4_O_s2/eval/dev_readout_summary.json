@@ -1,0 +1,31 @@
+{
+  "n": 1500,
+  "category_counts": {
+    "answer": 1498,
+    "malformed": 2
+  },
+  "category_rates": {
+    "answer": 0.9986666666666667,
+    "malformed": 0.0013333333333333333
+  },
+  "mean_mass_AB": 0.9995358094711743,
+  "top1_histogram": [
+    {
+      "token": " B",
+      "count": 757
+    },
+    {
+      "token": " A",
+      "count": 743
+    }
+  ],
+  "backend": "transformers",
+  "seconds": 38.81635093688965,
+  "run_id": "smollm3-3b-e2c.deepseek_v4_O_s2",
+  "model": "runs/smollm3-3b-e2c/deepseek_v4_O_s2/checkpoint",
+  "split": "dev",
+  "prompts_path": "/hai/scratch/tomyyc/CS329X_project/data/prompts/dev_prompts_v2.jsonl",
+  "answer_mass_min": 0.9,
+  "dtype": "float32",
+  "batch_size": 64
+}

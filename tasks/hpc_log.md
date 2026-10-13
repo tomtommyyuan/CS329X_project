@@ -1014,3 +1014,35 @@ E3c 门通过（deepseek_v4 register 门按修订 1 豁免），冻结 45f3d30
   - manifest 抽查：5 epoch，claude46 760 步，peak 55.3–55.5 GiB，n_dropped 0，sha256 与 meta 一致。
   - follower 抽查：train readout 行数等于 n_examples，用的是 `e2c_C_prompts.jsonl`，sft_sha256 与 data_sha256 一致；dev 1,500 行全为 answer；没有 test 文件。
 - base2 K（137016 + follower）仍在跑。集群拥挤，同时只拿到 3–8 张卡。
+
+### 2026-10-13 base2 dev 门（base2_plan §3）
+
+- 30 个训练任务与 30 个 follower 全部 COMPLETED、exit 0（array 137000 / 137016，follower 137001–137015 / 137017–137031）。
+- manifest：5 epoch；C 780 / 760 / 395 步，K 920 / 915 / 840 步；peak 54.98–55.55 GiB；n_dropped 0；sha256 与 meta 一致。train readout 行数等于 n_examples，prompt 文件是 e2c_C / e2c_K；dev 每个 run 1,500 行，C deepseek_v4_O_s2 有 2 行 malformed，没有插补。
+- 在 136749 里跑了 `vcd_diag/base2_dev_analysis.sh`：13 C / K 带 `--runs-dir runs --split dev`（13 默认 split 是 test），19 dev 的 `--e1-glob` 是 plan 自己的那个 glob，它不匹配任何文件。门由 `vcd_diag/base2_gate.py` 判。
+- 独立复核（只读 workflow，3 个 agent）：不导入 vcd 重算的 E1a / E1b 与 13 相差 ≤ 1e-16；30 个 run 的 manifest 与 readout 都对；runs/smollm3-3b* 下没有任何 test 文件；4ae6ccb 到 HEAD 之间规则相关文件没有改动。
+
+| 门 | 结果 |
+|---|---|
+| gate run（§3 行 1） | 30 步冒烟 PASS：峰值 55.31 GiB < 75（§5 写 ≤ 70，也过）；模板首 token 是字母 token（26 PASS，gate readout 200/200 answer） |
+| ……其中"readout 两后端一致" | **未做，偏离 §3 门行**：`.venv-vllm`（transformers 4.51）不能加载 smollm3，plan §7（4ae6ccb，写于任何 run 之前）已写明不可用。协议 readout 是 fp32 transformers，不受影响；按任务说明跳过并在此注明 |
+| E1a C（15） | 15/15 ≥ 0.95，最低 0.9644（claude46 s4）；gpt4o 0.988–0.992，deepseek_v4 0.992–0.996 |
+| E1a K（15） | 15/15，最低 0.9981 |
+| E1b（C 的 O run，六对） | 6/6，最低 ci_lo 0.9359（claude46 vs gpt4o） |
+
+**dev 描述**（不是确认性结果；19 的 e2c_gaps / e2c_attribution）：
+
+| teacher | gap C（CI） | null q95 | gap K | C − K（CI） |
+|---|---|---|---|---|
+| gpt4o | 0.019 [−0.017, 0.042] | 0.016 | 0.003 | 0.016 [−0.016, 0.048] |
+| claude46 | 0.036 [−0.003, 0.078] | 0.018 | −0.012 | 0.047 [0.012, 0.097] |
+| deepseek_v4 | 0.027 [−0.007, 0.057] | 0.013 | −0.028 | 0.054 [0.023, 0.096] |
+
+dev 上 primary 0/3（三个 gap 都超过 q95，但 CI 下界都没有 > 0），归因 2/3。
+
+**S_0**：dev 1,500/1,500 malformed（mass_AB 均值 0.599），过门的一致率为空，没有插补。不过门的先验 profile（13 的 base_control，139 个 family）为 ρ deepseek_v4 0.328 [0.239, 0.413]、gpt4o 0.143、claude46 0.108；DeepSeek 的 margin 0.185 [0.051, 0.307]。即新基座的先验同样最像 DeepSeek，按 §4 走"反之如实写"那一支。
+
+base2 门通过，冻结 4ae6ccb
+
+- 下一步：`vcd_diag/base2_test_submit.sh`，30 个 test readout 加 S_0 的 test（带 `--config configs/train_smollm3_3b.yaml`），每个只跑一次；齐后在交互分配里跑 `vcd_diag/base2_test_analysis.sh`（13 C / K test，19 test `--frozen-commit 4ae6ccb --out results/base2`）。
+- 本次提交 30 个 run 的 manifest、train_log、train / dev readout，S_0 dev（3 个目录），以及 results/base2_dev。CLAUDE.md 的可提交清单里没有 smollm3-3b* 与 results/base2*，它们是 base2_plan 定义的 namespace，按任务说明提交。

@@ -1,0 +1,433 @@
+{
+  "seen_partial": {
+    "D": 0.0013841488369659937,
+    "D_raw": 0.003379145830249027,
+    "ci_lo": -0.048694202674521854,
+    "ci_hi": 0.049995457770726164,
+    "p_perm": 0.7735226477352265,
+    "null_mean": 0.014577377918824368,
+    "null_sd": 0.01760868311353037,
+    "D_shared": -0.018734778081759076,
+    "D_specific": 0.02011892691872506,
+    "ci_specific_lo": -0.030283737862510273,
+    "ci_specific_hi": 0.07065252418264203,
+    "p_perm_specific": 0.48205179482051796,
+    "null_mean_specific": 0.019420787719406828,
+    "null_sd_specific": 0.020615100843999586,
+    "D_scalefree": 0.01962933900662169,
+    "ci_scalefree_lo": -0.02623038067655358,
+    "ci_scalefree_hi": 0.0656974933377223,
+    "row_scale": {
+      "smollm3-3b-e2ck.claude46_O_pooled": 0.061142703347972234,
+      "smollm3-3b-e2ck.deepseek_v4_O_pooled": 0.1040144639359895,
+      "smollm3-3b-e2ck.gpt4o_O_pooled": 0.08473247047653305
+    },
+    "n_families": 139,
+    "n_teachers": 3,
+    "teachers": [
+      "claude46",
+      "deepseek_v4",
+      "gpt4o"
+    ],
+    "variants": [
+      "T1",
+      "T3",
+      "T5",
+      "T6"
+    ],
+    "cells": [
+      "T1",
+      "T3",
+      "T5",
+      "T6"
+    ],
+    "control": "smollm3-3b.base_B_s0",
+    "n_perm": 10000,
+    "n_boot": 10000,
+    "matrix": {
+      "smollm3-3b-e2ck.claude46_O_pooled": {
+        "claude46": 0.02171951534150186,
+        "deepseek_v4": 0.12352182306514353,
+        "gpt4o": 0.10601854386613746
+      },
+      "smollm3-3b-e2ck.deepseek_v4_O_pooled": {
+        "claude46": 0.1485157731770426,
+        "deepseek_v4": 0.2972945565938754,
+        "gpt4o": 0.19031678240975097
+      },
+      "smollm3-3b-e2ck.gpt4o_O_pooled": {
+        "claude46": 0.06389545638229263,
+        "deepseek_v4": 0.21228932285812352,
+        "gpt4o": 0.10741722545476606
+      }
+    },
+    "matrix_raw": {
+      "smollm3-3b-e2ck.claude46_O_pooled": {
+        "claude46": 0.0326645486130697,
+        "deepseek_v4": 0.15014091792172019,
+        "gpt4o": 0.11925251124630062
+      },
+      "smollm3-3b-e2ck.deepseek_v4_O_pooled": {
+        "claude46": 0.1689351265971371,
+        "deepseek_v4": 0.3504861862614642,
+        "gpt4o": 0.21692304210547406
+      },
+      "smollm3-3b-e2ck.gpt4o_O_pooled": {
+        "claude46": 0.0909147224130321,
+        "deepseek_v4": 0.28370722584194724,
+        "gpt4o": 0.1419234756790189
+      }
+    },
+    "matrix_shared": {
+      "smollm3-3b-e2ck.claude46_O_pooled": {
+        "claude46": 0.12097272486000528,
+        "deepseek_v4": 0.3078219084736417,
+        "gpt4o": 0.19288038978000818
+      },
+      "smollm3-3b-e2ck.deepseek_v4_O_pooled": {
+        "claude46": 0.0711112584675054,
+        "deepseek_v4": 0.18094660032467233,
+        "gpt4o": 0.11338065887853682
+      },
+      "smollm3-3b-e2ck.gpt4o_O_pooled": {
+        "claude46": 0.08729356511987553,
+        "deepseek_v4": 0.22212339057224928,
+        "gpt4o": 0.13918192621595363
+      }
+    },
+    "matrix_specific": {
+      "smollm3-3b-e2ck.claude46_O_pooled": {
+        "claude46": -0.09925320951850342,
+        "deepseek_v4": -0.18430008540849818,
+        "gpt4o": -0.08686184591387072
+      },
+      "smollm3-3b-e2ck.deepseek_v4_O_pooled": {
+        "claude46": 0.07740451470953719,
+        "deepseek_v4": 0.11634795626920305,
+        "gpt4o": 0.07693612353121415
+      },
+      "smollm3-3b-e2ck.gpt4o_O_pooled": {
+        "claude46": -0.0233981087375829,
+        "deepseek_v4": -0.00983406771412576,
+        "gpt4o": -0.031764700761187564
+      }
+    },
+    "per_teacher": {
+      "claude46": {
+        "student": "smollm3-3b-e2ck.claude46_O_pooled",
+        "rho_own": 0.02171951534150186,
+        "mean_rho_other": 0.1147701834656405,
+        "contrast": -0.09305066812413863,
+        "contrast_specific": 0.03632775614268105,
+        "raw_rho_own": 0.0326645486130697
+      },
+      "deepseek_v4": {
+        "student": "smollm3-3b-e2ck.deepseek_v4_O_pooled",
+        "rho_own": 0.2972945565938754,
+        "mean_rho_other": 0.16941627779339674,
+        "contrast": 0.12787827880047864,
+        "contrast_specific": 0.03917763714882737,
+        "raw_rho_own": 0.3504861862614642
+      },
+      "gpt4o": {
+        "student": "smollm3-3b-e2ck.gpt4o_O_pooled",
+        "rho_own": 0.10741722545476606,
+        "mean_rho_other": 0.1380923896202081,
+        "contrast": -0.030675164165442026,
+        "contrast_specific": -0.015148612535333235,
+        "raw_rho_own": 0.1419234756790189
+      }
+    }
+  },
+  "T0_partial": {
+    "D": 0.038355587590587104,
+    "D_raw": 0.0377528404424896,
+    "ci_lo": -0.03124606148932464,
+    "ci_hi": 0.09515602462627952,
+    "p_perm": 0.050294970502949704,
+    "null_mean": -0.0002443510194550179,
+    "null_sd": 0.02415515361620373,
+    "D_shared": -0.0029583894092255233,
+    "D_specific": 0.04131397699981262,
+    "ci_specific_lo": -0.030267802852101622,
+    "ci_specific_hi": 0.10591134049708453,
+    "p_perm_specific": 0.040995900409959006,
+    "null_mean_specific": -0.0002531126377259697,
+    "null_sd_specific": 0.02465110662495979,
+    "D_scalefree": 0.03978859612584849,
+    "ci_scalefree_lo": -0.029154019805833913,
+    "ci_scalefree_hi": 0.10115895847802067,
+    "row_scale": {
+      "smollm3-3b-e2ck.claude46_O_pooled": 0.10993934109739574,
+      "smollm3-3b-e2ck.deepseek_v4_O_pooled": 0.12570515770642407,
+      "smollm3-3b-e2ck.gpt4o_O_pooled": 0.12052722053482834
+    },
+    "n_families": 138,
+    "n_teachers": 3,
+    "teachers": [
+      "claude46",
+      "deepseek_v4",
+      "gpt4o"
+    ],
+    "variants": [
+      "T0",
+      "T1",
+      "T3",
+      "T5",
+      "T6"
+    ],
+    "cells": [
+      "T0"
+    ],
+    "control": "smollm3-3b.base_B_s0",
+    "n_perm": 10000,
+    "n_boot": 10000,
+    "matrix": {
+      "smollm3-3b-e2ck.claude46_O_pooled": {
+        "claude46": -0.025398378257509673,
+        "deepseek_v4": -0.03330951681032611,
+        "gpt4o": -0.048084175908215634
+      },
+      "smollm3-3b-e2ck.deepseek_v4_O_pooled": {
+        "claude46": -0.07283455987484931,
+        "deepseek_v4": 0.05534476364161929,
+        "gpt4o": -0.004388666690638563
+      },
+      "smollm3-3b-e2ck.gpt4o_O_pooled": {
+        "claude46": -0.06641222573937834,
+        "deepseek_v4": 0.06710735029524204,
+        "gpt4o": 0.006159480023568727
+      }
+    },
+    "matrix_raw": {
+      "smollm3-3b-e2ck.claude46_O_pooled": {
+        "claude46": -0.016609757778682108,
+        "deepseek_v4": -0.040793606408936714,
+        "gpt4o": -0.042758745691121015
+      },
+      "smollm3-3b-e2ck.deepseek_v4_O_pooled": {
+        "claude46": -0.06354380452195768,
+        "deepseek_v4": 0.04619791790373874,
+        "gpt4o": -0.0005077247515112817
+      },
+      "smollm3-3b-e2ck.gpt4o_O_pooled": {
+        "claude46": -0.056450972581557055,
+        "deepseek_v4": 0.056836204256488936,
+        "gpt4o": 0.01006103635311476
+      }
+    },
+    "matrix_shared": {
+      "smollm3-3b-e2ck.claude46_O_pooled": {
+        "claude46": -0.06049530460723747,
+        "deepseek_v4": 0.034514057801664465,
+        "gpt4o": -0.015449839875285918
+      },
+      "smollm3-3b-e2ck.deepseek_v4_O_pooled": {
+        "claude46": -0.05290804330828225,
+        "deepseek_v4": 0.030185338792335873,
+        "gpt4o": -0.013512136231641683
+      },
+      "smollm3-3b-e2ck.gpt4o_O_pooled": {
+        "claude46": -0.055181011380612335,
+        "deepseek_v4": 0.03148212293019693,
+        "gpt4o": -0.014092627444755366
+      }
+    },
+    "matrix_specific": {
+      "smollm3-3b-e2ck.claude46_O_pooled": {
+        "claude46": 0.035096926349727796,
+        "deepseek_v4": -0.06782357461199057,
+        "gpt4o": -0.032634336032929714
+      },
+      "smollm3-3b-e2ck.deepseek_v4_O_pooled": {
+        "claude46": -0.019926516566567062,
+        "deepseek_v4": 0.025159424849283418,
+        "gpt4o": 0.00912346954100312
+      },
+      "smollm3-3b-e2ck.gpt4o_O_pooled": {
+        "claude46": -0.011231214358766006,
+        "deepseek_v4": 0.03562522736504511,
+        "gpt4o": 0.020252107468324093
+      }
+    },
+    "per_teacher": {
+      "claude46": {
+        "student": "smollm3-3b-e2ck.claude46_O_pooled",
+        "rho_own": -0.025398378257509673,
+        "mean_rho_other": -0.04069684635927087,
+        "contrast": 0.0152984681017612,
+        "contrast_specific": 0.08532588167218794,
+        "raw_rho_own": -0.016609757778682108
+      },
+      "deepseek_v4": {
+        "student": "smollm3-3b-e2ck.deepseek_v4_O_pooled",
+        "rho_own": 0.05534476364161929,
+        "mean_rho_other": -0.038611613282743935,
+        "contrast": 0.09395637692436323,
+        "contrast_specific": 0.03056094836206539,
+        "raw_rho_own": 0.04619791790373874
+      },
+      "gpt4o": {
+        "student": "smollm3-3b-e2ck.gpt4o_O_pooled",
+        "rho_own": 0.006159480023568727,
+        "mean_rho_other": 0.00034756227793184685,
+        "contrast": 0.00581191774563688,
+        "contrast_specific": 0.008055100965184542,
+        "raw_rho_own": 0.01006103635311476
+      }
+    }
+  },
+  "seen_raw": {
+    "D": 0.003379145830249027,
+    "D_raw": 0.003379145830249027,
+    "ci_lo": -0.04693405188001018,
+    "ci_hi": 0.050379770764712214,
+    "p_perm": 0.8816118388161184,
+    "null_mean": 0.02296289251382976,
+    "null_sd": 0.01679285791058635,
+    "D_shared": -0.024080513957116297,
+    "D_specific": 0.027459659787365337,
+    "ci_specific_lo": -0.022747627393377677,
+    "ci_specific_hi": 0.07644582053790475,
+    "p_perm_specific": 0.6642335766423357,
+    "null_mean_specific": 0.03575634988302791,
+    "null_sd_specific": 0.019714020145859636,
+    "D_scalefree": 0.025083906816412153,
+    "ci_scalefree_lo": -0.02042214106507402,
+    "ci_scalefree_hi": 0.06947571855823213,
+    "row_scale": {
+      "smollm3-3b-e2ck.claude46_O_pooled": 0.0614757151859851,
+      "smollm3-3b-e2ck.deepseek_v4_O_pooled": 0.1070569911137418,
+      "smollm3-3b-e2ck.gpt4o_O_pooled": 0.08820122601681409
+    },
+    "n_families": 139,
+    "n_teachers": 3,
+    "teachers": [
+      "claude46",
+      "deepseek_v4",
+      "gpt4o"
+    ],
+    "variants": [
+      "T1",
+      "T3",
+      "T5",
+      "T6"
+    ],
+    "cells": [
+      "T1",
+      "T3",
+      "T5",
+      "T6"
+    ],
+    "control": null,
+    "n_perm": 10000,
+    "n_boot": 10000,
+    "matrix": {
+      "smollm3-3b-e2ck.claude46_O_pooled": {
+        "claude46": 0.0326645486130697,
+        "deepseek_v4": 0.15014091792172019,
+        "gpt4o": 0.11925251124630062
+      },
+      "smollm3-3b-e2ck.deepseek_v4_O_pooled": {
+        "claude46": 0.1689351265971371,
+        "deepseek_v4": 0.3504861862614642,
+        "gpt4o": 0.21692304210547406
+      },
+      "smollm3-3b-e2ck.gpt4o_O_pooled": {
+        "claude46": 0.0909147224130321,
+        "deepseek_v4": 0.28370722584194724,
+        "gpt4o": 0.1419234756790189
+      }
+    },
+    "matrix_raw": {
+      "smollm3-3b-e2ck.claude46_O_pooled": {
+        "claude46": 0.0326645486130697,
+        "deepseek_v4": 0.15014091792172019,
+        "gpt4o": 0.11925251124630062
+      },
+      "smollm3-3b-e2ck.deepseek_v4_O_pooled": {
+        "claude46": 0.1689351265971371,
+        "deepseek_v4": 0.3504861862614642,
+        "gpt4o": 0.21692304210547406
+      },
+      "smollm3-3b-e2ck.gpt4o_O_pooled": {
+        "claude46": 0.0909147224130321,
+        "deepseek_v4": 0.28370722584194724,
+        "gpt4o": 0.1419234756790189
+      }
+    },
+    "matrix_shared": {
+      "smollm3-3b-e2ck.claude46_O_pooled": {
+        "claude46": 0.1524317514587239,
+        "deepseek_v4": 0.38917992125261563,
+        "gpt4o": 0.23354526272578668
+      },
+      "smollm3-3b-e2ck.deepseek_v4_O_pooled": {
+        "claude46": 0.08753142452902866,
+        "deepseek_v4": 0.22348016459392997,
+        "gpt4o": 0.13410952339499874
+      },
+      "smollm3-3b-e2ck.gpt4o_O_pooled": {
+        "claude46": 0.10624399865134511,
+        "deepseek_v4": 0.2712560252900451,
+        "gpt4o": 0.16277961999790722
+      }
+    },
+    "matrix_specific": {
+      "smollm3-3b-e2ck.claude46_O_pooled": {
+        "claude46": -0.1197672028456542,
+        "deepseek_v4": -0.23903900333089545,
+        "gpt4o": -0.11429275147948606
+      },
+      "smollm3-3b-e2ck.deepseek_v4_O_pooled": {
+        "claude46": 0.08140370206810844,
+        "deepseek_v4": 0.12700602166753425,
+        "gpt4o": 0.08281351871047532
+      },
+      "smollm3-3b-e2ck.gpt4o_O_pooled": {
+        "claude46": -0.015329276238313011,
+        "deepseek_v4": 0.01245120055190213,
+        "gpt4o": -0.020856144318888326
+      }
+    },
+    "per_teacher": {
+      "claude46": {
+        "student": "smollm3-3b-e2ck.claude46_O_pooled",
+        "rho_own": 0.0326645486130697,
+        "mean_rho_other": 0.1346967145840104,
+        "contrast": -0.1020321659709407,
+        "contrast_specific": 0.05689867455953654,
+        "raw_rho_own": 0.0326645486130697
+      },
+      "deepseek_v4": {
+        "student": "smollm3-3b-e2ck.deepseek_v4_O_pooled",
+        "rho_own": 0.3504861862614642,
+        "mean_rho_other": 0.19292908435130562,
+        "contrast": 0.1575571019101586,
+        "contrast_specific": 0.04489741127824236,
+        "raw_rho_own": 0.3504861862614642
+      },
+      "gpt4o": {
+        "student": "smollm3-3b-e2ck.gpt4o_O_pooled",
+        "rho_own": 0.1419234756790189,
+        "mean_rho_other": 0.1873109741274897,
+        "contrast": -0.045387498448470814,
+        "contrast_specific": -0.019417106475682885,
+        "raw_rho_own": 0.1419234756790189
+      }
+    }
+  },
+  "verdict": "fail",
+  "alpha": 0.05,
+  "rule": "pre-declared secondary: D > 0, family-bootstrap 95% CI of D excludes 0, family-permutation p < alpha, and the student-specific part D_specific (D = D_shared + D_specific) has a family-bootstrap CI above 0 (seen framings, partial given r_0)",
+  "reliability_split_half_r": {
+    "gpt4o": 0.675,
+    "claude46": 0.383,
+    "deepseek_v4": 0.515
+  },
+  "ceiling_sqrt_spearman_brown": {
+    "gpt4o": 0.8977584024968696,
+    "claude46": 0.7442233549308864,
+    "deepseek_v4": 0.8245410764775033
+  }
+}
