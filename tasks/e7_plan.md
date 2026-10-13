@@ -63,8 +63,8 @@ RQ4：只看一个学生模型的**行为**，能不能判断它是从哪个 tea
 | 阶段 | 内容 | 代价 |
 |---|---|---|
 | 1（现在） | `src/vcd/analysis/provenance.py` + `scripts/21_provenance.py` + 测试；dev 标定 → 冻结 hash → test 一次；词汇 baseline 脚本 | 0 API，Mac CPU |
-| 2（待批） | 加候选 teacher：GPT-4.1、GPT-4o-mini、GPT-4 0613、Claude Haiku 4.5 的 dev / test profile（`04 --mode profile`）；重算开集与"真 teacher 不在候选集"（如把 GPT-4o 换成 GPT-4.1 作参照） | 估 $60–90 API |
-| 3（可选） | 重训 6–9 个学生用于生成，做学生文本的词汇 baseline（docs/03 原设计） | 约 3 GPU 小时 |
+| 2 | 加候选 teacher：GPT-4.1、GPT-4o-mini、GPT-4 0613、Claude Haiku 4.5 的 dev / test profile（`04 --mode profile --config configs/phase1_{dev,test}.yaml`）；`21 --candidates <7 家>` 重标定（τ 按候选集分别存）→ test 一次；`--drop-candidate gpt4o`（以及 claude46、deepseek_v4）看真 teacher 缺席时学生被判给同家族还是别家还是拒判（家族映射：openai / anthropic / deepseek）。**预测**：GPT-4o 学生在候选集含 GPT-4.1 / 4o-mini 时仍多数拒判（本来就无信号）；Claude 学生在缺席 Claude 4.6 时部分被判给 Haiku 4.5；DeepSeek 学生缺席时被拒判或散到别家 | 估 $60–90 API |
+| 3 | 同一批学生上比词汇与行为溯源：用 E3c paired 的 seed-1 文件训 3 teacher × {O, C} 共 6 个学生（`STUDENT_SHORT=qwen3-4b-e2c-gen`，`configs/train_e2c_cnf.yaml` + `--max-steps` 780 / 760 / 395），`scripts/25_generate_rationales.py` 对 test prompt 贪心生成；`22 classify-generations`（在 teacher 的 O 训练 rationale 上训词汇分类器，判学生生成文本，run 级多数票）与 `21` 的行为归属并排。**预测**：O 学生的生成文本可被词汇认出（学生模仿 teacher 用词与长度）；C 学生的文本归属下降（学了改写器的 register）而行为归属不变（E3c 的 gap 穿过改写） | 约 3 GPU 小时 |
 
 ## 6. 披露
 
