@@ -44,10 +44,24 @@ primary：C 上 ≥ 2/3 teacher gap > seed-pair q95 且 family bootstrap CI > 0�
 | # | 侧 | 做什么 |
 |---|---|---|
 | 1 | Mac | 配置文件 + 配置差异测试 + `scripts/26_base2_check.py`（tokenizer / 模板 / 字母 token / 长度 / 显存估算）；提交本文件 |
-| 2 | HPC | 登录节点下载基座到 HF_HOME（非 gated，不需 token）；gate run；S_0 的 dev / test readout（`MODEL=HuggingFaceTB/SmolLM3-3B-Base`，`--student-short smollm3-3b`） |
-| 3 | HPC | 重建 SFT（sha256 对 meta，已提交）；训练 C、K 各 15（`STUDENT_SHORT=smollm3-3b-e2c{,k} CONFIG=configs/train_smollm3_3b_e2c.yaml`）；train / dev readout；13 门；19 dev；冻结行 |
-| 4 | HPC | test readout 一次；19 test（`--c-glob`、`--k-glob`、`--e1-glob` 指向新基座或 Qwen 的 E1，注明）；E7 的 21 在新基座上 dev 标定 → test 一次；删 checkpoint |
+| 2 | HPC | 登录节点下载：`HF_HOME=/hai/scratch/$USER/hf hf download HuggingFaceTB/SmolLM3-3B-Base --exclude "onnx/*"`（5.7 GiB；不加 exclude 会拉 39 GiB 的 ONNX）；compute 分配里 `python scripts/26_base2_check.py --offline --out /hai/scratch/$USER/vcd_diag/base2_check.md` 须 PASS；gate run：`python scripts/11_train_student.py --config configs/train_smollm3_3b_e2c.yaml --data data/sft_e2c/claude46_O_s1.jsonl --out runs/_smoke/smollm3_gate --seed 1 --max-steps 30`（看 peak_memory_gib ≤ 70、n_dropped_too_long 0、n_params ≈ 3.075e9），再 `12 --run-dir runs/_smoke/smollm3_gate --split dev --limit 200 --backend transformers`，然后删 `runs/_smoke`；**S_0 必须带配置**：`MODEL=HuggingFaceTB/SmolLM3-3B-Base EXTRA_ARGS="--config configs/train_smollm3_3b.yaml" sbatch slurm/eval.sbatch - dev`（不带 --config 会写到 runs/qwen3-4b/base_B_s0，绝不可 --overwrite 那里）→ `runs/smollm3-3b/base_B_s0/eval/`，复制到两个新 namespace |
+| 3 | HPC | SFT 文本与 tokenizer 无关，直接用集群已有的 `data/sft_e2c`、`data/sft_e2ck`（sha256 对 meta）；训练 C、K 各 15：`STUDENT_SHORT=smollm3-3b-e2c CONFIG=configs/train_smollm3_3b_e2c.yaml DATA_LIST=data/sft_e2c/runs.txt sbatch --array=0-14%8 slurm/train.sbatch`（K 换 e2ck / sft_e2ck）；train readout 带 `--prompts data/prompts/e2c_{C,K}_prompts.jsonl`；dev readout；13 `--student smollm3-3b-e2c --config configs/train_smollm3_3b_e2c.yaml --sft-dir data/sft_e2c --prompts-train data/prompts/e2c_C_prompts.jsonl --out results/base2_dev/C`（K 同理）判门；19 dev `--c-glob "runs/smollm3-3b-e2c/*_O_s*/eval/dev_responses.jsonl" --k-glob "runs/smollm3-3b-e2ck/..." --e1-glob "runs/smollm3-3b/*_O_s*/..."（没训 E1 则留空，E1 行缺失）--out results/base2_dev`；冻结行 |
+| 4 | HPC | test readout 一次（含 S_0 的 test）；19 test 同上 `--out results/base2 --frozen-commit <hash>`；13 test；E7 的 21 需先在 `provenance.py` 注册新 namespace（Mac 侧改）后再做；删 checkpoint（每个 5.7 GiB） |
 
 ## 6. 披露
 
 在看到 Qwen 上全部结果之后设计；判定规则原样复用；基座选择在任何新基座 run 之前写定。
+
+## 7. 代码侧检查结果（2026-10-13，`scripts/26_base2_check.py`，报告在 Mac 草稿目录）
+
+| 项 | SmolLM3-3B-Base | Qwen3-4B-Base |
+|---|---|---|
+| " A" / "A" / " B" / "B" 单 token | 是（362 / 32 / 426 / 33），`readout.letter_token_ids` 原样可用 | 是 |
+| 模板首个目标 token = 字母 token | 600 条真实 SFT 行全部成立 | 成立 |
+| 最长行（prompt + 目标 + EOS） | 570 token < 1024 | 592 |
+| eos / pad | eos 128001；pad 缺，栈设 pad = eos | eos = pad |
+| 参数量 / 预计峰值显存 | 3.075 B / ≈ 55 GiB（Qwen 69–72） | 4.022 B |
+| 每步时间 | ≈ 1.34 s → E2c 760 步 ≈ 17 分钟 | 1.76 s |
+
+注意：集群的 `.venv-vllm`（transformers 4.51）不能加载 `smollm3` 架构，E0.7 式的 vLLM 对照（scripts/14）对本基座不可用；协议 readout 是 fp32 transformers，不受影响。SmolLM3 的 tokenizer 是 Llama-3 式 128k 词表（不是 SmolLM2 的 49k），所以备选 Llama-3.2-3B 的字母 id 几乎相同，下载后用 26 复核即可。
+
