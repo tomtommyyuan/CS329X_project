@@ -1113,3 +1113,31 @@ dose 门通过，冻结 a332f77
 - a332f77 是 dose_plan.md 的最后一次修改，同时加入了 scripts/24 与 dose_metrics。9607b4d 只创建了 plan 文件，不含规则代码，所以 `--frozen-commit` 用 a332f77。
 - 下一步：`vcd_diag/dose_test_submit.sh`，30 个 test readout，每个 run 一次（Qwen 的 S_0 test 已有，不重跑）；齐后跑 `vcd_diag/dose_test_analysis.sh`（24 test `--frozen-commit a332f77 --out results/dose`）。
 - 本次提交：base2 的 test readout 与 results/base2；dose 的 30 个 run 的 manifest、train_log、train / dev readout，S_0 副本，results/dose_dev。CLAUDE.md 的可提交清单里没有 qwen3-4b-e2cmix* 与 results/dose*，它们是 dose_plan 定义的 namespace。
+
+### 2026-10-13 dose test（只跑一次，冻结于 a332f77）；两项的清理
+
+- **readout**：30 个作业 137315–137344，在冻结提交 614ebe0 推送之后提交，全部 COMPLETED、exit 0，各 3,000 行，fp32。有 2 行 malformed（M50 claude46_O_s1 与 deepseek_v4_O_s5，都在 mc_G_487 的 T0 上，不在分析的 variant 里），没有插补。Qwen 的 S_0 test 是原有的副本，没有重跑。
+- **分析**：在交互分配里跑了一次 `vcd_diag/dose_test_analysis.sh`：24 `--split test --out results/dose --frozen-commit a332f77`，四个条件各 15 个 run、45,000 行，没有缺失条件，summary 头写着 "frozen at commit a332f77"。看到 test 之后没有改任何量。
+
+**判定（dose_plan §3）**：**dose-response supported（2/3：claude46、deepseek_v4）**。
+
+| teacher | gap 在 p = 0 / 0.25 / 0.5 / 1 | 斜率（CI） | 过 | Spearman | flip rate 在 p = 0 / 0.25 / 0.5 / 1 |
+|---|---|---|---|---|---|
+| gpt4o | −0.005 / −0.005 / −0.004 / 0.003 | 0.008 [−0.007, 0.031] | — | 1.0 | 0.051 / 0.059 / 0.091 / 0.150 |
+| claude46 | 0.002 / 0.014 / 0.027 / 0.028 | 0.026 [0.003, 0.049] | ✓ | 1.0 | 0.040 / 0.048 / 0.053 / 0.092 |
+| deepseek_v4 | 0.003 / 0.018 / 0.031 / 0.035 | 0.031 [0.010, 0.058] | ✓ | 1.0 | 0.078 / 0.104 / 0.182 / 0.258 |
+
+- 与预测一致：DeepSeek 与 Claude 的斜率 > 0，GPT-4o 平；翻转率随 p 单调上升，三家都是。
+- claude46 过得很窄：CI 下界 0.0027，1.35% 的 bootstrap 斜率 ≤ 0，而且它的曲线在 p = 0.5 到 1 之间变平。
+- 端点行（p = 0、p = 1）与 results/e2c_robust/Kn、results/e2c 的 K_n / C 行逐字相同。
+
+**独立复核**（只读 workflow，2 个 agent）：不导入 vcd 重实现规则，dose_slopes、dose_gaps 与 60 个 O run 的行一致到 ≤ 3e-16，判定相同。审计确认：每个混合 run 只有一个 test 作业，在冻结推送之后；规则文件自 a332f77 以来没有改动；results/dose_dev 在冻结后没有改动。
+
+**清理（两项都完成后）**：删除前核对了 60 个 run（smollm3-3b-e2c / -e2ck、qwen3-4b-e2cmix25 / 50），train、dev、test readout 都齐，行数也对。60 个 checkpoint 已删（共 398 GB），`runs/` 下没有任何 checkpoint。
+
+**提交**：dose 的 30 个 test readout 与 results/dose（base2 的部分已在 df04317、614ebe0 提交）。
+
+**给 Mac 侧**：
+- base2 的 E7（21）需要先在 provenance.py 注册 smollm3-3b-e2c / -e2ck 两个 namespace。
+- SmolLM3 的 S_0 在 dev 和 test 上都是 100% malformed，§4 的"S_0 一致率"只能报不过门的 base_control。
+- `data/prompts/e2c_CK_prompts.jsonl` 的生成顺序与 sha256 记在本日第一段。
