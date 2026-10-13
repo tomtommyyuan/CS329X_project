@@ -1046,3 +1046,70 @@ base2 门通过，冻结 4ae6ccb
 
 - 下一步：`vcd_diag/base2_test_submit.sh`，30 个 test readout 加 S_0 的 test（带 `--config configs/train_smollm3_3b.yaml`），每个只跑一次；齐后在交互分配里跑 `vcd_diag/base2_test_analysis.sh`（13 C / K test，19 test `--frozen-commit 4ae6ccb --out results/base2`）。
 - 本次提交 30 个 run 的 manifest、train_log、train / dev readout，S_0 dev（3 个目录），以及 results/base2_dev。CLAUDE.md 的可提交清单里没有 smollm3-3b* 与 results/base2*，它们是 base2_plan 定义的 namespace，按任务说明提交。
+
+### 2026-10-13 base2 test（只跑一次，冻结于 4ae6ccb）
+
+- **readout**：31 个作业 137234–137264（30 个 run，加 S_0 的 137264，带 `--config configs/train_smollm3_3b.yaml`），全部 COMPLETED、exit 0，各 3,000 行，fp32。第一个作业在冻结提交 df04317 推送之后才开始。
+  - C deepseek_v4_O_s1 有 1 行 malformed，没有插补。
+  - S_0 的 test 是 3,000/3,000 malformed（mass_AB 均值 0.596），写在 `runs/smollm3-3b/base_B_s0`，复制到两个 namespace；Qwen 的 S_0 守卫 4/4。
+- **分析**：在交互分配里跑了一次 `vcd_diag/base2_test_analysis.sh`：13 C / K test → results/base2/{C,K}；19 test `--frozen-commit 4ae6ccb` → results/base2，summary 头写着 "frozen at commit 4ae6ccb"。看到 test 之后没有改任何量。
+
+**判定（base2_plan §4 = e2c_plan §6）**：primary **PASS（2/3：claude46、deepseek_v4）**；归因 C − K **2/3，attributed to contestedness**。
+
+| teacher | gap C（CI） | null q95 | 过 | gap K | C − K（CI） |
+|---|---|---|---|---|---|
+| gpt4o | 0.007 [−0.014, 0.024] | 0.014 | — | −0.001 | 0.008 [−0.009, 0.027] |
+| claude46 | 0.031 [0.008, 0.050] | 0.027 | ✓ | 0.003 | 0.028 [0.005, 0.054] |
+| deepseek_v4 | 0.027 [0.007, 0.044] | 0.015 | ✓ | −0.008 | 0.034 [0.012, 0.063] |
+
+**参照**：Qwen 的 E2c test（results/e2c）gap 为 0.003 / 0.028 / 0.035，按规则 primary 只有 deepseek_v4 过（claude46 没过 q95）；K 在两个基座上都约等于 0。
+
+**描述**：
+
+| 项 | C | K |
+|---|---|---|
+| flip rate，三 teacher 均值 | 0.186（gpt4o 0.181 / claude46 0.086 / deepseek_v4 0.292） | 0.062 |
+| suggestibility s 均值 | 0.304 | 0.071 |
+
+| S_0（不过门的先验 profile，290 个 family；过门的一致率为空） | ρ | CI | margin（CI） |
+|---|---|---|---|
+| deepseek_v4 | 0.250 | [0.185, 0.314] | 0.076 [−0.0004, 0.152] |
+| gpt4o | 0.174 | [0.114, 0.233] | — |
+| claude46 | 0.111 | [0.037, 0.182] | — |
+
+**§4 的混杂判断（如实写）**：SmolLM3 的先验仍然最像 DeepSeek，但 margin 的 CI 下界刚好压在 0 上（dev 上是 0.185 [0.051, 0.307]）。所以这个基座不能说先验已经不像 DeepSeek，混杂没有被排除。另一方面，DeepSeek 的 C − K 配对差 0.034 [0.012, 0.063] 控制了先验，而 claude46 的 gap 在新基座上过了规则（在 Qwen 上没过）。这些都只是描述。
+
+**独立复核**（只读 workflow，2 个 agent）：不导入 vcd 重实现规则，e2c_gaps 与 e2c_attribution 的 C / K 逐位相同（包括 bootstrap CI）。另取 40 个 bootstrap 种子，各 teacher 的旗标与两个判定都是 40/40 不变（只作描述，冻结结果是 seed 0）。审计确认每个 run 只有一个 test 作业、test 在冻结推送之后、规则文件自 4ae6ccb 以来没有改动。claude46 过门的余量很小（0.031 对 q95 0.027）。
+
+- E7 的 21 在新基座上要等 Mac 侧先在 provenance.py 注册 namespace（§5 步骤 4），本次没有做。
+- 30 个 checkpoint 等 dose 也做完后一起删。
+
+### 2026-10-13 dose dev 门（dose_plan §2）
+
+- 30 个训练任务与 30 个 follower 全部 COMPLETED、exit 0（array 137136 / 137186，follower 137137–137151 / 137187–137201）。
+- manifest：`configs/train_e2c.yaml`，5 epoch，780 / 760 / 395 步（与 C 相同），peak 71.5–72.3 GiB，n_dropped 0，sha256 与已提交 meta 30/30 一致。train readout 用的是 `e2c_CK_prompts.jsonl`，行数等于 n_examples；dev 每个 run 1,500 行。
+- malformed：train 3 行（M50 claude46 s1 / s3 / s4 各 1），dev 6 行（M25 deepseek_v4 s4 有 2 行，M50 deepseek_v4 s2 有 1 行、s4 有 3 行），都没有插补。
+- 分析：在 136749 里跑了 `vcd_diag/dose_dev_analysis.sh`。13 带 `--runs-dir runs --student … --split dev --out results/dose_dev/M{25,50}`；注意 13 自己写的 `M*/dose_response.json` 是 E1 式的量，不是预注册的剂量规则。门由 `vcd_diag/dose_gate.py` 判。24 dev 用四个默认条件，`--out results/dose_dev`。
+- 独立复核（只读 workflow，3 个 agent）：不导入 vcd、按每个 seed 自己的 SFT 文件重算 E1a，与 13 相差 ≤ 1.1e-16（每个 teacher 的 5 个 seed 文件是同一集合，只是行序不同）。端点行（p = 0 对 results/e2c_robust_dev/Kn，p = 1 对 results/e2c_dev 的 C）逐项相同。a332f77 到 HEAD 之间规则文件没有改动。混合 run 下没有任何 test 文件。
+
+| 门（§2：每个 run 的 E1a ≥ 0.95） | 结果 |
+|---|---|
+| M25（15） | 15/15，最低 0.9961（claude46 s1） |
+| M50（15） | 15/15，最低 0.9942（claude46 s3） |
+| 重训阶梯 | 没有触发 |
+
+**dev 描述**（24 写着"not yet frozen"；不是确认性结果）：
+
+| teacher | gap 在 p = 0 / 0.25 / 0.5 / 1 | 斜率（CI） | flip rate 斜率 |
+|---|---|---|---|
+| gpt4o | −0.003 / 0.008 / 0.011 / 0.009 | 0.010 [−0.021, 0.045] | 0.089 |
+| claude46 | 0.002 / 0.019 / 0.025 / 0.038 | 0.033 [0.010, 0.066] | 0.024 |
+| deepseek_v4 | −0.016 / −0.001 / 0.023 / 0.041 | 0.058 [0.030, 0.096] | 0.148 |
+
+dev 上读作 supported（2/3）。
+
+dose 门通过，冻结 a332f77
+
+- a332f77 是 dose_plan.md 的最后一次修改，同时加入了 scripts/24 与 dose_metrics。9607b4d 只创建了 plan 文件，不含规则代码，所以 `--frozen-commit` 用 a332f77。
+- 下一步：`vcd_diag/dose_test_submit.sh`，30 个 test readout，每个 run 一次（Qwen 的 S_0 test 已有，不重跑）；齐后跑 `vcd_diag/dose_test_analysis.sh`（24 test `--frozen-commit a332f77 --out results/dose`）。
+- 本次提交：base2 的 test readout 与 results/base2；dose 的 30 个 run 的 manifest、train_log、train / dev readout，S_0 副本，results/dose_dev。CLAUDE.md 的可提交清单里没有 qwen3-4b-e2cmix* 与 results/dose*，它们是 dose_plan 定义的 namespace。

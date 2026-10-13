@@ -1,0 +1,46 @@
+{
+  "observed": 0.03905397510630535,
+  "null_mean": -0.06450039131700404,
+  "null_sd": 0.023782045254067463,
+  "p": 1.3214298928584643e-06,
+  "n_perm": 756756,
+  "n_runs": 15,
+  "method": "exact",
+  "per_run": {
+    "smollm3-3b-e2c.claude46_O_s1": -0.04916283623471723,
+    "smollm3-3b-e2c.claude46_O_s2": 0.04810951020949855,
+    "smollm3-3b-e2c.claude46_O_s3": -0.00832438033667196,
+    "smollm3-3b-e2c.claude46_O_s4": -0.016130539101376712,
+    "smollm3-3b-e2c.claude46_O_s5": -0.06729923737900907,
+    "smollm3-3b-e2c.deepseek_v4_O_s1": 0.20849095565738904,
+    "smollm3-3b-e2c.deepseek_v4_O_s2": 0.24721789681210127,
+    "smollm3-3b-e2c.deepseek_v4_O_s3": 0.22218795884442197,
+    "smollm3-3b-e2c.deepseek_v4_O_s4": 0.2063949535061316,
+    "smollm3-3b-e2c.deepseek_v4_O_s5": 0.21637050799497562,
+    "smollm3-3b-e2c.gpt4o_O_s1": -0.03865218864233422,
+    "smollm3-3b-e2c.gpt4o_O_s2": -0.08832685049009192,
+    "smollm3-3b-e2c.gpt4o_O_s3": -0.10669285523343225,
+    "smollm3-3b-e2c.gpt4o_O_s4": -0.08748556212671355,
+    "smollm3-3b-e2c.gpt4o_O_s5": -0.10088770688559073
+  },
+  "control": "smollm3-3b.base_B_s0",
+  "n_assignments": 756756,
+  "teacher_exact": {
+    "observed": 0.03905397510630535,
+    "p": 0.16666666666666666,
+    "rank": 1,
+    "n_assignments": 6,
+    "floor": 0.16666666666666666,
+    "null": [
+      0.03905397510630535,
+      -0.051428306151942195,
+      -0.11265024577193333,
+      -0.14899606053967393,
+      -0.08355908851764354,
+      -0.029422622027136604
+    ],
+    "method": "teacher-exact",
+    "n_runs": 15
+  },
+  "unit_note": "run-level p is pseudo-replicated (seeds of one teacher are near-replicates); descriptive only"
+}

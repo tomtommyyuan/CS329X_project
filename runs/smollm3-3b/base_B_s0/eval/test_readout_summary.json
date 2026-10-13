@@ -1,0 +1,33 @@
+{
+  "n": 3000,
+  "category_counts": {
+    "malformed": 3000
+  },
+  "category_rates": {
+    "malformed": 1.0
+  },
+  "mean_mass_AB": 0.5958929597224243,
+  "top1_histogram": [
+    {
+      "token": " A",
+      "count": 1507
+    },
+    {
+      "token": " B",
+      "count": 1454
+    },
+    {
+      "token": " <",
+      "count": 39
+    }
+  ],
+  "backend": "transformers",
+  "seconds": 66.17756843566895,
+  "run_id": "smollm3-3b.base_B_s0",
+  "model": "HuggingFaceTB/SmolLM3-3B-Base",
+  "split": "test",
+  "prompts_path": "/hai/scratch/tomyyc/CS329X_project/data/prompts/test_prompts_v2.jsonl",
+  "answer_mass_min": 0.9,
+  "dtype": "float32",
+  "batch_size": 64
+}

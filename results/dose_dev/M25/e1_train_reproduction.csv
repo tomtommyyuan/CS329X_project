@@ -1,0 +1,16 @@
+run_id,teacher,version,seed,n_rows,answer_rate,n_targets,n_scored,n_missing,n_no_letter,n_match,accuracy,passed,sft_source
+qwen3-4b-e2cmix25.claude46_O_s1,claude46,O,1,4838,1.0,4838,4838,0,0,4819,0.9960727573377429,True,data/sft_e2c_mix25/claude46_O_s1.jsonl
+qwen3-4b-e2cmix25.claude46_O_s2,claude46,O,2,4838,1.0,4838,4838,0,0,4828,0.9979330301777594,True,data/sft_e2c_mix25/claude46_O_s1.jsonl
+qwen3-4b-e2cmix25.claude46_O_s3,claude46,O,3,4838,1.0,4838,4838,0,0,4826,0.9975196362133113,True,data/sft_e2c_mix25/claude46_O_s1.jsonl
+qwen3-4b-e2cmix25.claude46_O_s4,claude46,O,4,4838,1.0,4838,4838,0,0,4824,0.9971062422488631,True,data/sft_e2c_mix25/claude46_O_s1.jsonl
+qwen3-4b-e2cmix25.claude46_O_s5,claude46,O,5,4838,1.0,4838,4838,0,0,4823,0.9968995452666392,True,data/sft_e2c_mix25/claude46_O_s1.jsonl
+qwen3-4b-e2cmix25.deepseek_v4_O_s1,deepseek_v4,O,1,2497,1.0,2497,2497,0,0,2495,0.999199038846616,True,data/sft_e2c_mix25/deepseek_v4_O_s1.jsonl
+qwen3-4b-e2cmix25.deepseek_v4_O_s2,deepseek_v4,O,2,2497,1.0,2497,2497,0,0,2495,0.999199038846616,True,data/sft_e2c_mix25/deepseek_v4_O_s1.jsonl
+qwen3-4b-e2cmix25.deepseek_v4_O_s3,deepseek_v4,O,3,2497,1.0,2497,2497,0,0,2495,0.999199038846616,True,data/sft_e2c_mix25/deepseek_v4_O_s1.jsonl
+qwen3-4b-e2cmix25.deepseek_v4_O_s4,deepseek_v4,O,4,2497,1.0,2497,2497,0,0,2493,0.9983980776932319,True,data/sft_e2c_mix25/deepseek_v4_O_s1.jsonl
+qwen3-4b-e2cmix25.deepseek_v4_O_s5,deepseek_v4,O,5,2497,1.0,2497,2497,0,0,2495,0.999199038846616,True,data/sft_e2c_mix25/deepseek_v4_O_s1.jsonl
+qwen3-4b-e2cmix25.gpt4o_O_s1,gpt4o,O,1,4964,1.0,4964,4964,0,0,4956,0.9983883964544722,True,data/sft_e2c_mix25/gpt4o_O_s1.jsonl
+qwen3-4b-e2cmix25.gpt4o_O_s2,gpt4o,O,2,4964,1.0,4964,4964,0,0,4957,0.9985898468976632,True,data/sft_e2c_mix25/gpt4o_O_s1.jsonl
+qwen3-4b-e2cmix25.gpt4o_O_s3,gpt4o,O,3,4964,1.0,4964,4964,0,0,4960,0.9991941982272361,True,data/sft_e2c_mix25/gpt4o_O_s1.jsonl
+qwen3-4b-e2cmix25.gpt4o_O_s4,gpt4o,O,4,4964,1.0,4964,4964,0,0,4955,0.9981869460112812,True,data/sft_e2c_mix25/gpt4o_O_s1.jsonl
+qwen3-4b-e2cmix25.gpt4o_O_s5,gpt4o,O,5,4964,1.0,4964,4964,0,0,4957,0.9985898468976632,True,data/sft_e2c_mix25/gpt4o_O_s1.jsonl

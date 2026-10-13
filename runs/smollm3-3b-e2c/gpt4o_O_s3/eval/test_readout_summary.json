@@ -1,0 +1,29 @@
+{
+  "n": 3000,
+  "category_counts": {
+    "answer": 3000
+  },
+  "category_rates": {
+    "answer": 1.0
+  },
+  "mean_mass_AB": 0.9999514962197985,
+  "top1_histogram": [
+    {
+      "token": " A",
+      "count": 1558
+    },
+    {
+      "token": " B",
+      "count": 1442
+    }
+  ],
+  "backend": "transformers",
+  "seconds": 64.66658592224121,
+  "run_id": "smollm3-3b-e2c.gpt4o_O_s3",
+  "model": "runs/smollm3-3b-e2c/gpt4o_O_s3/checkpoint",
+  "split": "test",
+  "prompts_path": "/hai/scratch/tomyyc/CS329X_project/data/prompts/test_prompts_v2.jsonl",
+  "answer_mass_min": 0.9,
+  "dtype": "float32",
+  "batch_size": 64
+}
