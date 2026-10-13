@@ -1002,3 +1002,15 @@ E3c 门通过（deepseek_v4 register 门按修订 1 豁免），冻结 45f3d30
 - **分析命令**（train 与 dev readout 齐后，在交互分配里跑）：
   - 13 的默认值会写到 results/e1、用 qwen3-4b、split test，所以都显式给参数。base2：`13 --runs-dir runs --student smollm3-3b-e2c{,k} --config configs/train_smollm3_3b_e2c.yaml --sft-dir data/sft_e2c{,k} --prompts-train data/prompts/e2c_{C,K}_prompts.jsonl --split dev --out results/base2_dev/{C,K}`。dose：`13 --runs-dir runs --student qwen3-4b-e2cmix{25,50} --sft-dir data/sft_e2c_mix{25,50} --prompts-train data/prompts/e2c_CK_prompts.jsonl --split dev --out results/dose_dev/M{25,50}`，其中 `--out` 不是 plan 写的。
   - 19：`--e1-glob` 按 plan 留空会报 ValueError，所以用 plan 自己的 `runs/smollm3-3b/*_O_s*/eval/{split}_responses.jsonl`。它不匹配任何文件，E1 行记为缺失。
+
+### 2026-10-13 dose 网格已提交；base2 C 单元完成
+
+| 实验 | 单元 | student | config | 训练 array | follower（train + dev） |
+|---|---|---|---|---|---|
+| dose | M25 | qwen3-4b-e2cmix25 | configs/train_e2c.yaml | **137136**（14:07 提交） | 137137–137151 |
+| dose | M50 | qwen3-4b-e2cmix50 | configs/train_e2c.yaml | **137186**（14:33 提交） | 137187–137201 |
+
+- base2 C（137000 + 137001–137015）：30/30 COMPLETED。
+  - manifest 抽查：5 epoch，claude46 760 步，peak 55.3–55.5 GiB，n_dropped 0，sha256 与 meta 一致。
+  - follower 抽查：train readout 行数等于 n_examples，用的是 `e2c_C_prompts.jsonl`，sft_sha256 与 data_sha256 一致；dev 1,500 行全为 answer；没有 test 文件。
+- base2 K（137016 + follower）仍在跑。集群拥挤，同时只拿到 3–8 张卡。
