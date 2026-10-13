@@ -957,3 +957,48 @@ E3c 门通过（deepseek_v4 register 门按修订 1 豁免），冻结 45f3d30
 - **清理**：6 个 checkpoint 已删（每个 7.6 GB），`runs/` 下没有任何 checkpoint，`runs/qwen3-4b-e2c-gen` 现为 18 MB。
 - **提交**：6 个 run 各有 manifest、train_log、eval/（test_responses、test_readout_summary、test_generations、test_generations_summary），共 36 个文件，另加 scripts/25 docstring、测试和本段。
 - **下一步（Mac 侧）**：21 的行为归属（见披露 2）、22 classify-generations 与并排表。
+
+### 2026-10-13 base2（base2_plan §5 步骤 2–3）与 dose（dose_plan §4 步骤 2）：准备完成，网格已提交
+
+在交互分配 136749（haic-hgx-3）上做，`git pull --rebase` 到 b120663。不调 API，没有改规则。
+
+**base2 步骤 2**
+
+| 项 | 结果 |
+|---|---|
+| 下载 | `hf download HuggingFaceTB/SmolLM3-3B-Base --exclude "onnx/*"`，snapshot d78a42f，2 个 safetensors 共 5.7 GiB，没有 onnx。登录节点不能非交互 ssh（publickey 被拒），本 compute 节点能连 huggingface.co，所以在 136749 里跑同一命令，文件相同 |
+| 26_base2_check `--offline` | **PASS**（`vcd_diag/base2_check.md`）：字母 id A [362, 32] / B [426, 33]；模板边界 600 行真实 SFT 全对；最长行 570 token；预计峰值 55.4 GiB |
+| gate run（30 步，`configs/train_smollm3_3b_e2c.yaml`，`data/sft_e2c/claude46_O_s1`，在 136749 里跑） | peak_memory_gib **55.31** ≤ 70；n_dropped_too_long 0；n_params 3,075,098,624；dev 200 条 readout 200/200 answer，mass_AB 0.9994，top1 都是字母 token。`runs/_smoke` 已删 |
+| vLLM 对照 | 跳过：`.venv-vllm`（transformers 4.51）不认识 smollm3（plan §7） |
+| S_0 dev（作业 136988，`MODEL=HuggingFaceTB/SmolLM3-3B-Base EXTRA_ARGS="--config configs/train_smollm3_3b.yaml"`） | 写到 `runs/smollm3-3b/base_B_s0/eval/`，1,500 行，**malformed 100%**（mass_AB 均值 0.599，最大 0.839 < 0.9；Qwen 的 S_0 是 75% / 0.876）。没有插补。已复制到 `runs/smollm3-3b-e2c{,k}/base_B_s0/eval/`（cmp 相同）。Qwen 的 `runs/qwen3-4b/base_B_s0` 没有动（sha256 4/4） |
+
+后果：§4 的"S_0 对三个 teacher 的一致率"在本基座上没有过 0.9 门的行。届时报 13 的 base_control（不过门的先验 profile，即 E1 §0"S_0 最像 DeepSeek"所用的同一个量），并标明。
+
+**dose 步骤 2**
+
+- **10c 重建**（默认参数：`--c-dir data/sft_e2c --k-dir data/sft_e2ck --out-root data/sft_e2c_mix --shares 0.25,0.5`）：30 个 jsonl 的 sha256、n_examples 与已提交 meta 30/30 一致。10c 会改写 30 个已跟踪的 meta，但只改了 built_at，已 `git checkout` 回去。
+- **`data/prompts/e2c_CK_prompts.jsonl`**：
+  - 生成方式是 `cat e2c_C_prompts.jsonl e2c_K_prompts.jsonl`（C 在前），23,760 行，id 唯一，2,970 个 family，sha256 `3745202093fe9f04f91363bc882258c705cb7ceca0c73f4212c5c1cf1554cc41`。
+  - 已 gitignore（.gitignore:29）；与 dev / test 的 family 不重合；覆盖每个混合集的 prompt_id。
+  - 顺序与 sha 在别处没有记录，记在这里。
+- **S_0**：Qwen 的 4 个文件已复制到 `runs/qwen3-4b-e2cmix{25,50}/base_B_s0/eval/`（cmp 相同）。
+
+**作业**
+
+- follower 是 `vcd_diag/e2c_eval_run.sh <student> <run> train dev`，每个 run 一个，单写者。本次在映射里加了 smollm3-3b-e2c → C、smollm3-3b-e2ck → K、qwen3-4b-e2cmix25 / 50 → CK，并加了缺 prompt 文件时的守卫。
+- QOS MaxSubmitPU 为 64，所以分单元提交：一个单元是 1 个 array 加 15 个 follower，需要 30 个空位，空位不够时排队（`vcd_diag/qos_unit_submit.sh`，用共享锁）。
+
+| 实验 | 单元 | student | config | 训练 array | follower（train + dev） |
+|---|---|---|---|---|---|
+| base2 | C | smollm3-3b-e2c | configs/train_smollm3_3b_e2c.yaml | **137000** | 137001–137015 |
+| base2 | K | smollm3-3b-e2ck | configs/train_smollm3_3b_e2c.yaml | **137016** | 137017–137031 |
+| dose | M25 | qwen3-4b-e2cmix25 | configs/train_e2c.yaml | 等 QOS 空位（`vcd_diag/dose_submit.sh`，日志 `dose_submit.log`） | — |
+| dose | M50 | qwen3-4b-e2cmix50 | configs/train_e2c.yaml | 同上 | — |
+
+- dose 的提交器在 haic-hgx-3 上后台运行。若 136749 在它提交之前到期，重跑 `vcd_diag/dose_submit.sh M25 M50`；已在 `dose_ids.txt` 里的单元会跳过。
+- **条件性 BLOCKED**（在任何结果之前写定）：
+  - dose §2 的重训阶梯：混合集的 n 与 C 相同，5 epoch 已经就是 780 / 760 / 395 步，"按与 C 相同的步数重训"等于原样重跑，plan 也没给归档 namespace。若有 run 的 E1a 不过，写 BLOCKED，不自行换配方。
+  - base2 §3 的"+2 epoch"：没有 7 epoch 的配置，只能 `EXTRA_ARGS="--epochs 7"`，并且要先归档 5 epoch 的目录。若需要，写 BLOCKED 并等确认。
+- **分析命令**（train 与 dev readout 齐后，在交互分配里跑）：
+  - 13 的默认值会写到 results/e1、用 qwen3-4b、split test，所以都显式给参数。base2：`13 --runs-dir runs --student smollm3-3b-e2c{,k} --config configs/train_smollm3_3b_e2c.yaml --sft-dir data/sft_e2c{,k} --prompts-train data/prompts/e2c_{C,K}_prompts.jsonl --split dev --out results/base2_dev/{C,K}`。dose：`13 --runs-dir runs --student qwen3-4b-e2cmix{25,50} --sft-dir data/sft_e2c_mix{25,50} --prompts-train data/prompts/e2c_CK_prompts.jsonl --split dev --out results/dose_dev/M{25,50}`，其中 `--out` 不是 plan 写的。
+  - 19：`--e1-glob` 按 plan 留空会报 ValueError，所以用 plan 自己的 `runs/smollm3-3b/*_O_s*/eval/{split}_responses.jsonl`。它不匹配任何文件，E1 行记为缺失。
