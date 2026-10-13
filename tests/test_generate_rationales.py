@@ -63,9 +63,16 @@ def test_select_prompts_and_summary():
     assert s["n"] == 2 and s["letter_rate"] == 0.5 and s["mean_new_tokens"] == 7 and s["stop_reasons"] == {"eos": 1, "answer_line": 1} and s["rationale_rate"] == 0.5 and s["letter_counts"] == {"A": 1, "None": 1}
 
 
+def test_docstring_slurm_wrap_is_posix_sh():
+    """sbatch --wrap runs its command under /bin/sh (dash on HAIC): the documented snippet must not use bash-only `source`."""
+    doc = _load_script().__doc__
+    wrap = doc[doc.index("--wrap"):].split("done")[0]
+    assert ". .venv/bin/activate" in wrap and "source " not in wrap
+
+
 def test_cli_tiny_model_writes_generations(tmp_path):
     """4 pilot prompts on CPU with the tiny profile: row schema, a bounded token count, the summary, and the overwrite guard."""
-    cmd = [sys.executable, str(SCRIPT), "--model", TINY, "--profile", "tiny", "--split", "pilot", "--limit", "4", "--max-new-tokens", "12", "--out", str(tmp_path)]
+    cmd = [sys.executable, str(SCRIPT), "--model", TINY, "--profile", "tiny", "--split", "pilot", "--limit", "4", "--max-new-tokens", "12", "--device", "cpu", "--out", str(tmp_path)]  # GPU nodes default to cuda
     res = subprocess.run(cmd, cwd=ROOT, env={**os.environ, "HF_HUB_OFFLINE": "1"}, capture_output=True, text=True)
     assert res.returncode == 0, res.stderr
     assert "run_id=smollm2-135m.base_B_s0" in res.stdout and "dtype=float32" in res.stdout and "device=cpu" in res.stdout

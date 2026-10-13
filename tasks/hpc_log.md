@@ -890,3 +890,70 @@ E3c 门通过（deepseek_v4 register 门按修订 1 豁免），冻结 45f3d30
   - **20 的两行在这批数据上不可能判 no effect**：family bootstrap 的 CI 宽 0.011–0.030，而 TOST 要求宽度 ≤ 2 × SD_stat = 0.0071，所以没有效应时结果必然是 inconclusive。
   - **test 上只有 deepseek_v4 的 O 学生有可测的 own-teacher 信号**（gap 的 CI 不含 0）。gpt4o 和 claude46 的 V − O 是在 O 本身信号不显著的地方测的。
   - **e3c §3(b) 的 family 集措辞有歧义**："两侧 cell 都非平局"。代码是逐侧丢掉平局 cell；若改成严格读法（任何 family 只要有平局 cell 就整个丢掉），claude46 不再过 q95，gpt4o 两行以相反符号过 q95，两行判定仍是 inconclusive。
+
+### 2026-10-13 E7 阶段 3（e7_plan §5 行 3）：6 个生成学生的训练、test readout、test 生成
+
+在交互分配 136749（haic-hgx-3）上做，`git pull --rebase` 到 a0a5be9。不调 API，没有改任何规则或协议常量。
+
+- **数据**：`data/sft_e2c_paired/{t}_{O,C}_s1.jsonl`（E3c 的 paired 文件）。6 个 sha256 与 meta 一致，行数等于 n_examples（4,527 / 4,122 / 2,228）。DATA_LIST 是 `vcd_diag/e7gen_runs_{t}.txt`（2 行，O_s1、C_s1）。
+- **作业**：`STUDENT_SHORT=qwen3-4b-e2c-gen CONFIG=configs/train_e2c_cnf.yaml`，`--array=0-1`。每个训练任务挂两个 afterok follower，并串行化，同一 run 目录一次只有一个写者：先 (a) `slurm/eval.sbatch <run> test`；(a) 结束后再跑 (b) `scripts/25 --run-dir <run> --split test`。清单在 `vcd_diag/e7gen_ids.txt`。
+
+| teacher | 训练 array | `--max-steps` | test readout O / C | 生成 O / C |
+|---|---|---|---|---|
+| gpt4o | 136760 | 780 | 136761 / 136763 | 136781 / 136782 |
+| claude46 | 136765 | 760 | 136766 / 136768 | 136783 / 136784 |
+| deepseek_v4 | 136770 | 395 | 136771 / 136773 | 136785 / 136786 |
+
+- **异常**：第一轮生成 follower 照抄了 scripts/25 docstring 里的 `--wrap "source .venv/bin/activate && ..."`。`sbatch --wrap` 用 `/bin/sh` 执行，HAIC 上是 dash，没有 `source`。因此 136762 在 python 启动前就以 exit 127 失败，没有写任何文件。其余 5 个还在 PENDING 时已取消，改用 `. .venv/bin/activate` 重新提交为 136781–136786（`vcd_diag/e7gen_resubmit_gen.sh`）。全部 18 个有效作业都是 COMPLETED、exit 0：训练 11–25 分钟，readout 约 2 分钟，生成 4–6 分钟。
+- **修 bug**（不改行为）：
+  - `scripts/25` docstring 的 `--wrap` 片段把 `source` 改为 `.`。
+  - `tests/test_generate_rationales.py` 的 CLI 测试原先默认在 CPU 上跑，但 GPU 节点默认用 cuda，断言 `device=cpu` 会失败，已加 `--device cpu`。
+  - 新增一个测试：docstring 的 wrap 片段必须是 POSIX sh。
+  - 全套测试在计算分配里跑过：243 passed，1 skipped。
+- **manifest**（6 个都核对过）：
+  - `steps` = `max_steps` = `steps_planned` = 780 / 760 / 395，`num_epochs` 9，`config_path` 为 `configs/train_e2c_cnf.yaml`。
+  - run_id 为 `qwen3-4b-e2c-gen.{t}_{O,C}_s1`，版本字母正确。
+  - `data_sha256` 与 `n_examples` 等于 meta；hyperparameters 等于 config 的 train 段。
+  - 与 E3c 同文件 run 的 manifest 相比，只有路径、主机、作业号、时间不同。
+
+| run | final loss（E3c 同文件 run） | test readout 行数 / malformed | 与 E3c 字母不同（/3000） | 生成行数 / 有字母比例 / 停于 EOS | 平均 / 最长新 token | 生成字母 = readout 字母 | cell 多数行动一致（生成不 split 的 cell） | 生成 split 率 = readout split 率 |
+|---|---|---|---|---|---|---|---|---|
+| gpt4o_O_s1 | 0.0359（0.0359） | 3000 / 0 | 0 | 2400 / 1.000 / 2400 | 49.3 / 77 | 2400/2400 | 1.000 | 0.100 |
+| gpt4o_C_s1 | 0.0353（0.0353） | 3000 / 0 | 0 | 2400 / 1.000 / 2400 | 51.0 / 85 | 2400/2400 | 1.000 | 0.119 |
+| claude46_O_s1 | 0.0199（0.0236） | 3000 / 0 | 101 | 2400 / 1.000 / 2400 | 80.5 / 125 | 2400/2400 | 1.000 | 0.127 |
+| claude46_C_s1 | 0.0418（0.0403） | 3000 / 0 | 115 | 2400 / 1.000 / 2400 | 82.1 / 135 | 2400/2400 | 1.000 | 0.103 |
+| deepseek_v4_O_s1 | 0.0266（0.0266） | 3000 / 0 | 0 | 2400 / 1.000 / 2400 | 45.5 / 94 | 2400/2400 | 1.000 | 0.101 |
+| deepseek_v4_C_s1 | 0.0302（0.0302） | 3000 / 0 | 0 | 2400 / 1.000 / 2400 | 48.5 / 94 | 2400/2400 | 1.000 | 0.109 |
+
+- **字母一致性**：
+  - 逐 prompt 全比：生成字母与 readout 字母 14,400/14,400 一致，包括 |p_x − 0.5| < 0.1 的 349 个 prompt。贪心解码的首 token 就是 readout 的 argmax，所以全一致是预期结果。
+  - 抽查 94 行：92 行的 rationale 明确支持所选选项；2 行因选项措辞不对称而模糊（dd_47060、dd_49737）；没有一行支持另一选项。
+  - 没有不一致可报。
+- **独立复核**（只读 workflow，5 个检查 agent 加 1 个 skeptic）：上表的数字逐项复现。生成 summary 与逐行重算一致，model 为各自的 checkpoint，prompts_sha256 对。没有 malformed，也没有插补。每个 run 只有一个 test readout 作业，没有 train / dev readout。
+
+**披露（给 Mac 侧）：**
+
+1. **claude46 的两个生成学生不是 E3c 学生的位级复现**：
+   - 输入完全相同：data sha256、config、步数、warmup / LR 逐步位级相同；训练代码与 E3c 时无 diff；torch 2.6.0+cu124、transformers 5.18.0。
+   - 日志 loss 到 step 60 位级相同，从 step 70 起分叉。test readout 3,000 行中字母不同 101 / 115 行，mean |Δp_x| 0.034，max 0.91 / 0.83。
+   - gpt4o 与 deepseek_v4 的 4 个 run 跨节点与 E3c 位级相同（3000/3000，Δ = 0）。看起来是依赖数据的 GPU 非确定性。
+   - 后果：claude46 的行为归属必须用这两个 run 自己的 test readout，不能沿用 E3c 的行。E3c claude46 的 base-unknown margin（0.0204 / 0.0239）离 dev τ 0.0174 很近，判定可能不同。
+2. **scripts/21 不认识 namespace `qwen3-4b-e2c-gen`**：
+   - 它既不在 `GRID_BY_NAMESPACE` 里，也不在 `CORE_NAMESPACES` 里；不加 `--grid-map` 时 `load_student_runs` 直接报错。
+   - `results/e7/e7_runs.csv` 里没有这 6 个 run，所以按 docstring 写的 `22 classify-generations --behavioural results/e7/e7_runs.csv` 会得到全部 `in_behavioural = False`。
+   - 需要另跑一次 21：加 `--grid-map qwen3-4b-e2c-gen=<新标签>`，把它作为描述 namespace，用新的 `--out`；不要加进 core，否则 pooled 的冻结表会变。
+   - 22 的 `load_generations` 能直接读这 6 个文件（14,400 行，grid 标签为 namespace 名）。
+3. **按本任务说明没有做 train / dev readout**：
+   - 生成学生的 E1a（复现自身训练标签）没有测；checkpoint 已删，以后不能再补。
+   - docs/05 与 slurm/README 的清理规则是"dev 和 test readout 都齐再删"；这次按任务说明只要 test。
+   - docs/supplemental_experiments.md 行 6 提到的"在阶段 3 生成学生上顺带做开放式检查"，现在需要重训（约 2 GPU 小时），且 claude46 不能位级复现。
+4. **生成文本**（只作描述，词汇归属由 Mac 侧做）：
+   - 格式全部是 `" A\nRationale: ..."`，没有截断，没有重复循环，没有逐字复制训练目标。
+   - 25 / 14,400 行（0.17%）夹了中文，训练目标中为 0。多数是句中一个词，claude46_O 有 2 行整句中文（mc_H_050.T1.o1、mc_G_306.T6.o1），看起来是基座泄漏。
+   - 9 行含 U+FFFD，都来自 family dd_38773，test prompt 原文里就有。
+   - rationale 长度与训练目标中 dd / mc 来源的部分相差约 1% 以内；比整个训练文件均值长，是因为训练里有约 48% 的短 eth_j 题。
+5. CLAUDE.md 的可提交 student 目录清单里没有 `qwen3-4b-e2c-gen`（也没有已提交的 `qwen3-4b-e2c-paired`）。这次按 e7_plan §5 行 3 与任务说明提交。
+
+- **清理**：6 个 checkpoint 已删（每个 7.6 GB），`runs/` 下没有任何 checkpoint，`runs/qwen3-4b-e2c-gen` 现为 18 MB。
+- **提交**：6 个 run 各有 manifest、train_log、eval/（test_responses、test_readout_summary、test_generations、test_generations_summary），共 36 个文件，另加 scripts/25 docstring、测试和本段。
+- **下一步（Mac 侧）**：21 的行为归属（见披露 2）、22 classify-generations 与并排表。

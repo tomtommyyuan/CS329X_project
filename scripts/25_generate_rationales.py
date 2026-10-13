@@ -31,7 +31,7 @@ the readout, 2,400 prompts x <= 160 tokens in batches of 32: a few minutes per r
   for r in runs/qwen3-4b-e2c/{gpt4o,claude46,deepseek_v4}_O_s{1,2,3}; do
     sbatch --job-name=vcd-gen --account=ingrai --partition=hai --gres=gpu:h100:1 --cpus-per-task=8 --mem=64G --time=00:40:00 \
       --exclude=haic-hgx-2 --output=logs/%x-%j.out \
-      --wrap "source .venv/bin/activate && export HF_HOME=/hai/scratch/\$USER/hf HF_HUB_OFFLINE=1 TOKENIZERS_PARALLELISM=false && \
+      --wrap ". .venv/bin/activate && export HF_HOME=/hai/scratch/\$USER/hf HF_HUB_OFFLINE=1 TOKENIZERS_PARALLELISM=false && \
               python scripts/25_generate_rationales.py --run-dir $r --split test"
   done
   # commit runs/*/*/eval/test_generations.jsonl (+ _summary.json) like the readouts; then, on the Mac:
