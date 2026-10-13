@@ -1,0 +1,49 @@
+{
+  "n_train_texts": 10877,
+  "train_teachers": {
+    "gpt4o": 4527,
+    "claude46": 4122,
+    "deepseek_v4": 2228
+  },
+  "n_runs": 6,
+  "n_generations": 14400,
+  "n_classified": 14400,
+  "n_runs_with_truth": 6,
+  "teachers": [
+    "gpt4o",
+    "claude46",
+    "deepseek_v4"
+  ],
+  "hash_bits": 18,
+  "C": 1.0,
+  "backend": "sklearn",
+  "chance": 0.3333333333333333,
+  "runtime_s": 15.53411602973938,
+  "generation_files": [
+    "runs/qwen3-4b-e2c-gen/claude46_C_s1/eval/test_generations.jsonl",
+    "runs/qwen3-4b-e2c-gen/claude46_O_s1/eval/test_generations.jsonl",
+    "runs/qwen3-4b-e2c-gen/deepseek_v4_C_s1/eval/test_generations.jsonl",
+    "runs/qwen3-4b-e2c-gen/deepseek_v4_O_s1/eval/test_generations.jsonl",
+    "runs/qwen3-4b-e2c-gen/gpt4o_C_s1/eval/test_generations.jsonl",
+    "runs/qwen3-4b-e2c-gen/gpt4o_O_s1/eval/test_generations.jsonl"
+  ],
+  "files_sha256": {
+    "runs/qwen3-4b-e2c-gen/claude46_C_s1/eval/test_generations.jsonl": "c91b1da05abe337f6f5049d8c8059f429611ed204f1efe615b2552f09653496a",
+    "runs/qwen3-4b-e2c-gen/claude46_O_s1/eval/test_generations.jsonl": "79914768c5294e5ad609d1f9b8bc2dc45421f6345c506bf0fef67f92713273e2",
+    "runs/qwen3-4b-e2c-gen/deepseek_v4_C_s1/eval/test_generations.jsonl": "3ddf7a61e2d1ba742a2e41832e3f748a96325457973316acde9ca2eec50088a4",
+    "runs/qwen3-4b-e2c-gen/deepseek_v4_O_s1/eval/test_generations.jsonl": "439fbd57a4eb9895490b5990ea8799addea8353cc1efa22160bd7ac8c9a71e7f",
+    "runs/qwen3-4b-e2c-gen/gpt4o_C_s1/eval/test_generations.jsonl": "9f84bfb8a010f3980dc0dc6c4ff6e0305ab8ac30392777e87ae838beafff4b16",
+    "runs/qwen3-4b-e2c-gen/gpt4o_O_s1/eval/test_generations.jsonl": "5c1c75a3f534f425fe3f975718671069e3d5bf98813222493488884691f6d082"
+  },
+  "train_sft_dirs": [
+    "data/sft_e2c_paired"
+  ],
+  "sft_seed": 1,
+  "seed": 0,
+  "max_iter": 1000,
+  "behavioural": "results/e7_gen/e7_runs.csv",
+  "numpy_version": "2.5.3",
+  "python": "3.12.4",
+  "total_runtime_s": 15.71474003791809,
+  "command": "scripts/22_lexical_provenance.py classify-generations --train-sft-dirs data/sft_e2c_paired --generations runs/qwen3-4b-e2c-gen/*/eval/test_generations.jsonl --behavioural results/e7_gen/e7_runs.csv --out results/e7_lexical_students"
+}
