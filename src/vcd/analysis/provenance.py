@@ -32,6 +32,16 @@ Metrics (plan §4): per-teacher recall with Wilson 95% CI (unattributed counts a
 the negatives, one-vs-rest AUROC on s_t (positives = runs truly from t, negatives = every other run incl. "none"),
 chance = (1/K)(1 - unattributed rate), and a run-label permutation p for the macro recall (seeds of one teacher are
 near-replicates, so that p is descriptive, as in e1_metrics).
+
+Phase 2 (plan §5, extra candidate teachers): CANDIDATES (the teachers the detector scores against; `World.teachers`)
+are separated from the TRUTH teachers (the teacher a student was trained on, read from its run id). A run whose truth is
+a teacher outside the candidate set is a "true-teacher-absent" case: it is scored like any suspect, kept out of the
+recall / AUROC groups (it is a positive of no candidate) and of the calibration (the negatives stay K, K_n, R, S_0), and
+reported in `absent_table` (e7_absent.csv: share attributed to every candidate / unattributed, plus a family view with
+`parse_family_map`: same family as the truth vs another family vs unattributed). tau is recalibrated on dev for every
+candidate set with the unchanged rule; calibration.json keeps one section per candidate set (`candidate_key` = the
+sorted candidates; `merge_calibration` / `calibration_section`), and test refuses to run without the matching section.
+Decisions do not depend on the candidate order (a tie in the top two scores gives margin 0, which never attributes).
 """
 
 from __future__ import annotations
@@ -93,7 +103,15 @@ RULE = (
     "bound > 1/3: >= 2/3 -> feasible (conditional), 1/3 -> partial, 0/3 -> not feasible; and open-set FPR <= 10%."
 )
 
+# phase 2: candidate families (same-vendor siblings / older versions); a teacher missing from the map is its own family
+DEFAULT_FAMILIES = "gpt4o:openai,gpt41:openai,gpt4o_mini:openai,gpt4_0613:openai,claude46:anthropic,claude_haiku45:anthropic,deepseek_v4:deepseek"
+ABSENT_VIEWS: tuple[str, ...] = ("candidate", "family")
+FAMILY_TARGETS: tuple[str, ...] = ("same_family", "other_family", "unattributed")
+UNATTRIBUTED = "unattributed"
+POOLED_GRID = "all_core"
+
 RUN_COLS = ["run_id", "namespace", "run_dir", "original_id", "grid", "role", "teacher", "version", "seed", "truth", "n_rows", "path"]
+ABSENT_COLS = ["table", "detector", "readout", "subset", "tau_policy", "tau", "grid", "version", "role", "truth", "truth_family", "view", "target", "target_family", "n", "k", "share", "wilson_lo", "wilson_hi"]
 METRIC_COLS = ["table", "calibration", "grid", "version", "role", "subset", "readout", "detector", "tau_policy", "tau", "teacher", "n", "n_correct", "recall", "wilson_lo", "wilson_hi",
                "n_unattributed", "unattributed_rate", "macro_recall", "chance", "perm_p", "perm_null_mean", "n_perm", "auroc", "n_auroc_pos", "n_auroc_neg", "fpr", "n_neg", "n_neg_attributed"]
 
@@ -122,6 +140,36 @@ def parse_grid_map(spec: Optional[str], base: Mapping[str, str] = GRID_BY_NAMESP
             ns, grid = kv.split("=", 1)
             out[ns.strip()] = grid.strip()
     return out
+
+
+def parse_family_map(spec: Optional[str]) -> dict[str, str]:
+    """'teacher:family,teacher2:family2' -> {teacher: family}; empty / None -> {} (every teacher is then its own family)."""
+    out: dict[str, str] = {}
+    if spec:
+        for kv in spec.split(","):
+            if not kv.strip():
+                continue
+            if ":" not in kv:
+                raise ValueError(f"family map entry {kv!r} is not 'teacher:family'")
+            t, fam = kv.split(":", 1)
+            out[t.strip()] = fam.strip()
+    return out
+
+
+def family_of(teacher: str, families: Mapping[str, str]) -> str:
+    """Family label of a teacher; a teacher absent from the map forms a singleton family named after itself."""
+    return families.get(teacher, teacher)
+
+
+def candidate_key(candidates: Sequence[str]) -> str:
+    """Canonical key of a candidate set in calibration.json: the sorted candidates joined by ','."""
+    return ",".join(sorted(candidates))
+
+
+def absent_runs(runs: pd.DataFrame, candidates: Sequence[str]) -> np.ndarray:
+    """Row indices of the true-teacher-absent runs: a teacher truth (never 'none') that is not in the candidate set."""
+    m = (runs["truth"] != NONE) & ~runs["truth"].isin(list(candidates))
+    return np.flatnonzero(m.to_numpy())
 
 
 def _rel(path: Path) -> str:
@@ -385,6 +433,39 @@ def taus_from_calibration(cal: Mapping) -> dict[str, float]:
     return {k: float(v["tau"]) for k, v in cal["tau"].items()}
 
 
+def calibration_section(cal: Mapping, candidates: Sequence[str]) -> dict:
+    """The calibration of one candidate set inside a calibration.json dict.
+
+    Looks `candidate_key(candidates)` up in `cal["candidate_sets"]`; a file written before phase 2 (no `candidate_sets`)
+    or a single-set file is accepted when its top-level `teachers` are the same set. Anything else raises KeyError naming
+    the sets the file holds: tau is never calibrated on the split being evaluated, so a missing section stops the run.
+    """
+    key = candidate_key(candidates)
+    sets = cal.get("candidate_sets") or {}
+    if key in sets:
+        return dict(sets[key])
+    if "tau" in cal and "teachers" in cal and sorted(cal["teachers"]) == sorted(candidates):
+        return {k: v for k, v in cal.items() if k != "candidate_sets"}
+    avail = sorted(set(sets) | ({candidate_key(cal["teachers"])} if "tau" in cal and "teachers" in cal else set()))
+    raise KeyError(f"no calibration for candidate set {key!r}; the file holds {avail}; run --split dev with the same candidates first")
+
+
+def merge_calibration(existing: Optional[Mapping], current: Mapping) -> dict:
+    """calibration.json content after a dev run: the current run's calibration at the top level (the pre-phase-2 layout)
+    plus `candidate_sets` = every set already in the file (a legacy single-set file counts as one set) with the current
+    set added or replaced under its `candidate_key`."""
+    cur = {k: v for k, v in current.items() if k != "candidate_sets"}
+    key = cur.get("candidate_key") or candidate_key(cur["teachers"])
+    sets: dict[str, dict] = {}
+    if existing:
+        sets.update({k: dict(v) for k, v in (existing.get("candidate_sets") or {}).items()})
+        if "tau" in existing and "teachers" in existing:
+            k0 = existing.get("candidate_key") or candidate_key(existing["teachers"])
+            sets.setdefault(k0, {k: v for k, v in existing.items() if k != "candidate_sets"})
+    sets[key] = dict(cur)
+    return cur | {"candidate_key": key, "candidate_sets": sets}
+
+
 # --------------------------------------------------------------------------- metrics
 
 
@@ -438,13 +519,23 @@ class Group(NamedTuple):
     idx: np.ndarray  # row indices into the run table
 
 
-def eval_groups(runs: pd.DataFrame, order: Sequence[str] = GRID_ORDER) -> tuple[list[Group], list[Group]]:
-    """Positive groups (grid, version) with a teacher truth and negative groups (truth none), both in a fixed order."""
+def eval_groups(runs: pd.DataFrame, order: Sequence[str] = GRID_ORDER, candidates: Optional[Sequence[str]] = None) -> tuple[list[Group], list[Group]]:
+    """Positive groups (grid, version) with a teacher truth and negative groups (truth none), both in a fixed order.
+
+    With `candidates`, a positive group keeps only the runs whose truth is a candidate (true-teacher-absent runs are no
+    positive of any candidate; `absent_table` reports them) and a group left empty is dropped.
+    """
     rank = {g: i for i, g in enumerate(order)}
     pos, neg = [], []
     for (grid, version, role), g in runs.groupby(["grid", "version", "role"], sort=False):
-        grp = Group(str(grid), str(version), str(role), g.index.to_numpy())
-        (pos if (g["truth"] != NONE).any() else neg).append(grp)
+        idx = g.index.to_numpy()
+        is_pos = bool((g["truth"] != NONE).any())
+        if is_pos and candidates is not None:
+            idx = idx[g["truth"].isin(list(candidates)).to_numpy()]
+            if len(idx) == 0:
+                continue
+        grp = Group(str(grid), str(version), str(role), idx)
+        (pos if is_pos else neg).append(grp)
     key = lambda x: (0 if x.role == "core" else 1, rank.get(x.grid, len(rank)), x.grid, POSITIVE_VERSIONS.index(x.version) if x.version in POSITIVE_VERSIONS else 9)  # noqa: E731
     return sorted(pos, key=key), sorted(neg, key=key)
 
@@ -492,6 +583,57 @@ def group_rows(truth: np.ndarray, s: np.ndarray, dec: np.ndarray, groups: Sequen
                                 n_unattributed=int(np.sum(d < 0)), unattributed_rate=float(np.mean(d < 0)), macro_recall=float("nan"), chance=float("nan"),
                                 fpr=float(np.mean(d >= 0)), n_neg=int(len(g.idx)), n_neg_attributed=int(np.sum(d >= 0))))
     return rows
+
+
+def absent_table(runs: pd.DataFrame, decisions: Mapping[str, np.ndarray], taus: Mapping[str, float], candidates: Sequence[str], families: Mapping[str, str],
+                 readout: str = "probability", subset: str = "all", order: Sequence[str] = GRID_ORDER) -> pd.DataFrame:
+    """Where the true-teacher-absent runs go (ABSENT_COLS), per detector of `decisions` ({detector: decision indices into `candidates`, -1 unattributed}).
+
+    Per (grid, version, role, truth) and, pooled over the core grids, per truth (grid POOLED_GRID, version 'all'):
+    view 'candidate' = one row per candidate (k runs attributed to it) plus UNATTRIBUTED; view 'family' = same_family
+    (candidates of the truth's family under `families`), other_family, unattributed. share = k / n with a Wilson 95% CI.
+    """
+    idx = absent_runs(runs, candidates)
+    cands = list(candidates)
+    if len(idx) == 0:
+        return pd.DataFrame(columns=ABSENT_COLS)
+    sub = runs.iloc[idx].reset_index(drop=True)
+    rank = {g: i for i, g in enumerate(order)}
+    cells: list[tuple[str, str, str, str, np.ndarray]] = []
+    keys = sorted({(g, v, r, t) for g, v, r, t in zip(sub["grid"], sub["version"], sub["role"], sub["truth"])},
+                  key=lambda k: (0 if k[2] == "core" else 1, rank.get(k[0], len(rank)), k[0], POSITIVE_VERSIONS.index(k[1]) if k[1] in POSITIVE_VERSIONS else 9, k[3]))
+    for g, v, r, t in keys:
+        cells.append((g, v, r, t, np.flatnonzero(((sub["grid"] == g) & (sub["version"] == v) & (sub["role"] == r) & (sub["truth"] == t)).to_numpy())))
+    for t in sorted(set(sub.loc[sub["role"] == "core", "truth"])):
+        cells.append((POOLED_GRID, "all", "core", t, np.flatnonzero(((sub["role"] == "core") & (sub["truth"] == t)).to_numpy())))
+    rows: list[dict] = []
+    for det, dec in decisions.items():
+        d = np.asarray(dec)[idx]
+        base = dict(table="absent", detector=det, readout=readout, subset=subset, tau_policy="calibrated", tau=float(taus[det]))
+
+        def add(grid, version, role, truth, view, target, target_family, n, k):
+            lo, hi = wilson_ci(k, n)
+            rows.append(base | dict(grid=grid, version=version, role=role, truth=truth, truth_family=family_of(truth, families), view=view, target=target, target_family=target_family,
+                                    n=int(n), k=int(k), share=(k / n) if n else float("nan"), wilson_lo=lo, wilson_hi=hi))
+
+        for g, v, r, t, sel in cells:
+            dd = d[sel]
+            n = len(sel)
+            tf = family_of(t, families)
+            same = other = 0
+            for j, c in enumerate(cands):
+                k = int(np.sum(dd == j))
+                add(g, v, r, t, "candidate", c, family_of(c, families), n, k)
+                if family_of(c, families) == tf:
+                    same += k
+                else:
+                    other += k
+            k_un = int(np.sum(dd < 0))
+            add(g, v, r, t, "candidate", UNATTRIBUTED, "", n, k_un)
+            add(g, v, r, t, "family", "same_family", tf, n, same)
+            add(g, v, r, t, "family", "other_family", "", n, other)
+            add(g, v, r, t, "family", UNATTRIBUTED, "", n, k_un)
+    return pd.DataFrame(rows, columns=ABSENT_COLS)
 
 
 def aggregate_reps(df: pd.DataFrame, keys: Sequence[str], values: Sequence[str]) -> pd.DataFrame:
@@ -600,6 +742,7 @@ class E7Result(NamedTuple):
     verdict: dict
     calibration: dict
     notes: list[str]
+    absent: pd.DataFrame  # phase 2: true-teacher-absent runs (ABSENT_COLS); empty when every truth is a candidate
 
 
 def _rng(seed: int, *tags) -> np.random.Generator:
@@ -642,26 +785,38 @@ def _eval_config(a: np.ndarray, a_base: np.ndarray, detector: str, tau: float) -
 
 
 def analyze(world: World, *, calibration: Optional[Mapping] = None, n_rep: int = N_REP, n_perm: int = 10_000, n_perm_rep: int = 1000, seed: int = 0, budgets: Sequence[int] = BUDGETS,
-            sample_n: Sequence[int] = SAMPLE_N, fpr_max: float = FPR_MAX, n_min: int = N_NEG_MIN, logo_grids: Sequence[str] = LOGO_GRIDS, split: str = "dev") -> E7Result:
-    """The whole E7 table set for one split. With `calibration` (the dev calibration.json dict) every tau is taken from it; otherwise taus are calibrated here."""
+            sample_n: Sequence[int] = SAMPLE_N, fpr_max: float = FPR_MAX, n_min: int = N_NEG_MIN, logo_grids: Sequence[str] = LOGO_GRIDS, split: str = "dev",
+            families: Optional[Mapping[str, str]] = None) -> E7Result:
+    """The whole E7 table set for one split. With `calibration` (the dev calibration.json dict, or its section for this
+    candidate set) every tau is taken from it; otherwise taus are calibrated here. `world.teachers` are the CANDIDATES;
+    runs whose truth is a teacher outside them are scored, excluded from the recall groups and reported in `absent`
+    (`families` = teacher -> family map for its family view)."""
     runs = world.runs
     teachers, K = world.teachers, len(world.teachers)
+    fam_map = dict(families or {})
     R = len(runs)
     truth = runs["truth"].to_numpy(dtype=object)
     S, T, B0 = world.S.cells, world.T.cells, world.base_ref.reshape(1, -1)
     n_fam, n_var = len(world.families), len(world.variants)
     taus = taus_from_calibration(calibration) if calibration is not None else None
+    absent_idx = absent_runs(runs, teachers)
+    truth_teachers = sorted(set(truth) - {NONE})
     cal: dict = {"split": split, "seed": seed, "fpr_max": fpr_max, "n_neg_min": n_min, "teachers": teachers, "variants": world.variants, "n_families": n_fam, "n_rep": n_rep,
                  "base_reference": world.base_ref_label, "base_reference_cells": world.base_ref_cells, "disagreement_cells": int(world.disagree.sum()), "n_cells": int(S.shape[1]),
-                 "logo_grids": list(logo_grids), "loso_versions": list(LOSO_VERSIONS), "negatives": {}, "tau": {}}
+                 "logo_grids": list(logo_grids), "loso_versions": list(LOSO_VERSIONS), "negatives": {}, "tau": {},
+                 "candidates": teachers, "candidate_key": candidate_key(teachers), "truth_teachers": truth_teachers, "absent_truths": sorted(set(truth[absent_idx])),
+                 "n_absent_runs": int(len(absent_idx)), "families": {t: family_of(t, fam_map) for t in sorted(set(teachers) | set(truth_teachers))}}
     if calibration is not None:
-        cal["reused_from"] = {k: calibration.get(k) for k in ("split", "seed", "fpr_max", "n_neg_min", "teachers", "variants")}
-        if list(calibration.get("teachers", teachers)) != teachers:
-            raise ValueError(f"calibration teachers {calibration.get('teachers')} differ from {teachers}")
+        cal["reused_from"] = {k: calibration.get(k) for k in ("split", "seed", "fpr_max", "n_neg_min", "teachers", "variants", "candidate_key")}
+        if sorted(calibration.get("teachers", teachers)) != sorted(teachers):  # the decisions do not depend on the candidate order
+            raise ValueError(f"calibration candidates {calibration.get('teachers')} differ from {teachers}")
     notes: list[str] = []
     neg_idx = core_negatives(runs)
     cal["negatives"] = {"n": int(len(neg_idx)), "run_ids": list(runs.loc[neg_idx, "run_id"]), "grids": sorted(set(runs.loc[neg_idx, "grid"]))}
-    pos_groups, neg_groups = eval_groups(runs)
+    if len(absent_idx):
+        notes.append(f"true-teacher-absent runs: {len(absent_idx)} (truth in {cal['absent_truths']}, not in the candidates {teachers}); scored against the candidates, kept out of the recall / AUROC groups "
+                     f"and of every calibration population's positives, reported in e7_absent.csv")
+    pos_groups, neg_groups = eval_groups(runs, candidates=teachers)
     core_pos = [g for g in pos_groups if g.role == "core"]
     desc_pos = [g for g in pos_groups if g.role != "core"]
     core_neg_groups = [g for g in neg_groups if g.role == "core"]
@@ -687,6 +842,7 @@ def analyze(world: World, *, calibration: Optional[Mapping] = None, n_rep: int =
         for k, t in enumerate(teachers):
             run_tab[f"a_T0__{t}"] = a_t0[:, k]
     main_tau: dict[str, float] = {}
+    main_dec: dict[str, np.ndarray] = {}
     for subset, a, a_b in (("all", a_all, a_base_all), ("disagreement", a_dis, a_base_dis)):
         for det in DETECTORS:
             s = scores(a, det, a_b if det == "base_known" else None)
@@ -703,6 +859,7 @@ def analyze(world: World, *, calibration: Optional[Mapping] = None, n_rep: int =
                 if desc_pos or desc_neg_groups:
                     metric_rows += group_rows(truth, s, dec, desc_pos, neg_idx, teachers, n_perm, _rng(seed, "perm-desc", key, policy), meta | {"table": "descriptive"}, desc_neg_groups)
                 if subset == "all" and policy == "calibrated":
+                    main_dec[det] = dec
                     tag = "known" if det == "base_known" else "unknown"
                     for k, t in enumerate(teachers):
                         run_tab[f"s_{tag}__{t}"] = s[:, k]
@@ -711,6 +868,7 @@ def analyze(world: World, *, calibration: Optional[Mapping] = None, n_rep: int =
                     run_tab[f"correct_{tag}"] = [(teachers[d] == tr) if d >= 0 else (tr == NONE) for d, tr in zip(dec, truth)]
                     run_tab[f"tau_{tag}"] = tau
     metrics = pd.DataFrame(metric_rows, columns=METRIC_COLS)
+    absent = absent_table(runs, main_dec, main_tau, teachers, fam_map)
 
     # leave-one-style-out: calibration population restricted to O / R / B (explicit), evaluated on F / C students
     loso_rows: list[dict] = []
@@ -797,7 +955,8 @@ def analyze(world: World, *, calibration: Optional[Mapping] = None, n_rep: int =
 
     verdict = primary_verdict(metrics, teachers, split=split)
     verdict["calibration_reused"] = calibration is not None
-    return E7Result(run_tab, metrics, probe_curve, sampled, loso, logo, verdict, cal, notes)
+    verdict.update(candidates=list(teachers), candidate_key=cal["candidate_key"], truth_teachers=truth_teachers, absent_truths=cal["absent_truths"], n_absent_runs=int(len(absent_idx)))
+    return E7Result(run_tab, metrics, probe_curve, sampled, loso, logo, verdict, cal, notes, absent)
 
 
 def primary_verdict(metrics: pd.DataFrame, teachers: Sequence[str], primary: Mapping[str, str] = PRIMARY, split: str = "dev") -> dict:
@@ -814,9 +973,10 @@ def primary_verdict(metrics: pd.DataFrame, teachers: Sequence[str], primary: Map
     passing = [str(r.teacher) for r in rows.itertuples() if not _nan(r.wilson_lo) and r.wilson_lo > RECALL_FLOOR]
     fpr = float(rows["fpr"].iloc[0])
     n_pass = len(passing)
-    label = "溯源可行（有条件）" if n_pass * 3 >= 2 * len(teachers) else ("部分" if n_pass >= 1 else "不可行")
+    n_teachers = len(rows)  # the truth teachers present in the primary group (= the candidates with students; phase 2 candidates without students do not count)
+    label = "溯源可行（有条件）" if n_pass * 3 >= 2 * n_teachers else ("部分" if n_pass >= 1 else "不可行")
     fpr_ok = bool(fpr <= FPR_VERDICT_MAX) if not _nan(fpr) else None
-    out.update(verdict=label, n_pass=n_pass, passing=passing, fpr=fpr, fpr_ok=fpr_ok, fpr_max=FPR_VERDICT_MAX, recall_floor=RECALL_FLOOR, tau=float(rows["tau"].iloc[0]),
+    out.update(verdict=label, n_pass=n_pass, n_teachers=n_teachers, passing=passing, fpr=fpr, fpr_ok=fpr_ok, fpr_max=FPR_VERDICT_MAX, recall_floor=RECALL_FLOOR, tau=float(rows["tau"].iloc[0]),
                per_teacher=[dict(teacher=r.teacher, n=int(r.n), n_correct=int(r.n_correct), recall=float(r.recall), wilson_lo=float(r.wilson_lo), wilson_hi=float(r.wilson_hi),
                                  auroc=float(r.auroc), passes=(str(r.teacher) in passing)) for r in rows.itertuples()],
                macro=m[m["teacher"] == "macro"][["macro_recall", "chance", "perm_p", "unattributed_rate"]].iloc[0].to_dict() if (m["teacher"] == "macro").any() else {})

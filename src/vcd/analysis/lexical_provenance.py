@@ -33,6 +33,16 @@ accuracy; chance = 1/3:
 `top_word_features` lists the most teacher-discriminative word features of the O (and F / C) models with their rates per
 1,000 tokens in the teacher's O / F / C texts and in the other teachers' O texts; `cue_survival` counts how many of the top
 O cues keep at least half their rate after rewriting.
+
+Phase 3 (e7_plan §5; lexical vs behavioural provenance on the SAME students): scripts/25_generate_rationales.py makes a
+retrained student write its full answer for every test prompt; `split_generation` / `truncate_at_second_answer` parse that
+text (letter from the first line with the teacher pipeline's spelling rules, rationale after the 'Rationale:' marker);
+`load_generations` reads the eval/{split}_generations.jsonl files with the run's truth from its run id (provenance's grid
+map); `classify_generations` fits the same hashed n-gram model (and the length-only control) on the TEACHERS' O training
+rationales and classifies every student rationale: per generation, per run (share per teacher, majority vote vs truth),
+run-level recall per teacher with Wilson CIs, confusion; `merge_behavioural` puts the majority vote next to the behavioural
+decisions of scripts/21's e7_runs.csv. The lexical classifier is closed-set (no reject option); the comparison with the
+open-set behavioural detector says so.
 """
 
 from __future__ import annotations
@@ -50,7 +60,11 @@ import numpy as np
 import pandas as pd
 import scipy.sparse as sp
 
+from vcd.analysis.e1_metrics import is_run_id, parse_run_id
 from vcd.analysis.e3_metrics import rationale_of, register_features, wilson_ci
+from vcd.analysis.provenance import GRID_BY_NAMESPACE, NEGATIVE_GRIDS, NONE, truth_of
+from vcd.teacher.parse import parse_answer
+from vcd.train.data import ASSISTANT_PREFIX
 
 TEACHERS: tuple[str, ...] = ("gpt4o", "claude46", "deepseek_v4")
 STYLES: tuple[str, ...] = ("O", "F", "C")
@@ -614,3 +628,184 @@ def accuracy_table(acc: pd.DataFrame, teachers: Sequence[str] = TEACHERS) -> pd.
         d["macro_ci_lo"] = float(gi.loc["macro", "ci_lo"]) if "macro" in gi.index else np.nan
         out.append(d)
     return pd.DataFrame(out)
+
+
+# --------------------------------------------------------------------------- phase 3: student generations (scripts/25 -> scripts/22 classify-generations)
+
+GEN_FIELDS: tuple[str, ...] = ("prompt_id", "run_id", "text", "letter", "n_new_tokens")
+GEN_COLS = ["run_id", "namespace", "run_dir", "grid", "teacher", "version", "seed", "truth", "prompt_id", "family_id", "variant", "order", "letter", "category", "rationale", "n_new_tokens", "stop_reason", "path"]
+FEATURE_SETS: tuple[str, ...] = ("ngram", "length")
+_RATIONALE_MARK_RE = re.compile(r"rationale\s*[:：]\s*", re.IGNORECASE)
+_NEW_ANSWER_RE = re.compile(r"\n\s*answer\s*[:：]", re.IGNORECASE)
+
+
+def truncate_at_second_answer(text: str) -> tuple[str, bool]:
+    """Cut a generation where the model starts a NEW 'Answer:' line (it moved on to another item): (kept text, cut?).
+
+    Only a line break followed by 'Answer:' counts, so a continuation that itself begins with 'Answer: A' is kept.
+    """
+    m = _NEW_ANSWER_RE.search(text)
+    return (text[: m.start()].rstrip(), True) if m else (text.rstrip(), False)
+
+
+def split_generation(text: str) -> tuple[str, Optional[str], str]:
+    """(category, letter, rationale) of a student generation written after the 'Answer:' prefix.
+
+    The letter is read from the FIRST non-empty line only, through `teacher.parse.parse_answer` on 'Answer:' + that line
+    (same spelling tolerance and refusal / insufficient / malformed categories as the teacher pipeline). The rationale is the
+    text after the first 'Rationale:' marker, else everything after the first line; stripped, empty when there is none.
+    """
+    lines = text.split("\n")
+    first = next((i for i, line in enumerate(lines) if line.strip()), None)
+    if first is None:
+        return "malformed", None, ""
+    category, letter = parse_answer(ASSISTANT_PREFIX + " " + lines[first].strip())
+    m = _RATIONALE_MARK_RE.search(text)
+    rationale = text[m.end():] if m else "\n".join(lines[first + 1:])
+    return category, letter, rationale.strip()
+
+
+def run_id_from_path(path: Path | str) -> Optional[str]:
+    """'{runs}/{namespace}/{run}/eval/{split}_generations.jsonl' -> '{namespace}.{run}' when that is a protocol run id, else None."""
+    p = Path(path).resolve()
+    if p.parent.name != "eval" or len(p.parents) < 3:
+        return None
+    rid = f"{p.parents[2].name}.{p.parents[1].name}"
+    return rid if is_run_id(rid) else None
+
+
+def load_generations(paths: Sequence[Path | str], grid_map: Mapping[str, str] = GRID_BY_NAMESPACE, negative_grids: Sequence[str] = NEGATIVE_GRIDS) -> pd.DataFrame:
+    """Rows of every generations file (GEN_COLS). The run id comes from the directory ({namespace}.{run}) when the file sits in a
+    protocol run tree (the directory wins over the row's run_id, as in provenance.load_student_runs), else from the row; the
+    grid label from `grid_map` (an unknown namespace is its own grid label) and the truth from `provenance.truth_of`."""
+    rows = []
+    for path in paths:
+        path = Path(path)
+        rid_dir = run_id_from_path(path)
+        with path.open(encoding="utf-8") as fh:
+            for line in fh:
+                if not line.strip():
+                    continue
+                r = json.loads(line)
+                rid = rid_dir or r["run_id"]
+                if not is_run_id(rid):
+                    raise ValueError(f"{path}: run id {rid!r} is not a protocol run id")
+                k = parse_run_id(rid)
+                grid = grid_map.get(k.student, k.student)
+                category, letter, rationale = split_generation(r["text"])
+                pid = r["prompt_id"]
+                parts = pid.split(".")
+                rows.append(dict(run_id=rid, namespace=k.student, run_dir=f"{k.teacher}_{k.version}_s{k.seed}", grid=grid, teacher=k.teacher, version=k.version, seed=k.seed,
+                                 truth=truth_of(grid, k.version, k.teacher, negative_grids), prompt_id=pid, family_id=parts[0], variant=parts[1] if len(parts) > 1 else "",
+                                 order=int(parts[2][1:]) if len(parts) > 2 and parts[2][1:].isdigit() else 0, letter=r.get("letter", letter), category=category, rationale=rationale,
+                                 n_new_tokens=r.get("n_new_tokens"), stop_reason=r.get("stop_reason"), path=str(path)))
+    return pd.DataFrame(rows, columns=GEN_COLS)
+
+
+@dataclass
+class StudentResult:
+    generations: pd.DataFrame  # per classified generation: run_id, prompt_id, truth, pred per feature set, n_words
+    runs: pd.DataFrame  # per run: counts, share per teacher and majority vote per feature set
+    recall: pd.DataFrame  # accuracy_rows per (features, level, grid, version): run-level majority vote and generation-level
+    confusion: pd.DataFrame  # confusion_rows per (features, level, grid, version)
+    info: dict
+
+
+def _majority(shares: Mapping[str, float], teachers: Sequence[str]) -> str:
+    """Teacher with the largest share; a tie goes to the first in `teachers` order (deterministic)."""
+    return max(teachers, key=lambda t: (shares[t], -teachers.index(t)))
+
+
+def classify_generations(train: pd.DataFrame, gens: pd.DataFrame, featurizer: Optional[HashedFeaturizer] = None, C: float = DEFAULT_C, backend: str = "auto",
+                         max_iter: int = DEFAULT_MAX_ITER, teachers: Sequence[str] = TEACHERS, seed: int = 0, log=None) -> StudentResult:
+    """Fit the n-gram model and the length-only control on `train` (teacher, text: the teachers' O training rationales) and
+    classify every generation of `gens` (load_generations) with a non-empty rationale.
+
+    Per run: n_gen, n_classified, n_letter (a letter was parsed), share_{t}_{features} for every teacher, majority_{features}
+    (plurality of the generation predictions), share_majority_{features}, share_own_{features} (share predicted as the run's
+    truth; NaN for a run without a teacher truth), correct_{features} (majority == truth; NaN without a teacher truth).
+    Recall tables: run level (majority vote vs truth, per teacher with Wilson CIs, macro, pooled) and generation level, per
+    (grid, version) of the runs with a teacher truth and pooled over all of them ('all'). The classifier always attributes
+    (closed set), so there is no unattributed share; chance = 1 / len(teachers).
+    """
+    t0 = time.time()
+    teachers = list(teachers)
+    featurizer = featurizer or HashedFeaturizer(hash_bits=18, seed=seed)
+    say = log or (lambda *_: None)
+    tr = train[train["teacher"].isin(teachers)].reset_index(drop=True)
+    if tr.empty:
+        raise ValueError("no training texts for the given teachers")
+    say(f"[students] fitting on {len(tr)} training rationales of {sorted(set(tr['teacher']))} ...")
+    X_tr = featurizer.transform(tr["text"].tolist())
+    y_tr = tr["teacher"].to_numpy()
+    m_ng = fit_logreg(X_tr, y_tr, C=C, backend=backend, max_iter=max_iter, classes=teachers)
+    m_len = fit_logreg(length_features(tr["text"].tolist()), y_tr, C=C, backend=backend, max_iter=max_iter, standardise=True, classes=teachers)
+    g = gens[gens["rationale"].str.len() > 0].reset_index(drop=True)
+    say(f"[students] classifying {len(g)} / {len(gens)} generations with a rationale ({time.time() - t0:.1f}s)")
+    pred = {"ngram": m_ng.predict(featurizer.transform(g["rationale"].tolist())) if len(g) else np.array([], dtype=object),
+            "length": m_len.predict(length_features(g["rationale"].tolist())) if len(g) else np.array([], dtype=object)}
+    per_gen = g[["run_id", "grid", "version", "truth", "prompt_id", "family_id", "variant", "letter", "category"]].copy()
+    for f in FEATURE_SETS:
+        per_gen[f"pred_{f}"] = pred[f]
+    per_gen["n_words"] = [len(x.split()) for x in g["rationale"]]
+    # per run
+    run_rows = []
+    for rid, gg in gens.groupby("run_id", sort=True):
+        pg = per_gen[per_gen["run_id"] == rid]
+        row = dict(run_id=rid, namespace=gg["namespace"].iloc[0], grid=gg["grid"].iloc[0], teacher=gg["teacher"].iloc[0], version=gg["version"].iloc[0], seed=int(gg["seed"].iloc[0]), truth=gg["truth"].iloc[0],
+                   n_gen=int(len(gg)), n_classified=int(len(pg)), n_letter=int(gg["letter"].notna().sum()), letter_rate=float(gg["letter"].notna().mean()) if len(gg) else np.nan,
+                   mean_words=float(pg["n_words"].mean()) if len(pg) else np.nan, mean_new_tokens=float(pd.to_numeric(gg["n_new_tokens"], errors="coerce").mean()))
+        for f in FEATURE_SETS:
+            shares = {t: (float(np.mean(pg[f"pred_{f}"] == t)) if len(pg) else np.nan) for t in teachers}
+            maj = _majority(shares, teachers) if len(pg) else None
+            truth = row["truth"]
+            row.update({f"share_{t}_{f}": shares[t] for t in teachers})
+            row[f"majority_{f}"] = maj
+            row[f"share_majority_{f}"] = shares[maj] if maj else np.nan
+            row[f"share_own_{f}"] = shares[truth] if truth in shares else np.nan
+            row[f"correct_{f}"] = (maj == truth) if (truth in teachers and maj) else np.nan
+        run_rows.append(row)
+    runs = pd.DataFrame(run_rows)
+    # recall and confusion: run level (majority vote) and generation level, per (grid, version) and pooled
+    acc_rows, conf_rows = [], []
+    pos_runs = runs[runs["truth"].isin(teachers)] if len(runs) else runs
+    pos_gens = per_gen[per_gen["truth"].isin(teachers)] if len(per_gen) else per_gen
+    groups = [("all", "all", pos_runs, pos_gens)] + [(str(gr), str(v), pr, pos_gens[(pos_gens["grid"] == gr) & (pos_gens["version"] == v)]) for (gr, v), pr in pos_runs.groupby(["grid", "version"], sort=True)] if len(pos_runs) else []
+    for f in FEATURE_SETS:
+        for grid, version, pr, pg in groups:
+            pr = pr[pr[f"majority_{f}"].notna()]
+            tags = dict(features=f, level="run", grid=grid, version=version)
+            acc_rows += accuracy_rows(pr["truth"].to_numpy(), pr[f"majority_{f}"].to_numpy(), teachers, **tags)
+            conf_rows += confusion_rows(pr["truth"].to_numpy(), pr[f"majority_{f}"].to_numpy(), teachers, **tags)
+            tags = dict(features=f, level="generation", grid=grid, version=version)
+            acc_rows += accuracy_rows(pg["truth"].to_numpy(), pg[f"pred_{f}"].to_numpy(), teachers, **tags)
+            conf_rows += confusion_rows(pg["truth"].to_numpy(), pg[f"pred_{f}"].to_numpy(), teachers, **tags)
+    info = dict(n_train_texts=int(len(tr)), train_teachers={t: int((tr["teacher"] == t).sum()) for t in teachers}, n_runs=int(len(runs)), n_generations=int(len(gens)), n_classified=int(len(per_gen)),
+                n_runs_with_truth=int(len(pos_runs)), teachers=teachers, hash_bits=featurizer.hash_bits, C=C, backend=m_ng.backend, chance=1.0 / len(teachers), runtime_s=time.time() - t0)
+    return StudentResult(generations=per_gen, runs=runs, recall=pd.DataFrame(acc_rows), confusion=pd.DataFrame(conf_rows), info=info)
+
+
+BEHAVIOURAL_COLS = ["run_id", "truth", "decision_unknown", "margin_unknown", "decision_known", "margin_known"]
+
+
+def merge_behavioural(runs: pd.DataFrame, e7_runs: pd.DataFrame, teachers: Sequence[str] = TEACHERS) -> pd.DataFrame:
+    """Side by side per run: the lexical majority votes (closed set) and the behavioural decisions of scripts/21's e7_runs.csv
+    (open set: a decision may be 'unattributed'). `*_correct` = equals the truth for a teacher truth; for a run without a
+    teacher truth the behavioural detector is correct when it rejects and the lexical vote has no correct answer (NaN).
+    `in_behavioural` is False for runs missing from e7_runs.csv (their behavioural columns are NaN)."""
+    missing = [c for c in BEHAVIOURAL_COLS if c not in e7_runs.columns]
+    if missing:
+        raise ValueError(f"behavioural run table lacks columns {missing}")
+    b = e7_runs[BEHAVIOURAL_COLS].rename(columns={"truth": "truth_behavioural"})
+    keep = ["run_id", "grid", "version", "truth", "n_gen", "n_classified", "letter_rate", *[c for f in FEATURE_SETS for c in (f"majority_{f}", f"share_majority_{f}", f"share_own_{f}")]]
+    m = runs[keep].merge(b, on="run_id", how="left")
+    m["in_behavioural"] = m["decision_unknown"].notna()
+    is_teacher = m["truth"].isin(list(teachers))
+    for f in FEATURE_SETS:
+        m[f"lexical_correct_{f}"] = np.where(is_teacher, m[f"majority_{f}"] == m["truth"], np.nan)
+    for tag in ("unknown", "known"):
+        dec = m[f"decision_{tag}"]
+        m[f"behavioural_correct_{tag}"] = np.where(m["in_behavioural"], np.where(is_teacher, dec == m["truth"], dec == "unattributed"), np.nan)
+        m[f"agree_{tag}_ngram"] = np.where(m["in_behavioural"], m["majority_ngram"] == dec, np.nan)
+    m["truth_mismatch"] = m["in_behavioural"] & (m["truth_behavioural"] != m["truth"])
+    return m

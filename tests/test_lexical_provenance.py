@@ -246,3 +246,147 @@ def test_script_end_to_end(tmp_path, world):
     assert (out / "lexical_features.csv").read_bytes() == (out2 / "lexical_features.csv").read_bytes()
     bad = subprocess.run(cmd[:2] + ["--sets", "a,b", "--sft-dirs", str(sft), "--out", str(tmp_path / "x")], cwd=ROOT, capture_output=True, text=True)
     assert bad.returncode != 0 and "same length" in bad.stderr
+
+
+# --------------------------------------------------------------------------- phase 3: student generations
+
+
+GEN_RUNS = {  # namespace -> runs (teacher, version, seed); the e2ck namespace is a consensus grid (truth none)
+    "qwen3-4b-e2c": [(t, "O", s) for t in TEACHERS for s in (1, 2)],
+    "qwen3-4b-e2ck": [("alpha", "O", 1)],
+}
+
+
+def make_generations(root: Path, world: pd.DataFrame, n_per_run: int = 40, own_share: float = 0.8, seed: int = 0) -> list[Path]:
+    """Synthetic student generations on 'test' families: the rationale carries the run's own teacher marker on `own_share`
+    of the rows (another teacher's marker otherwise); the consensus run mixes the three markers uniformly; 10% of the rows
+    are refusals (no letter, no rationale). The rows' run_id carries the E1 prefix to check that the directory wins."""
+    rng = np.random.default_rng(seed)
+    paths = []
+    for ns, runs in GEN_RUNS.items():
+        for t, v, s in runs:
+            name = f"{t}_{v}_s{s}"
+            rows = []
+            for i in range(n_per_run):
+                pid = f"t{i // 2:03d}.T{'1' if i % 4 < 2 else '5'}.o{1 + i % 2}"
+                if rng.random() < 0.1:
+                    text = "I cannot choose between these options."
+                else:
+                    words = list(rng.choice(VOCAB, size=int(rng.integers(12, 26))))
+                    if ns == "qwen3-4b-e2ck":
+                        marker_t = TEACHERS[int(rng.integers(3))]
+                    else:
+                        marker_t = t if rng.random() < own_share else [u for u in TEACHERS if u != t][int(rng.integers(2))]
+                    words.insert(int(rng.integers(0, len(words) + 1)), MARKERS[marker_t])
+                    text = f" {'A' if rng.random() < 0.5 else 'B'}\nRationale: {' '.join(words)}."
+                rows.append(dict(prompt_id=pid, run_id=f"qwen3-4b.{name}", text=text, letter=LP.split_generation(text)[1], n_new_tokens=len(text.split()), stop_reason="eos"))
+            p = root / "runs" / ns / name / "eval" / "test_generations.jsonl"
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+            paths.append(p)
+    return paths
+
+
+def _fake_e7_runs(runs: pd.DataFrame) -> pd.DataFrame:
+    """A behavioural run table like scripts/21's e7_runs.csv: alpha runs attributed right, beta runs unattributed, gamma runs wrong, the K run rejected."""
+    dec = {"alpha": "alpha", "beta": "unattributed", "gamma": "beta", LP.NONE: "unattributed"}
+    out = []
+    for r in runs.itertuples():
+        if r.run_id.endswith("_s2"):
+            continue  # one seed per teacher is missing from the behavioural table
+        out.append(dict(run_id=r.run_id, truth=r.truth, decision_unknown=dec[r.truth], margin_unknown=0.05, decision_known=dec[r.truth], margin_known=0.04))
+    return pd.DataFrame(out)
+
+
+def test_load_generations_truth_and_directory_wins(tmp_path, world):
+    paths = make_generations(tmp_path, world)
+    gens = LP.load_generations(paths)
+    assert list(gens.columns) == LP.GEN_COLS and len(gens) == 40 * 7 and gens["run_id"].nunique() == 7
+    assert set(gens["run_id"]) == {f"{ns}.{t}_{v}_s{s}" for ns, runs in GEN_RUNS.items() for t, v, s in runs}  # the directory, not the row's 'qwen3-4b.' prefix
+    k = gens[gens["namespace"] == "qwen3-4b-e2ck"]
+    assert set(k["grid"]) == {"K"} and set(k["truth"]) == {LP.NONE} and set(gens.loc[gens["namespace"] == "qwen3-4b-e2c", "grid"]) == {"E2c_C"}
+    a = gens[gens["run_id"] == "qwen3-4b-e2c.alpha_O_s1"]
+    assert set(a["truth"]) == {"alpha"} and (a["teacher"] == "alpha").all() and set(a["variant"]) == {"T1", "T5"} and set(a["order"]) == {1, 2}
+    ref = gens[gens["category"] == "refusal"]
+    assert len(ref) > 0 and (ref["rationale"] == "").all() and ref["letter"].isna().all()
+    ans = gens[gens["category"] == "answer"]
+    assert ans["letter"].isin(["A", "B"]).all() and (ans["rationale"].str.len() > 0).all() and not ans["rationale"].str.contains("Rationale").any()
+    assert LP.run_id_from_path(paths[0]) == "qwen3-4b-e2c.alpha_O_s1" and LP.run_id_from_path(tmp_path / "x" / "eval" / "test_generations.jsonl") is None
+    with pytest.raises(ValueError, match="not a protocol run id"):
+        bad = tmp_path / "loose.jsonl"
+        bad.write_text(json.dumps(dict(prompt_id="p", run_id="nonsense", text=" A\nRationale: x", letter="A", n_new_tokens=3)) + "\n")
+        LP.load_generations([bad])
+
+
+def test_classify_generations_majority_recovers_teacher(tmp_path, world):
+    paths = make_generations(tmp_path, world)
+    gens = LP.load_generations(paths)
+    train = world[world["style"] == "O"][["teacher", "prompt_id", "family_id", "text"]].reset_index(drop=True)
+    res = LP.classify_generations(train, gens, LP.HashedFeaturizer(hash_bits=12, seed=0), teachers=TEACHERS)
+    runs = res.runs.set_index("run_id")
+    assert len(runs) == 7 and res.info["n_train_texts"] == 360 and res.info["chance"] == pytest.approx(1 / 3)
+    e2c = runs[runs["grid"] == "E2c_C"]
+    assert (e2c["majority_ngram"] == e2c["truth"]).all() and (e2c["correct_ngram"] == 1).all() and (e2c["share_own_ngram"] >= 0.6).all()
+    assert (e2c["share_majority_ngram"] == e2c["share_own_ngram"]).all() and (e2c["n_classified"] < e2c["n_gen"]).all() and (e2c["letter_rate"] < 1).all()
+    for t in TEACHERS:  # shares sum to 1 over the teachers
+        assert np.allclose(sum(runs[f"share_{u}_ngram"] for u in TEACHERS), 1.0)
+    k = runs.loc["qwen3-4b-e2ck.alpha_O_s1"]
+    assert k["truth"] == LP.NONE and np.isnan(k["correct_ngram"]) and np.isnan(k["share_own_ngram"]) and k["majority_ngram"] in TEACHERS
+    rec = res.recall
+    run_all = rec[(rec.features == "ngram") & (rec.level == "run") & (rec.grid == "all")].set_index("teacher")
+    assert (run_all.loc[list(TEACHERS), "n"] == 2).all() and (run_all.loc[list(TEACHERS), "acc"] == 1.0).all() and run_all.loc["macro", "acc"] == 1.0 and run_all.loc["pooled", "n"] == 6
+    gen_all = rec[(rec.features == "ngram") & (rec.level == "generation") & (rec.grid == "all")].set_index("teacher")
+    assert 0.65 <= gen_all.loc["macro", "acc"] <= 0.95 and gen_all.loc["pooled", "n"] == int(res.generations["truth"].isin(TEACHERS).sum())
+    assert set(zip(rec.grid, rec.version)) == {("all", "all"), ("E2c_C", "O")} and set(rec.features) == set(LP.FEATURE_SETS)
+    ln = rec[(rec.features == "length") & (rec.level == "generation") & (rec.grid == "all") & (rec.teacher == "macro")]
+    assert 0.2 <= float(ln["acc"].iloc[0]) <= 0.5  # lengths carry no teacher signal in the synthetic world
+    conf = res.confusion
+    assert set(conf.level) == {"run", "generation"} and conf[(conf.level == "run") & (conf.grid == "all") & (conf.features == "ngram")]["n"].sum() == 6
+    assert set(res.generations.columns) >= {"run_id", "truth", "prompt_id", "pred_ngram", "pred_length", "n_words", "category"}
+    # the behavioural merge: flags per run, missing runs marked
+    side = LP.merge_behavioural(res.runs, _fake_e7_runs(res.runs), TEACHERS).set_index("run_id")
+    assert len(side) == 7 and side["in_behavioural"].sum() == 4 and not side["truth_mismatch"].any()
+    a = side.loc["qwen3-4b-e2c.alpha_O_s1"]
+    assert a["lexical_correct_ngram"] == 1 and a["behavioural_correct_unknown"] == 1 and a["agree_unknown_ngram"] == 1
+    b = side.loc["qwen3-4b-e2c.beta_O_s1"]
+    assert b["lexical_correct_ngram"] == 1 and b["behavioural_correct_unknown"] == 0 and b["decision_unknown"] == "unattributed" and b["agree_unknown_ngram"] == 0
+    g = side.loc["qwen3-4b-e2c.gamma_O_s1"]
+    assert g["lexical_correct_ngram"] == 1 and g["behavioural_correct_unknown"] == 0 and g["decision_unknown"] == "beta"
+    k = side.loc["qwen3-4b-e2ck.alpha_O_s1"]
+    assert np.isnan(k["lexical_correct_ngram"]) and k["behavioural_correct_unknown"] == 1  # a rejected none-truth run is a correct behavioural decision
+    miss = side.loc["qwen3-4b-e2c.alpha_O_s2"]
+    assert not miss["in_behavioural"] and pd.isna(miss["decision_unknown"]) and np.isnan(miss["behavioural_correct_unknown"]) and miss["lexical_correct_ngram"] == 1
+    with pytest.raises(ValueError, match="lacks columns"):
+        LP.merge_behavioural(res.runs, pd.DataFrame({"run_id": []}), TEACHERS)
+
+
+def test_classify_generations_cli(tmp_path, world):
+    sft = tmp_path / "sft"
+    write_sft(world, sft)
+    paths = make_generations(tmp_path, world)
+    out = tmp_path / "students"
+    gens_glob = str(tmp_path / "runs" / "*" / "*" / "eval" / "test_generations.jsonl")
+    beh = tmp_path / "e7_runs.csv"
+    ids = sorted({LP.run_id_from_path(p) for p in paths})
+    _fake_e7_runs(pd.DataFrame({"run_id": ids, "truth": [LP.NONE if "e2ck" in r else r.split(".")[1].split("_")[0] for r in ids]})).to_csv(beh, index=False)
+    cmd = [sys.executable, str(ROOT / "scripts/22_lexical_provenance.py"), "classify-generations", "--train-sft-dirs", str(sft), "--generations", gens_glob, "--teachers", ",".join(TEACHERS),
+           "--hash-bits", "12", "--out", str(out), "--behavioural", str(beh)]
+    res = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+    assert res.returncode == 0, res.stderr
+    for name in ("students_generations.csv", "students_runs.csv", "students_recall.csv", "students_confusion.csv", "students_vs_behavioural.csv", "students_run_info.json", "students_summary.md"):
+        assert (out / name).exists(), name
+    runs = pd.read_csv(out / "students_runs.csv")
+    assert len(runs) == 7 and (runs.loc[runs["grid"] == "E2c_C", "majority_ngram"] == runs.loc[runs["grid"] == "E2c_C", "truth"]).all()
+    rec = pd.read_csv(out / "students_recall.csv")
+    assert float(rec[(rec.features == "ngram") & (rec.level == "run") & (rec.grid == "all") & (rec.teacher == "macro")]["acc"].iloc[0]) == 1.0
+    side = pd.read_csv(out / "students_vs_behavioural.csv")
+    assert len(side) == 7 and side["in_behavioural"].sum() == 4 and "decision_unknown" in side.columns
+    md = (out / "students_summary.md").read_text(encoding="utf-8")
+    assert "## 结论" in md and "闭集" in md and "两者都对 1" in md and "只有词汇对 2" in md and "行为不判定 1" in md and "词汇多数票 = 行为判定的 run 1" in md
+    info = json.loads((out / "students_run_info.json").read_text(encoding="utf-8"))
+    assert info["n_runs"] == 7 and info["n_train_texts"] == 360 and len(info["generation_files"]) == 7 and info["behavioural"] == str(beh)
+    # the legacy (training-text) mode is untouched: no subcommand -> the old parser (it rejects the classify-only flag)
+    bad = subprocess.run([sys.executable, str(ROOT / "scripts/22_lexical_provenance.py"), "--generations", gens_glob], cwd=ROOT, capture_output=True, text=True)
+    assert bad.returncode != 0 and "unrecognized arguments" in bad.stderr
+    none = subprocess.run(cmd[:5] + ["--generations", str(tmp_path / "nowhere" / "*.jsonl"), "--out", str(tmp_path / "x")], cwd=ROOT, capture_output=True, text=True)
+    assert none.returncode != 0 and "no generations files match" in none.stderr

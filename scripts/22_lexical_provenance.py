@@ -26,11 +26,16 @@ Evaluations, per set, each per teacher with Wilson 95% CIs + macro (balanced) ac
   the same grid with the length-only features; nearest O-style centroid (cosine) of F / C texts (and O, cross-fold)
 Plus the top-k word features per teacher of the O / F / C models with their rates per 1,000 tokens in the teacher's own
 O / F / C texts and in the other teachers' texts.
+
+Mode `classify-generations` (E7 phase 3: lexical vs behavioural provenance on the SAME students; see CLASSIFY_DOC):
+  python scripts/22_lexical_provenance.py classify-generations --train-sft-dirs data/sft_paired,data/sft_e2c_paired \
+      --generations "runs/*/*/eval/test_generations.jsonl" --behavioural results/e7/e7_runs.csv --out results/e7_lexical_students
 """
 
 from __future__ import annotations
 
 import argparse
+import glob
 import hashlib
 import json
 import platform
@@ -42,6 +47,29 @@ import numpy as np
 import pandas as pd
 
 from vcd.analysis import lexical_provenance as LP
+from vcd.analysis import provenance as PV
+
+CLASSIFY_DOC = """classify-generations: lexical provenance of STUDENT text (E7 phase 3, tasks/e7_plan.md §5) -> {out}/students_*.
+
+Inputs: the teachers' O training rationales ({train_sft_dir}/{teacher}_O_s{sft_seed}.jsonl of every --train-sft-dirs entry,
+union, deduplicated by teacher x prompt_id) as the classifier's training set (labels = teacher), and the students' generations
+written by scripts/25_generate_rationales.py (eval/{split}_generations.jsonl; --generations takes paths or quoted globs,
+repeatable). The run id of a file inside a protocol run tree is its directory ({namespace}.{run}); the grid label and the
+truth follow scripts/21 (qwen3-4b-e2c -> E2c_C -> the run's teacher; K / K_n / R / S_0 -> none; --grid-map ns=GRID,... extends).
+
+Per generation: rationale = text after the letter line (lexical_provenance.split_generation); the hashed n-gram L2 logistic
+regression and the length-only control (same features and settings as the training-text baseline) predict a teacher.
+Per run: share of generations attributed to each teacher, majority vote vs the run's truth, share_own. Tables: run-level
+recall per teacher with Wilson CIs (+ macro, pooled) and generation-level accuracy, per (grid, version) and pooled;
+confusion at both levels. The lexical classifier is CLOSED-set (every run gets a teacher; chance 1/3); the behavioural
+detector of scripts/21 is open-set (it may reject). --behavioural <e7_runs.csv of the same split> adds
+students_vs_behavioural.csv: per run the lexical majority next to the behavioural decisions (base-unknown and base-known),
+with correctness and agreement flags. No API, no GPU.
+
+Example
+  python scripts/22_lexical_provenance.py classify-generations --train-sft-dirs data/sft_paired,data/sft_e2c_paired \\
+      --generations "runs/*/*/eval/test_generations.jsonl" --behavioural results/e7/e7_runs.csv --out results/e7_lexical_students
+"""
 
 
 def _md_table(df: pd.DataFrame, cols: list[str], rename: dict | None = None) -> list[str]:
@@ -98,7 +126,110 @@ def headline(acc: pd.DataFrame, sets: list[str], o: str, rew: list[str]) -> str:
     return "\n\n".join(parts)
 
 
+# --------------------------------------------------------------------------- classify-generations (phase 3)
+
+
+def _expand(patterns: list[str]) -> list[Path]:
+    files: set[Path] = set()
+    for pat in patterns:
+        hits = glob.glob(pat) if any(ch in pat for ch in "*?[") else [pat]
+        files.update(Path(h) for h in hits)
+    return sorted(files)
+
+
+def students_summary_md(res: LP.StudentResult, side: pd.DataFrame | None, teachers: tuple[str, ...], args: argparse.Namespace, files: list[Path], info: dict) -> str:
+    rec, runs = res.recall, res.runs
+    L = ["# E7 词汇溯源：学生生成文本（phase 3；tasks/e7_plan.md §5；自动生成）", "",
+         f"对象：{info['n_runs']} 个学生 run 的 {info['n_generations']} 条生成（scripts/25，test 探针；有 rationale 的 {info['n_classified']} 条进入分类）。分类器 = 与训练文本 baseline 相同的 hashed 字符 3–5-gram + 词 uni / bigram "
+         f"L2 多项 logistic 回归（C = {args.C}，balanced，{info['backend']}，每块 2^{args.hash_bits} 桶），训练集 = teacher 的 O 训练 rationale（{info['n_train_texts']} 条：{info['train_teachers']}）；长度对照只用词数、句数、平均词长。"
+         f"run 级判定 = 该 run 生成的多数票（闭集：总会判一个 teacher，chance = 1/{len(teachers)}；行为检测器是开集、可拒判）。", ""]
+    def _macro(features: str, level: str, grid: str = "all", version: str = "all") -> str:
+        m = rec[(rec.features == features) & (rec.level == level) & (rec.grid == grid) & (rec.version == version) & (rec.teacher == "macro")]
+        return LP.fmt_acc(m.iloc[0].to_dict()) if len(m) else "—"
+    L += ["## 结论", "", f"run 级多数票 macro 准确率（全部有真值的 run）：n-gram {_macro('ngram', 'run')}，长度对照 {_macro('length', 'run')}；生成级：n-gram {_macro('ngram', 'generation')}，长度对照 {_macro('length', 'generation')}。", ""]
+    if side is not None and len(side):
+        s = side[side["truth"].isin(teachers)]
+        for tag, name in (("unknown", "基座未知"), ("known", "基座已知")):
+            inb = s[s["in_behavioural"]]
+            if inb.empty:
+                continue
+            lex = inb["lexical_correct_ngram"].astype(float) == 1
+            beh = inb[f"behavioural_correct_{tag}"].astype(float) == 1
+            unatt = inb[f"decision_{tag}"] == "unattributed"
+            L += [f"与行为检测器（{name}）逐 run 对照（{len(inb)} 个有真值且在 e7_runs.csv 里的 run）：两者都对 {int((lex & beh).sum())}，只有词汇对 {int((lex & ~beh).sum())}，只有行为对 {int((~lex & beh).sum())}，"
+                  f"都错 {int((~lex & ~beh).sum())}；行为不判定 {int(unatt.sum())}；词汇多数票 = 行为判定的 run {int((inb[f'agree_{tag}_ngram'].astype(float) == 1).sum())}。"]
+        L += [""]
+    wide = LP.accuracy_table(rec.rename(columns={"level": "evaluation", "grid": "train", "version": "test"}).assign(set="students", overlap=lambda d: d["evaluation"]), teachers)
+    L += ["## 准确率（run 级 = 多数票 vs 真值，generation 级 = 每条生成；行 = 特征 × 层级 × 网格 × 版本）", ""]
+    L += _md_table(wide.rename(columns={"evaluation": "level", "train": "grid", "test": "version"}), ["features", "level", "grid", "version", *teachers, "macro", "pooled", "n"]) + [""]
+    L += ["## 每 run（students_runs.csv）", ""]
+    cols = ["run_id", "grid", "version", "truth", "n_gen", "n_classified", "letter_rate", *[f"share_{t}_ngram" for t in teachers], "majority_ngram", "correct_ngram", "majority_length", "correct_length"]
+    L += _md_table(runs.sort_values(["grid", "version", "truth", "run_id"]), cols) + [""]
+    if side is not None and len(side):
+        L += ["## 词汇 vs 行为（students_vs_behavioural.csv；行为判定来自 scripts/21 的 e7_runs.csv，`unattributed` = 行为检测器拒判）", ""]
+        L += _md_table(side.sort_values(["grid", "version", "truth", "run_id"]), ["run_id", "grid", "version", "truth", "majority_ngram", "share_own_ngram", "decision_unknown", "margin_unknown", "decision_known", "lexical_correct_ngram", "behavioural_correct_unknown", "agree_unknown_ngram", "in_behavioural"]) + [""]
+        if side["truth_mismatch"].any():
+            L += [f"注意：{int(side['truth_mismatch'].sum())} 个 run 的真值与 e7_runs.csv 不一致。", ""]
+    conf = res.confusion
+    L += ["## 混淆（run 级，全部网格）", ""] + _md_table(conf[(conf.level == "run") & (conf.grid == "all")], ["features", "true_teacher", "n", *[f"pred_{t}" for t in teachers]]) + [""]
+    L += ["## 运行", "", f"- 命令：`{' '.join(sys.argv)}`", f"- 生成文件 {len(files)} 个；训练目录 {args.train_sft_dirs}；耗时 {info['runtime_s']:.0f} s", ""]
+    return "\n".join(L)
+
+
+def main_classify(argv: list[str]) -> None:
+    ap = argparse.ArgumentParser(prog="22_lexical_provenance.py classify-generations", description=CLASSIFY_DOC, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--train-sft-dirs", default="data/sft_paired,data/sft_e2c_paired", help="comma list of dirs with the teachers' {teacher}_O_s{sft_seed}.jsonl (union, deduplicated by teacher x prompt_id)")
+    ap.add_argument("--generations", action="append", required=True, help="path or quoted glob of eval/{split}_generations.jsonl files (repeatable)")
+    ap.add_argument("--out", default="results/e7_lexical_students")
+    ap.add_argument("--behavioural", default=None, help="e7_runs.csv of scripts/21 on the same split -> students_vs_behavioural.csv")
+    ap.add_argument("--teachers", default=",".join(LP.TEACHERS), help="comma list of teacher keys (classes)")
+    ap.add_argument("--grid-map", default=None, help="'ns=GRID,...' overrides / extends the namespace -> grid map of scripts/21")
+    ap.add_argument("--sft-seed", type=int, default=1)
+    ap.add_argument("--seed", type=int, default=0, help="hashing seed")
+    ap.add_argument("--hash-bits", type=int, default=18)
+    ap.add_argument("--C", type=float, default=LP.DEFAULT_C)
+    ap.add_argument("--max-iter", type=int, default=LP.DEFAULT_MAX_ITER)
+    ap.add_argument("--backend", default="auto", choices=["auto", "sklearn", "numpy"])
+    args = ap.parse_args(argv)
+
+    teachers = tuple(t.strip() for t in args.teachers.split(",") if t.strip())
+    dirs = [Path(d.strip()) for d in args.train_sft_dirs.split(",") if d.strip()]
+    files = _expand(args.generations)
+    if not files:
+        sys.exit(f"no generations files match {args.generations}")
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    log = lambda *a: print(*a, flush=True)  # noqa: E731
+    t0 = time.time()
+    train = pd.concat([LP.load_sft_texts(d, teachers=teachers, styles=("O",), seed=args.sft_seed) for d in dirs], ignore_index=True).drop_duplicates(["teacher", "prompt_id"]).reset_index(drop=True)
+    gens = LP.load_generations(files, PV.parse_grid_map(args.grid_map))
+    log(f"[students] {len(files)} generation files, {len(gens)} rows, {gens['run_id'].nunique()} runs; {len(train)} training rationales from {len(dirs)} dirs")
+    fz = LP.HashedFeaturizer(hash_bits=args.hash_bits, seed=args.seed)
+    res = LP.classify_generations(train, gens, fz, C=args.C, backend=args.backend, max_iter=args.max_iter, teachers=teachers, seed=args.seed, log=log)
+    res.generations.to_csv(out / "students_generations.csv", index=False)
+    res.runs.to_csv(out / "students_runs.csv", index=False)
+    res.recall.to_csv(out / "students_recall.csv", index=False)
+    res.confusion.to_csv(out / "students_confusion.csv", index=False)
+    side = None
+    if args.behavioural:
+        side = LP.merge_behavioural(res.runs, pd.read_csv(args.behavioural), teachers)
+        side.to_csv(out / "students_vs_behavioural.csv", index=False)
+        log(f"[students] behavioural table {args.behavioural}: {int(side['in_behavioural'].sum())} / {len(side)} runs matched")
+    info = dict(res.info) | dict(generation_files=[str(f) for f in files], files_sha256={str(f): _sha256(f) for f in files}, train_sft_dirs=[str(d) for d in dirs], sft_seed=args.sft_seed, seed=args.seed,
+                                 hash_bits=args.hash_bits, max_iter=args.max_iter, behavioural=args.behavioural, numpy_version=np.__version__, python=platform.python_version(), total_runtime_s=time.time() - t0,
+                                 command=" ".join(sys.argv))
+    (out / "students_run_info.json").write_text(json.dumps(info, indent=2, default=str), encoding="utf-8")
+    (out / "students_summary.md").write_text(students_summary_md(res, side, teachers, args, files, info), encoding="utf-8")
+    log(f"wrote {out}/students_summary.md ({time.time() - t0:.0f}s)")
+
+
+# --------------------------------------------------------------------------- training-text baseline (default mode)
+
+
 def main() -> None:
+    if len(sys.argv) > 1 and sys.argv[1] == "classify-generations":
+        main_classify(sys.argv[2:])
+        return
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--sets", default="original,contested", help="comma list of set names (same length as --sft-dirs)")
     ap.add_argument("--sft-dirs", default="data/sft_paired,data/sft_e2c_paired", help="comma list of dirs with {teacher}_{O|F|C}_s{sft_seed}.jsonl")

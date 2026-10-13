@@ -3,9 +3,21 @@
 Examples
   python scripts/21_provenance.py --split dev                                   # calibrate tau on dev -> results/e7_dev/calibration.json (+ dev descriptives)
   python scripts/21_provenance.py --split test --calibration results/e7_dev/calibration.json --frozen-commit <hash>   # once, after the freeze
+  # phase 2 (tasks/e7_plan.md §5): extra candidate teachers (their {t}_{split}_profile.jsonl must exist in --teacher-dir); one candidate set per call
+  python scripts/21_provenance.py --split dev --candidates gpt4o,claude46,deepseek_v4,gpt41,gpt4o_mini,gpt4_0613,claude_haiku45 --out results/e7_dev_p2
+  python scripts/21_provenance.py --split dev --candidates gpt4o,claude46,deepseek_v4,gpt41,gpt4o_mini,gpt4_0613,claude_haiku45 --drop-candidate gpt4o --out results/e7_dev_p2_nogpt4o
+  python scripts/21_provenance.py --split test --candidates ... --drop-candidate gpt4o --calibration results/e7_dev_p2_nogpt4o/calibration.json --out results/e7_p2_nogpt4o
   # synthetic tree (tests): explicit namespaces / teachers / prompts / base run
   python scripts/21_provenance.py --split dev --runs-dir /tmp/runs --namespaces qwen3-4b,qwen3-4b-e2c,qwen3-4b-e2ck --descriptive-namespaces none \
       --teacher-dir /tmp/teachers --teachers alpha,beta,gamma --prompts /tmp/prompts.jsonl --base-run /tmp/runs/qwen3-4b/base_B_s0 --out /tmp/e7 --n-rep 20 --n-perm 200
+
+Phase 2 (candidates vs truth): --candidates (default = --teachers = config teachers) is the set the detector scores against;
+the TRUTH of a run is always the teacher in its run id. A run whose truth is not a candidate ("true teacher absent", e.g. the
+GPT-4o students under --drop-candidate gpt4o) is scored like any suspect, kept out of the recall / AUROC groups and reported in
+e7_absent.csv (share attributed to each candidate / unattributed; family view with --families: same family as the truth vs
+another family vs unattributed). tau is recalibrated on dev for every candidate set with the unchanged rule; calibration.json
+holds one section per candidate set (`candidate_sets`, keyed by the sorted candidates; a dev run into an existing out dir
+adds its set to the file), and --split test refuses to run when the file has no section for the candidate set.
 
 Inputs: runs/{namespace}/{run}/eval/{split}_responses.jsonl for every namespace (TeacherResponse rows; the run id inside a
 row may carry another namespace's prefix, so teacher / version / seed come from the directory name and the GRID label from
@@ -17,8 +29,9 @@ Ground truth: O / F / C runs of E1, E3, E2c_C, Cnf, E3c -> their teacher; K, K_n
 
 Outputs: e7_runs.csv (per run: grid, truth, a_t per teacher, both scores, decisions, margins), e7_metrics.csv (main and
 descriptive tables: per grid x subset x detector x teacher recall with Wilson CI, macro recall, open-set FPR, AUROC, chance,
-permutation p), e7_probe_curve.csv, e7_sampled.csv, e7_loso.csv, e7_logo.csv, e7_verdict.json, e7_summary.md and, on dev,
-calibration.json (tau per detector configuration). --split test REQUIRES --calibration and never recalibrates. No figures.
+permutation p), e7_probe_curve.csv, e7_sampled.csv, e7_loso.csv, e7_logo.csv, e7_absent.csv (phase 2; header-only when every
+truth is a candidate), e7_verdict.json, e7_summary.md and, on dev, calibration.json (tau per detector configuration, per
+candidate set). --split test REQUIRES --calibration and never recalibrates. No figures.
 
 Rule (tasks/e7_plan.md §3-§4, frozen before any provenance result; implemented in vcd.analysis.provenance): see the module
 docstring and RULE. dev = calibration split (descriptive); test is evaluated once with the dev calibration.
@@ -106,6 +119,54 @@ def _pivot_lines(df: pd.DataFrame, index: list[str], column: str, text: pd.Serie
 # --------------------------------------------------------------------------- summary
 
 
+def _share(k: int, n: int, lo: float, hi: float) -> str:
+    return f"{k}/{n} ({_fmt(k / n) if n else 'nan'} [{_fmt(lo)}, {_fmt(hi)}])"
+
+
+def absent_lines(ab: pd.DataFrame, families: dict) -> list[str]:
+    """Summary section for the true-teacher-absent runs (e7_absent.csv): one compact table per detector plus one explicit
+    sentence per absent truth teacher saying what fraction of its students went to a same-family candidate."""
+    lines = ["## 真 teacher 不在候选集（e7_absent.csv；概率 readout，全部 cell，calibrated τ；这些 run 不进召回 / AUROC，也不进任何标定）", ""]
+    if ab is None or ab.empty:
+        return lines + ["（无：候选集包含全部真值 teacher。）", ""]
+    det_name = {"base_known": "基座已知", "base_unknown": "基座未知"}
+    for det in PV.DETECTORS:
+        d = ab[ab["detector"] == det]
+        if d.empty:
+            continue
+        fam_v = d[d["view"] == "family"]
+        cand_v = d[(d["view"] == "candidate") & (d["target"] != PV.UNATTRIBUTED)]
+        rows = []
+        for (g, ver, role, t), gg in fam_v.groupby(["grid", "version", "role", "truth"], sort=False):
+            k = gg.set_index("target")
+            n = int(k.loc["same_family", "n"])
+            att = cand_v[(cand_v["grid"] == g) & (cand_v["version"] == ver) & (cand_v["role"] == role) & (cand_v["truth"] == t) & (cand_v["k"] > 0)]
+            rows.append(dict(grid=g, version=ver, role=role, truth=t, truth_family=str(k.loc["same_family", "truth_family"]), n=n,
+                             same_family=_share(int(k.loc["same_family", "k"]), n, k.loc["same_family", "wilson_lo"], k.loc["same_family", "wilson_hi"]),
+                             other_family=_share(int(k.loc["other_family", "k"]), n, k.loc["other_family", "wilson_lo"], k.loc["other_family", "wilson_hi"]),
+                             unattributed=_share(int(k.loc[PV.UNATTRIBUTED, "k"]), n, k.loc[PV.UNATTRIBUTED, "wilson_lo"], k.loc[PV.UNATTRIBUTED, "wilson_hi"]),
+                             attributed_to=", ".join(f"{r.target} {int(r.k)}" for r in att.itertuples()) or "—"))
+        lines += [f"### {det_name.get(det, det)}（τ = {_fmt(float(d['tau'].iloc[0]))}）", ""]
+        lines += _md_table(pd.DataFrame(rows), ["grid", "version", "role", "truth", "truth_family", "n", "same_family", "other_family", "unattributed", "attributed_to"])
+        for t in sorted(set(fam_v["truth"])):
+            tf = families.get(t, t)
+            parts = []
+            for g, ver, label in ((PV.PRIMARY["grid"], PV.PRIMARY["version"], f"{PV.PRIMARY['grid']} {PV.PRIMARY['version']} 学生"), (PV.POOLED_GRID, "all", "全部 core 网格")):
+                sel = fam_v[(fam_v["grid"] == g) & (fam_v["version"] == ver) & (fam_v["truth"] == t) & (fam_v["role"] == "core")]
+                if sel.empty:
+                    continue
+                k = sel.set_index("target")
+                n = int(k.loc["same_family", "n"])
+                att = cand_v[(cand_v["grid"] == g) & (cand_v["version"] == ver) & (cand_v["truth"] == t) & (cand_v["role"] == "core") & (cand_v["k"] > 0)]
+                same = ", ".join(f"{r.target} {int(r.k)}" for r in att.itertuples() if r.target_family == tf) or "—"
+                other = ", ".join(f"{r.target} {int(r.k)}" for r in att.itertuples() if r.target_family != tf) or "—"
+                parts.append(f"{label}（{n} 个 run）：**{int(k.loc['same_family', 'k'])}/{n} 判为同家族候选**（{same}），{int(k.loc['other_family', 'k'])}/{n} 判为其他家族（{other}），{int(k.loc[PV.UNATTRIBUTED, 'k'])}/{n} 不判定")
+            if parts:
+                lines += [f"- {det_name.get(det, det)}，{t}（家族 {tf}）的学生、候选集不含 {t}：" + "；".join(parts) + "。"]
+        lines += [""]
+    return lines
+
+
 def summary_md(ctx: dict) -> str:
     res: PV.E7Result = ctx["res"]
     split, teachers = ctx["split"], ctx["teachers"]
@@ -123,6 +184,12 @@ def summary_md(ctx: dict) -> str:
               "召回 Wilson 95% CI（不判定计错），macro 召回，开集 FPR，一对多 AUROC（以 s_t 为分数，负类含 none），随机参照 (1/3)(1 − 不判定率)，teacher 标签在该网格可判定 run 间置换 10,000 次的 p（seed 为近复本，p 只作描述）。"
               f"主判定：E2c-C 的 15 个 O 学生，基座已知，字母概率，全部探针：召回 Wilson 下界 > 1/3 的 teacher ≥ 2/3 → 溯源可行（有条件），1/3 → 部分，0/3 → 不可行，并报开集 FPR 是否 ≤ 10%。", ""]
 
+    dropped, fam = ctx.get("dropped", []), ctx.get("families", {})
+    lines += ["## 候选集与真值（phase 2：候选 = 检测器比对的 teacher；真值 = run id 里的 teacher）", ""]
+    lines += [f"候选 {len(teachers)} 个：{', '.join(teachers)}" + (f"（已去掉 {', '.join(dropped)}）" if dropped else "") + f"；真值 teacher：{', '.join(v.get('truth_teachers', [])) or '无'}；"
+              f"真 teacher 不在候选集的 run：{v.get('n_absent_runs', 0)}" + (f"（真值 {', '.join(v['absent_truths'])}，见 e7_absent.csv）" if v.get("absent_truths") else "")
+              + "；家族：" + ", ".join(f"{t}:{f}" for t, f in fam.items()) + f"；calibration 键 `{v.get('candidate_key', '')}`。主判定的 teacher 数 = 主组里有学生的候选（{v.get('n_teachers')}）。", ""]
+
     cal = res.calibration
     lines += [f"## 标定（{'calibration.json，本次写出' if not v.get('calibration_reused') else '复用 dev 的 calibration.json'}）", ""]
     lines += [f"负例 {cal['negatives']['n']} 个（{', '.join(cal['negatives']['grids'])}）；基座参照 = {cal['base_reference']}（{cal['base_reference_cells']} 个有效 cell / {cal['n_cells']}）；teacher 分歧 cell {cal['disagreement_cells']} / {cal['n_cells']}；"
@@ -136,6 +203,7 @@ def summary_md(ctx: dict) -> str:
         lines += [f"## 主表：{'基座已知' if det == 'base_known' else '基座未知'}，字母概率 readout，全部 cell（e7_metrics.csv，table = main）", ""]
         d = _with_ci(main[main["detector"] == det])
         lines += _md_table(d, ["grid", "version", "teacher", "n", "n_correct", "recall", "CI", "unattributed_rate", "auroc", "macro_recall", "chance", "perm_p", "fpr", "n_neg", "tau"])
+    lines += absent_lines(res.absent, fam)
     dis = met[(met["table"] == "main") & (met["subset"] == "disagreement") & (met["teacher"] != PV.NONE)] if len(met) else met
     lines += [f"## 分歧探针（三家多数行动不全同的 cell，{cal['disagreement_cells']} / {cal['n_cells']}；τ = 该配置自标定（calibrated）；全 cell 的 τ 作灵敏度（fixed_all_cells，只列 macro 行））", ""]
     lines += _md_table(_with_ci(dis[dis["tau_policy"] == "calibrated"]), ["detector", "tau", "grid", "version", "teacher", "n", "recall", "CI", "unattributed_rate", "auroc", "macro_recall", "chance", "perm_p", "fpr"])
@@ -205,7 +273,9 @@ def summary_md(ctx: dict) -> str:
               "- 采样 readout 只作用于被测模型；teacher 参照与基座参照保持概率 readout。τ 在 200 次重复的负例 margin 合并后标定。",
               "- leave-one-grid-out 的标定总体 = E1 网格的全部 run（15 个 O 学生一并视为应拒判）+ K / K_n 负例；评估其余网格。",
               "- 置换 p 以 run 为单位（同 teacher 的 seed 为近复本，只作描述）；采样与预算曲线各重复内用 --n-perm-rep 次置换后取均值。",
-              "- 不足两个有限分数的 run 记为不判定（margin nan）；AUROC 的负类 = 该网格其余 run + 全部 none 负例。", ""]
+              "- 不足两个有限分数的 run 记为不判定（margin nan）；AUROC 的负类 = 该网格其余 run + 全部 none 负例。",
+              "- phase 2：候选集（--candidates / --drop-candidate）与真值分离；真 teacher 不在候选集的 run 照常打分，但不进召回 / AUROC 组，也不进标定（负例仍是 K / K_n / R / S_0），单独报在 e7_absent.csv；"
+              "τ 按候选集在 dev 重新标定（规则不变），calibration.json 按候选集（排序后的候选名）分节保存，test 没有对应节则拒绝运行；主判定的 teacher 数 = 主组里有学生的候选。", ""]
     return "\n".join(lines)
 
 
@@ -221,7 +291,11 @@ def main() -> None:
     ap.add_argument("--grid-map", default=None, help="'ns=GRID,...' overrides / extends the default namespace -> grid map")
     ap.add_argument("--negative-grids", default=",".join(PV.NEGATIVE_GRIDS), help="grids whose O runs have no specific teacher (truth none)")
     ap.add_argument("--teacher-dir", default=None, help="dir with {teacher}_{split}_profile.jsonl; default: config paths.teacher_dir")
-    ap.add_argument("--teachers", default=None, help="comma list of candidate teachers; default: config teachers")
+    ap.add_argument("--teachers", default=None, help="comma list of teachers = the default candidate set (default: config teachers); a run's TRUTH is always the teacher in its run id")
+    ap.add_argument("--candidates", default=None, help="comma list of candidate teachers the detector scores against (default: --teachers); every candidate needs {t}_{split}_profile.jsonl; "
+                    "runs whose truth is not a candidate are the true-teacher-absent cases of e7_absent.csv")
+    ap.add_argument("--drop-candidate", action="append", default=[], metavar="T", help="remove T from the candidate set (repeatable): 'GPT-4o students when GPT-4o is not available' = --drop-candidate gpt4o")
+    ap.add_argument("--families", default=PV.DEFAULT_FAMILIES, help="'teacher:family,...' for the family view of e7_absent.csv (same family as the truth vs another family); unlisted teachers are singleton families")
     ap.add_argument("--prompts", default=None, help="default: config paths.prompts_{split}")
     ap.add_argument("--variants", default=None, help="comma list of scored framings (default: config data.variants = T1,T3,T5,T6; T0 is reported descriptively)")
     ap.add_argument("--base-run", default="runs/qwen3-4b/base_B_s0", help="untrained base S_0 run dir with eval/{split}_responses.jsonl")
@@ -244,15 +318,30 @@ def main() -> None:
     if args.split == "test" and not args.calibration:
         print("error: --split test requires --calibration <dev calibration.json>; refusing to calibrate tau on the test split (tasks/e7_plan.md §3)", file=sys.stderr)
         raise SystemExit(2)
-    calibration = None
-    if args.calibration:
-        calibration = json.loads(Path(args.calibration).read_text(encoding="utf-8"))
-        if "tau" not in calibration:
-            raise SystemExit(f"error: {args.calibration} is not an E7 calibration file (no 'tau' section)")
 
     cfg = load_train_yaml(args.config)  # no .env: this script calls no API
     variants = args.variants.split(",") if args.variants else list(cfg["data"]["variants"])
-    teachers = args.teachers.split(",") if args.teachers else list(cfg["teachers"])
+    teachers = [t for t in (args.teachers.split(",") if args.teachers else list(cfg["teachers"])) if t]
+    candidates = [t for t in (args.candidates.split(",") if args.candidates else list(teachers)) if t]
+    for t in args.drop_candidate:
+        if t not in candidates:
+            print(f"error: --drop-candidate {t}: not in the candidate set {candidates}", file=sys.stderr)
+            raise SystemExit(2)
+        candidates.remove(t)
+    if len(candidates) < 2 or len(set(candidates)) != len(candidates):
+        print(f"error: the detector needs at least two distinct candidates, got {candidates}", file=sys.stderr)
+        raise SystemExit(2)
+    families = PV.parse_family_map(args.families)
+    calibration = None
+    if args.calibration:
+        cal_file = json.loads(Path(args.calibration).read_text(encoding="utf-8"))
+        if "tau" not in cal_file and "candidate_sets" not in cal_file:
+            raise SystemExit(f"error: {args.calibration} is not an E7 calibration file (no 'tau' / 'candidate_sets' section)")
+        try:
+            calibration = PV.calibration_section(cal_file, candidates)
+        except KeyError as e:  # tau is never calibrated on the evaluated split: a missing section stops the run
+            print(f"error: {args.calibration}: {e.args[0]}", file=sys.stderr)
+            raise SystemExit(2)
     prompts = M.load_prompts(resolve(args.prompts) if args.prompts else cfg["paths"][f"prompts_{args.split}"])
     pid = set(prompts)
     runs_dir = Path(args.runs_dir) if args.runs_dir else Path(cfg["paths"]["runs_dir"])
@@ -269,15 +358,18 @@ def main() -> None:
         raise SystemExit(f"no {args.split} response files under {runs_dir} for namespaces {core}")
     base_rows, base_row = PV.load_base(args.base_run, args.split, pid, grid_map)
     inventory = pd.concat([inventory, pd.DataFrame([base_row])], ignore_index=True)
-    teacher_rows = PV.load_teachers(teacher_dir, args.split, teachers, pid)
-    print(f"{args.split}: {len(inventory)} runs ({int((inventory['role'] == 'core').sum())} core) from {len(core) + len(desc)} namespaces, {len(student_rows) + len(base_rows)} rows; teachers {teachers}")
+    teacher_rows = PV.load_teachers(teacher_dir, args.split, candidates, pid)
+    truths = sorted(set(inventory["truth"]) - {PV.NONE})
+    print(f"{args.split}: {len(inventory)} runs ({int((inventory['role'] == 'core').sum())} core) from {len(core) + len(desc)} namespaces, {len(student_rows) + len(base_rows)} rows; "
+          f"candidates {candidates}" + (f" (dropped {args.drop_candidate})" if args.drop_candidate else "") + f"; truth teachers {truths}; absent truths {sorted(set(truths) - set(candidates))}")
     for n in notes:
         print("note:", n, file=sys.stderr)
 
-    world = PV.build_world(student_rows, base_rows, teacher_rows, prompts, inventory, teachers, variants, base_reference=args.base_reference)
+    world = PV.build_world(student_rows, base_rows, teacher_rows, prompts, inventory, candidates, variants, base_reference=args.base_reference)
     print(f"cells {world.S.cells.shape[1]} ({len(world.families)} families x {len(world.variants)} variants); disagreement cells {int(world.disagree.sum())}; base reference '{world.base_ref_label}' with {world.base_ref_cells} valid cells")
     res = PV.analyze(world, calibration=calibration, n_rep=args.n_rep, n_perm=args.n_perm, n_perm_rep=args.n_perm_rep, seed=args.seed, budgets=[int(b) for b in args.budgets.split(",") if b],
-                     sample_n=[int(n) for n in args.sample_n.split(",") if n], fpr_max=args.fpr_max, n_min=args.n_neg_min, logo_grids=[g for g in args.logo_grids.split(",") if g], split=args.split)
+                     sample_n=[int(n) for n in args.sample_n.split(",") if n], fpr_max=args.fpr_max, n_min=args.n_neg_min, logo_grids=[g for g in args.logo_grids.split(",") if g], split=args.split,
+                     families=families)
     notes += res.notes
 
     out.mkdir(parents=True, exist_ok=True)
@@ -287,17 +379,22 @@ def main() -> None:
     res.sampled.to_csv(out / "e7_sampled.csv", index=False)
     res.loso.to_csv(out / "e7_loso.csv", index=False)
     res.logo.to_csv(out / "e7_logo.csv", index=False)
+    res.absent.to_csv(out / "e7_absent.csv", index=False)
     freeze = freeze_label(args.frozen_commit)
-    cal_out = dict(res.calibration) | {"frozen": freeze, "runs_dir": str(runs_dir), "namespaces": core, "descriptive_namespaces": desc, "grid_map": {n: grid_map[n] for n in core + desc}}
+    cal_out = dict(res.calibration) | {"frozen": freeze, "runs_dir": str(runs_dir), "namespaces": core, "descriptive_namespaces": desc, "grid_map": {n: grid_map[n] for n in core + desc},
+                                       "dropped_candidates": list(args.drop_candidate)}
     if calibration is None:
-        (out / "calibration.json").write_text(json.dumps(cal_out, indent=2, default=_dump, ensure_ascii=False), encoding="utf-8")
+        cal_path = out / "calibration.json"
+        existing = json.loads(cal_path.read_text(encoding="utf-8")) if cal_path.exists() else None  # a dev run into an existing out dir adds its candidate set
+        cal_path.write_text(json.dumps(PV.merge_calibration(existing, cal_out), indent=2, default=_dump, ensure_ascii=False), encoding="utf-8")
     else:
         cal_out["calibration_file"] = str(args.calibration)
         (out / "calibration_used.json").write_text(json.dumps(cal_out, indent=2, default=_dump, ensure_ascii=False), encoding="utf-8")
     verdict = dict(res.verdict) | {"split": args.split, "frozen": freeze, "confirmatory": args.split == "test", "calibration_file": args.calibration, "seed": args.seed, "n_rep": args.n_rep,
-                                   "n_perm": args.n_perm, "teachers": teachers, "variants": variants, "n_runs": int(len(res.runs)), "n_negatives": res.calibration["negatives"]["n"], "notes": notes}
+                                   "n_perm": args.n_perm, "teachers": teachers, "variants": variants, "n_runs": int(len(res.runs)), "n_negatives": res.calibration["negatives"]["n"], "notes": notes,
+                                   "dropped_candidates": list(args.drop_candidate), "families": res.calibration["families"]}
     (out / "e7_verdict.json").write_text(json.dumps(verdict, indent=2, default=_dump, ensure_ascii=False), encoding="utf-8")
-    ctx = dict(res=res, split=args.split, teachers=teachers, variants=variants, freeze=freeze, notes=notes)
+    ctx = dict(res=res, split=args.split, teachers=candidates, variants=variants, freeze=freeze, notes=notes, dropped=list(args.drop_candidate), families=res.calibration["families"])
     (out / "e7_summary.md").write_text(summary_md(ctx), encoding="utf-8")
     print(f"wrote {len(list(out.glob('e7_*.csv')))} CSVs + e7_verdict.json + {'calibration.json' if calibration is None else 'calibration_used.json'} + e7_summary.md to {out}")
     print((out / "e7_summary.md").read_text(encoding="utf-8"))

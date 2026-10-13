@@ -7,6 +7,10 @@ tunable share q of the cells and the base prior elsewhere (E2c_C / E3c: q = 0.95
 three-teacher majority (distilled, no specific teacher); random-label students R; O / F / C versions for the paired
 grids. Ground truth and grid labels follow the real namespace layout, including the E3 namespace whose rows carry the
 E1 prefix 'qwen3-4b.'.
+
+Phase 2 (extra candidates): two same-family siblings, alpha_v2 (alpha's side on 90% of the cells) and beta_mini (beta's on
+90%), exist only as candidate profiles (no student was trained on them). Family map alpha / alpha_v2 -> fa, beta /
+beta_mini -> fb, gamma -> fg. Dropping alpha from the candidates makes every alpha student a true-teacher-absent case.
 """
 
 from __future__ import annotations
@@ -30,6 +34,10 @@ from vcd.schemas import Family, Prompt, TeacherResponse
 V = ["T1", "T3", "T5", "T6"]
 N_FAM = 30
 TEACHERS = ("alpha", "beta", "gamma")
+SIBLINGS = {"alpha_v2": ("alpha", 0.9), "beta_mini": ("beta", 0.9)}  # phase-2 candidate -> (truth teacher it is a version of, share of cells with the same side)
+ALL5 = ("alpha", "beta", "gamma", "alpha_v2", "beta_mini")
+NO_ALPHA = ("alpha_v2", "beta", "beta_mini", "gamma")
+FAMILY_SPEC = "alpha:fa,alpha_v2:fa,beta:fb,beta_mini:fb,gamma:fg"
 ROOT = Path(__file__).resolve().parents[1]
 # namespace -> (grid, versions, seeds, copy share q of the own teacher; None = consensus); the prefix inside the rows mimics the real files
 LAYOUT = {
@@ -85,6 +93,9 @@ class SynthWorld:
             u = rng.random()
             self.s0_side[k] = self.side["beta"][k] if u < 0.6 else (self.side["alpha"][k] if u < 0.8 else self.side["gamma"][k])
         self.consensus = {k: (sum(self.side[t][k] for t in TEACHERS) >= 2) for k in base_side}
+        srng = np.random.default_rng(7)  # siblings come from their own stream so the three truth teachers are unchanged
+        for sib, (parent, agree) in SIBLINGS.items():
+            self.side[sib] = {k: (s if srng.random() < agree else (not s)) for k, s in self.side[parent].items()}
 
     @staticmethod
     def _p(side: bool, tag: str, f: str, v: str, o: int, soft: float = 0.9) -> float:
@@ -115,6 +126,13 @@ class SynthWorld:
     def teacher_rows(self) -> list[TeacherResponse]:
         rows = []
         for t in TEACHERS:
+            rows += _rows(t, self.teacher_fn(t), self.prompts)
+        return rows
+
+    def sibling_rows(self) -> list[TeacherResponse]:
+        """Profiles of the phase-2 candidates (alpha_v2, beta_mini): candidates only, never a student's truth."""
+        rows = []
+        for t in SIBLINGS:
             rows += _rows(t, self.teacher_fn(t), self.prompts)
         return rows
 
@@ -155,8 +173,9 @@ class SynthWorld:
                 write_jsonl(root / "runs" / ns / name / "eval" / f"{split}_responses.jsonl", [r.model_copy(update={"teacher": row_id}) for r in rows])
             write_jsonl(root / "runs" / "qwen3-4b" / "base_B_s0" / "eval" / f"{split}_responses.jsonl", self.base_rows(split))
             write_jsonl(root / "runs" / "qwen3-4b-e2c" / "base_B_s0" / "eval" / f"{split}_responses.jsonl", self.base_rows(split))  # a base copy, must be skipped
-            for t in TEACHERS:
-                write_jsonl(root / "teachers" / f"{t}_{split}_profile.jsonl", [r for r in self.teacher_rows() if r.teacher == t])
+            profiles = self.teacher_rows() + self.sibling_rows()
+            for t in (*TEACHERS, *SIBLINGS):
+                write_jsonl(root / "teachers" / f"{t}_{split}_profile.jsonl", [r for r in profiles if r.teacher == t])
         write_jsonl(root / "prompts.jsonl", list(self.prompts.values()))
         return dict(runs=root / "runs", teachers=root / "teachers", prompts=root / "prompts.jsonl", base=root / "runs" / "qwen3-4b" / "base_B_s0")
 
@@ -476,3 +495,198 @@ def test_cli_dev_calibrates_then_test_reuses_and_refuses_without_calibration(syn
     vt = json.loads((out_test / "e7_verdict.json").read_text(encoding="utf-8"))
     assert vt["confirmatory"] and vt["calibration_reused"] and "frozen at commit abc123" in vt["frozen"]
     assert "frozen at commit abc123" in (out_test / "e7_summary.md").read_text(encoding="utf-8")
+    # the default candidate set = --teachers: no absent run, e7_absent.csv is header-only, the calibration carries its candidate key
+    assert pd.read_csv(out_dev / "e7_absent.csv").empty and list(pd.read_csv(out_dev / "e7_absent.csv").columns) == PV.ABSENT_COLS
+    assert cal["candidate_key"] == "alpha,beta,gamma" and set(cal["candidate_sets"]) == {"alpha,beta,gamma"} and vt["n_absent_runs"] == 0 and vt["candidates"] == list(TEACHERS)
+
+
+# --------------------------------------------------------------------------- phase 2: extra candidates, true teacher absent, calibration per candidate set
+
+
+FAM = PV.parse_family_map(FAMILY_SPEC)
+SMALL = dict(n_rep=3, n_perm=100, n_perm_rep=10, seed=0, budgets=(10, 300), sample_n=(1,))
+
+
+def _build(synth: SynthWorld, candidates) -> PV.World:
+    runs = synth.runs("dev")
+    rows = [r for _, _, _, rs in runs for r in rs]
+    return PV.build_world(rows, synth.base_rows("dev"), synth.teacher_rows() + synth.sibling_rows(), synth.prompts, synth.inventory(runs), list(candidates), V, base_reference="prior")
+
+
+@pytest.fixture(scope="module")
+def world5(synth: SynthWorld) -> PV.World:
+    return _build(synth, ALL5)
+
+
+@pytest.fixture(scope="module")
+def world_no_alpha(synth: SynthWorld) -> PV.World:
+    return _build(synth, NO_ALPHA)
+
+
+@pytest.fixture(scope="module")
+def result5(world5: PV.World) -> PV.E7Result:
+    return PV.analyze(world5, families=FAM, **SMALL)
+
+
+@pytest.fixture(scope="module")
+def result_no_alpha(world_no_alpha: PV.World) -> PV.E7Result:
+    return PV.analyze(world_no_alpha, families=FAM, **SMALL)
+
+
+def test_phase2_helpers():
+    assert FAM == {"alpha": "fa", "alpha_v2": "fa", "beta": "fb", "beta_mini": "fb", "gamma": "fg"}
+    assert PV.parse_family_map(None) == {} and PV.parse_family_map(" , ") == {}
+    with pytest.raises(ValueError):
+        PV.parse_family_map("alpha-fa")
+    assert PV.family_of("alpha_v2", FAM) == "fa" and PV.family_of("delta", FAM) == "delta"  # unlisted -> singleton family
+    assert PV.candidate_key(["gamma", "alpha", "beta"]) == "alpha,beta,gamma" == PV.candidate_key(TEACHERS)
+    runs = pd.DataFrame({"truth": ["alpha", "beta", PV.NONE, "gamma", "alpha"], "grid": ["E1", "E1", "K", "E1", "E1"], "version": ["O"] * 5, "role": ["core"] * 5})
+    assert PV.absent_runs(runs, ["beta", "gamma"]).tolist() == [0, 4] and PV.absent_runs(runs, TEACHERS).size == 0  # none is never absent
+    pos, neg = PV.eval_groups(runs, candidates=["beta", "gamma"])
+    assert len(pos) == 1 and pos[0].idx.tolist() == [1, 3] and len(neg) == 1 and neg[0].idx.tolist() == [2]
+    pos_all, neg_all = PV.eval_groups(runs)
+    assert pos_all[0].idx.tolist() == [0, 1, 3, 4] and neg_all[0].idx.tolist() == [2]
+    pos_same, _ = PV.eval_groups(runs, candidates=TEACHERS)  # every truth a candidate: identical groups (the default-case regression)
+    assert pos_same[0].idx.tolist() == [0, 1, 3, 4] and pos_same[0].idx.dtype == pos_all[0].idx.dtype
+    assert PV.eval_groups(runs, candidates=["delta", "epsilon"])[0] == []  # every positive absent -> the group is dropped
+    default = PV.parse_family_map(PV.DEFAULT_FAMILIES)
+    assert default["gpt4o"] == default["gpt41"] == default["gpt4o_mini"] == default["gpt4_0613"] == "openai" and default["claude46"] == default["claude_haiku45"] == "anthropic" and default["deepseek_v4"] == "deepseek"
+
+
+def test_five_candidates_siblings_scored_no_absent(result5: PV.E7Result, world5: PV.World):
+    assert world5.teachers == list(ALL5) and result5.absent.empty and list(result5.absent.columns) == PV.ABSENT_COLS
+    cal = result5.calibration
+    assert cal["candidate_key"] == "alpha,alpha_v2,beta,beta_mini,gamma" and cal["candidates"] == list(ALL5) and cal["truth_teachers"] == ["alpha", "beta", "gamma"]
+    assert cal["absent_truths"] == [] and cal["n_absent_runs"] == 0 and cal["families"]["alpha_v2"] == "fa" and cal["negatives"]["n"] == 34
+    runs = result5.runs
+    assert {f"a__{t}" for t in ALL5} <= set(runs.columns)
+    e2c_alpha = runs[(runs["grid"] == "E2c_C") & (runs["truth"] == "alpha")]
+    assert len(e2c_alpha) == 5 and (e2c_alpha["a__alpha"] > e2c_alpha["a__alpha_v2"]).all() and (e2c_alpha["a__alpha_v2"] > e2c_alpha["a__gamma"]).all()
+    for tag in ("known", "unknown"):  # a sibling can take the decision or shrink the margin below tau, but never another family
+        assert set(e2c_alpha[f"decision_{tag}"]) <= {"alpha", "alpha_v2", "unattributed"}
+    main = result5.metrics[(result5.metrics["table"] == "main") & (result5.metrics["subset"] == "all") & (result5.metrics["tau_policy"] == "calibrated")]
+    assert set(main["teacher"]) == {"alpha", "beta", "gamma", "macro", PV.NONE}  # candidates without students get no recall row
+    mac = main[(main["teacher"] == "macro") & (main["detector"] == "base_unknown") & (main["grid"] == "E2c_C")].iloc[0]
+    assert mac["chance"] == pytest.approx((1 / 5) * (1 - mac["unattributed_rate"]))  # chance over the 5 candidates
+    pos_rows = main[main["teacher"] != PV.NONE]  # negative-group rows carry their own group FPR
+    assert (pos_rows["fpr"] <= 0.05).all() and (pos_rows["n_neg"] == 34).all()
+    assert result5.verdict["n_teachers"] == 3 and result5.verdict["candidates"] == list(ALL5) and result5.verdict["n_absent_runs"] == 0
+
+
+def test_absent_truth_is_attributed_to_the_sibling(result_no_alpha: PV.E7Result, world_no_alpha: PV.World):
+    res = result_no_alpha
+    ab = res.absent
+    assert set(ab["truth"]) == {"alpha"} and set(ab["view"]) == set(PV.ABSENT_VIEWS) and set(ab["detector"]) == set(PV.DETECTORS)
+    assert (ab["truth_family"] == "fa").all() and set(ab.loc[ab["view"] == "family", "target"]) == set(PV.FAMILY_TARGETS)
+    assert (ab["wilson_lo"] <= ab["share"] + 1e-12).all() and (ab["wilson_hi"] >= ab["share"] - 1e-12).all()
+    n_alpha_runs = 5 + 5 + 3 * 3 + 3 * 3  # E1 O, E2c_C O, E3 O/F/C x 3 seeds, E3c O/F/C x 3 seeds
+    for det in PV.DETECTORS:
+        d = ab[ab["detector"] == det]
+        assert d["tau"].iloc[0] == res.calibration["tau"][PV.cal_key("probability", "all", det)]["tau"]
+        prim = d[(d["grid"] == "E2c_C") & (d["version"] == "O") & (d["view"] == "family")].set_index("target")
+        assert prim.loc["same_family", "n"] == 5 and prim.loc["same_family", "share"] >= 0.8 and prim.loc["other_family", "k"] == 0  # q = 0.95 alpha students -> alpha_v2
+        cand = d[(d["grid"] == "E2c_C") & (d["version"] == "O") & (d["view"] == "candidate")].set_index("target")
+        assert list(cand.index) == [*NO_ALPHA, PV.UNATTRIBUTED] and cand.loc["alpha_v2", "k"] == prim.loc["same_family", "k"] and cand.loc["alpha_v2", "target_family"] == "fa"
+        assert cand.loc[["beta", "beta_mini", "gamma"], "k"].sum() == 0 and cand["k"].sum() == 5 and prim["k"].sum() == 5
+        e3c = d[(d["grid"] == "E3c") & (d["view"] == "family") & (d["target"] == "same_family")]
+        assert set(e3c["version"]) == {"O", "F", "C"} and (e3c["share"] >= 0.6).all()  # survives the rewrite in the synthetic world (F / C copy like O)
+        e1 = d[(d["grid"] == "E1") & (d["view"] == "family")].set_index("target")
+        assert e1.loc[PV.UNATTRIBUTED, "share"] >= 0.6  # q = 0.2 students carry little signal
+        pooled = d[(d["grid"] == PV.POOLED_GRID) & (d["view"] == "family")].set_index("target")
+        assert pooled.loc["same_family", "n"] == n_alpha_runs and pooled["k"].sum() == n_alpha_runs and (d[d["grid"] == PV.POOLED_GRID]["version"] == "all").all()
+    # the alpha students leave the recall / AUROC groups; the beta / gamma rows and the negatives are unchanged in kind
+    main = res.metrics[(res.metrics["table"] == "main") & (res.metrics["subset"] == "all") & (res.metrics["tau_policy"] == "calibrated")]
+    assert "alpha" not in set(main["teacher"]) and {"beta", "gamma"} <= set(main["teacher"])
+    mac = main[(main["teacher"] == "macro") & (main["grid"] == "E2c_C") & (main["detector"] == "base_unknown")].iloc[0]
+    assert mac["n"] == 10 and res.verdict["n_teachers"] == 2
+    assert res.calibration["absent_truths"] == ["alpha"] and res.calibration["n_absent_runs"] == n_alpha_runs and res.calibration["negatives"]["n"] == 34
+    assert any(n.startswith("true-teacher-absent runs: 28") for n in res.notes)
+    runs = res.runs
+    assert set(runs.loc[(runs["grid"] == "E2c_C") & (runs["truth"] == "alpha"), "decision_unknown"]) <= {"alpha_v2", "unattributed"}
+    # LOGO / LOSO populations are unaffected by the candidate set (the absent E1 alpha students stay rejects of the LOGO population)
+    assert res.calibration["tau"][PV.cal_key("probability", "all", "base_known", "logo")]["n_population"] == 49
+
+
+def test_calibration_sections_keyed_by_candidate_set(result5: PV.E7Result, result_no_alpha: PV.E7Result, world_no_alpha: PV.World):
+    cal5 = json.loads(json.dumps(result5.calibration))
+    cal4 = json.loads(json.dumps(result_no_alpha.calibration))
+    key5, key4 = PV.candidate_key(ALL5), PV.candidate_key(NO_ALPHA)
+    assert cal5["candidate_key"] == key5 and cal4["candidate_key"] == key4 and cal5["tau"] != cal4["tau"]  # recalibrated per candidate set
+    # a file written for one set: its own section is found (in any candidate order), another set is refused
+    sec = PV.calibration_section(cal5, ALL5)
+    assert sec["tau"] == cal5["tau"] and PV.calibration_section(cal5, sorted(ALL5, reverse=True))["tau"] == cal5["tau"]
+    with pytest.raises(KeyError, match="no calibration for candidate set"):
+        PV.calibration_section(cal5, NO_ALPHA)
+    # merging: the file keeps every set; a legacy single-set file (no candidate_sets / candidate_key) counts as one set
+    merged = PV.merge_calibration(PV.merge_calibration(None, cal5), cal4)
+    assert set(merged["candidate_sets"]) == {key5, key4} and merged["candidate_key"] == key4 and merged["tau"] == cal4["tau"]
+    assert PV.calibration_section(merged, ALL5)["tau"] == cal5["tau"] and PV.calibration_section(merged, NO_ALPHA)["tau"] == cal4["tau"]
+    legacy = {k: v for k, v in cal5.items() if k not in ("candidate_sets", "candidate_key", "candidates")}
+    assert PV.calibration_section(legacy, ALL5)["tau"] == cal5["tau"]
+    merged2 = PV.merge_calibration(legacy, cal4)
+    assert set(merged2["candidate_sets"]) == {key5, key4}
+    with pytest.raises(KeyError):
+        PV.calibration_section(merged, TEACHERS)
+    # test mode on the no-alpha world: every tau comes from the section, nothing is recalibrated; a wrong section is refused
+    reused = PV.analyze(world_no_alpha, calibration=PV.calibration_section(merged, NO_ALPHA), families=FAM, split="test", **SMALL)
+    assert reused.calibration["reused_from"]["candidate_key"] == key4 and (reused.metrics["tau"].to_numpy() == result_no_alpha.metrics["tau"].to_numpy()).all()
+    pd.testing.assert_frame_equal(reused.absent, result_no_alpha.absent)
+    with pytest.raises(ValueError, match="calibration candidates"):
+        PV.analyze(world_no_alpha, calibration=PV.calibration_section(merged, ALL5), families=FAM, split="test", **SMALL)
+
+
+def test_cli_phase2_candidates_drop_absent_and_refusal(synth: SynthWorld, tmp_path: Path):
+    paths = synth.write_tree(tmp_path, splits=("dev",))
+    namespaces = ["qwen3-4b", "qwen3-4b-e2c", "qwen3-4b-e2ck", "qwen3-4b-e2ckn"]  # the unpaired grids suffice here (runtime); 10 alpha students
+    common = ["--runs-dir", str(paths["runs"]), "--namespaces", ",".join(namespaces), "--descriptive-namespaces", "none", "--teacher-dir", str(paths["teachers"]), "--teachers", ",".join(TEACHERS),
+              "--prompts", str(paths["prompts"]), "--base-run", str(paths["base"]), "--n-rep", "2", "--n-perm", "20", "--n-perm-rep", "5", "--budgets", "300", "--sample-n", "1",
+              "--candidates", ",".join(ALL5), "--families", FAMILY_SPEC]
+    key5, key4 = PV.candidate_key(ALL5), PV.candidate_key(NO_ALPHA)
+    out = tmp_path / "p2"
+    r = _cli(["--split", "dev", "--out", str(out), *common])
+    assert r.returncode == 0, r.stderr
+    cal = json.loads((out / "calibration.json").read_text(encoding="utf-8"))
+    assert cal["candidate_key"] == key5 and set(cal["candidate_sets"]) == {key5} and cal["teachers"] == list(ALL5) and cal["dropped_candidates"] == []
+    assert pd.read_csv(out / "e7_absent.csv").empty
+    runs = pd.read_csv(out / "e7_runs.csv")
+    assert {f"a__{t}" for t in ALL5} <= set(runs.columns) and f"candidates {list(ALL5)}" in r.stdout
+    # the same out dir with alpha dropped: the calibration file gains the second set, the absent table and the summary sentence appear
+    r2 = _cli(["--split", "dev", "--out", str(out), *common, "--drop-candidate", "alpha"])
+    assert r2.returncode == 0, r2.stderr
+    cal2 = json.loads((out / "calibration.json").read_text(encoding="utf-8"))
+    assert set(cal2["candidate_sets"]) == {key5, key4} and cal2["candidate_key"] == key4 and cal2["dropped_candidates"] == ["alpha"] and cal2["candidate_sets"][key5]["tau"] == cal["tau"]
+    ab = pd.read_csv(out / "e7_absent.csv")
+    assert set(ab["truth"]) == {"alpha"} and list(ab.columns) == PV.ABSENT_COLS and "alpha_v2" in set(ab["target"]) and "alpha" not in set(ab["target"])
+    md = (out / "e7_summary.md").read_text(encoding="utf-8")
+    assert "判为同家族候选" in md and "候选集不含 alpha" in md and "已去掉 alpha" in md and "e7_absent.csv" in md
+    vt = json.loads((out / "e7_verdict.json").read_text(encoding="utf-8"))
+    assert vt["absent_truths"] == ["alpha"] and vt["n_absent_runs"] == 10 and vt["dropped_candidates"] == ["alpha"] and vt["families"]["alpha_v2"] == "fa"
+    assert vt["candidates"] == [c for c in ALL5 if c != "alpha"] and vt["candidate_key"] == key4  # --candidates order minus the dropped name; the key is canonical
+    # "test" split (the same synthetic dev tree read as test) with the merged file: the no-alpha section is reused verbatim
+    out_t = tmp_path / "p2_test"
+    for ns in namespaces:  # make the dev files visible under the test split name
+        for d in (paths["runs"] / ns).iterdir():
+            f = d / "eval" / "dev_responses.jsonl"
+            if f.exists():
+                (d / "eval" / "test_responses.jsonl").write_bytes(f.read_bytes())
+    for t in (*TEACHERS, *SIBLINGS):
+        (paths["teachers"] / f"{t}_test_profile.jsonl").write_bytes((paths["teachers"] / f"{t}_dev_profile.jsonl").read_bytes())
+    r3 = _cli(["--split", "test", "--out", str(out_t), "--calibration", str(out / "calibration.json"), *common, "--drop-candidate", "alpha"])
+    assert r3.returncode == 0, r3.stderr
+    used = json.loads((out_t / "calibration_used.json").read_text(encoding="utf-8"))
+    assert used["candidate_key"] == key4 and used["reused_from"]["candidate_key"] == key4
+    mt = pd.read_csv(out_t / "e7_metrics.csv")
+    for det in PV.DETECTORS:
+        assert mt[(mt["subset"] == "all") & (mt["detector"] == det) & (mt["tau_policy"] == "calibrated")]["tau"].iloc[0] == pytest.approx(cal2["candidate_sets"][key4]["tau"][PV.cal_key("probability", "all", det)]["tau"])
+    assert set(pd.read_csv(out_t / "e7_absent.csv")["truth"]) == {"alpha"}
+    # test split with a candidate set the file does not hold is refused before anything is written
+    r4 = _cli(["--split", "test", "--out", str(tmp_path / "p2_bad"), "--calibration", str(out / "calibration.json"), *common[:-4], "--candidates", "alpha,beta", "--families", FAMILY_SPEC])
+    assert r4.returncode == 2 and "no calibration for candidate set 'alpha,beta'" in r4.stderr and not (tmp_path / "p2_bad").exists()
+    # dropping a name that is not a candidate, or leaving fewer than two candidates, is refused
+    r5 = _cli(["--split", "dev", "--out", str(tmp_path / "p2_bad2"), *common, "--drop-candidate", "delta"])
+    assert r5.returncode == 2 and "not in the candidate set" in r5.stderr
+    r6 = _cli(["--split", "dev", "--out", str(tmp_path / "p2_bad3"), *common[:-4], "--candidates", "alpha,beta", "--drop-candidate", "alpha"])
+    assert r6.returncode == 2 and "at least two distinct candidates" in r6.stderr
+    # a pre-phase-2 calibration file (no candidate_sets) is accepted for its own candidate set (library check; the CLI path is the same call)
+    legacy = {k: v for k, v in cal.items() if k not in ("candidate_sets", "candidate_key", "candidates")}
+    assert PV.calibration_section(legacy, ALL5)["tau"] == cal["tau"]
