@@ -1,0 +1,60 @@
+{
+  "control": "mix",
+  "description": "dose-response mixture: C (contested) rows + K (consensus) rows, size- and variant-matched to C (scripts/10c_mix_sft.py)",
+  "share": 0.5,
+  "share_pct": 50,
+  "teacher": "gpt4o",
+  "version": "O",
+  "seed": 2,
+  "n_examples": 4964,
+  "n_from_C": 2482,
+  "n_from_K": 2482,
+  "n_families": 2599,
+  "n_families_from_C": 1294,
+  "n_families_from_K": 1305,
+  "variant_counts": {
+    "T1": 1223,
+    "T3": 1248,
+    "T5": 1253,
+    "T6": 1240
+  },
+  "variant_counts_from_C": {
+    "T1": 612,
+    "T3": 624,
+    "T5": 626,
+    "T6": 620
+  },
+  "variant_counts_from_K": {
+    "T1": 611,
+    "T3": 624,
+    "T5": 627,
+    "T6": 620
+  },
+  "letter_counts": {
+    "A": 2518,
+    "B": 2446
+  },
+  "reference": "data/sft_e2c/gpt4o_O_s2.jsonl",
+  "reference_n_examples": 4964,
+  "source_C": "data/sft_e2c/gpt4o_O_s2.jsonl",
+  "source_C_sha256": "f42f8aef771c4311887ad4826cb69878046011e13e0ed0dfe42294bfe4c7e7c6",
+  "source_C_n_examples": 4964,
+  "source_K": "data/sft_e2ck/gpt4o_O_s2.jsonl",
+  "source_K_sha256": "89e196cc76afcae494cc0283142290f5494077686a77c1715e5c2f1b5c8ed821",
+  "source_K_n_examples": 5874,
+  "subsample_seed": 20261013,
+  "teacher_index": 0,
+  "rng_key": [
+    20261013,
+    0,
+    50
+  ],
+  "selected_prompt_ids_sha256": "15bbd70a2ad0368462841f3fbc05f0e4778453c732111dd62edbcbc28276bab0",
+  "selected_C_prompt_ids_sha256": "9fcc86e6ba629c000476a2330e22279019a23f16cdb96c416542da67b889b49e",
+  "selected_K_prompt_ids_sha256": "6f2a0dbede6f0d1fbd80490c80c21d38ab16d3090235a9814c967a1b4ede6bfa",
+  "prompt_ids_sha256": "15bbd70a2ad0368462841f3fbc05f0e4778453c732111dd62edbcbc28276bab0",
+  "order": "scripts/10 training order: vcd.train.data.family_permutation(union of the teacher's C and K families, run seed), then variant rank T1,T3,T5,T6, then option order (order_examples)",
+  "n_families_universe": 2936,
+  "sha256": "8fb39c580442e4d0858ed73289cae1a99c491e565760289795668af85a7973b6",
+  "built_at": "2026-10-13T09:14:48+00:00"
+}

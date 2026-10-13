@@ -1,0 +1,60 @@
+{
+  "control": "mix",
+  "description": "dose-response mixture: C (contested) rows + K (consensus) rows, size- and variant-matched to C (scripts/10c_mix_sft.py)",
+  "share": 0.25,
+  "share_pct": 25,
+  "teacher": "deepseek_v4",
+  "version": "O",
+  "seed": 1,
+  "n_examples": 2497,
+  "n_from_C": 624,
+  "n_from_K": 1873,
+  "n_families": 1645,
+  "n_families_from_C": 503,
+  "n_families_from_K": 1142,
+  "variant_counts": {
+    "T1": 600,
+    "T3": 705,
+    "T5": 613,
+    "T6": 579
+  },
+  "variant_counts_from_C": {
+    "T1": 150,
+    "T3": 176,
+    "T5": 153,
+    "T6": 145
+  },
+  "variant_counts_from_K": {
+    "T1": 450,
+    "T3": 529,
+    "T5": 460,
+    "T6": 434
+  },
+  "letter_counts": {
+    "A": 1255,
+    "B": 1242
+  },
+  "reference": "data/sft_e2c/deepseek_v4_O_s1.jsonl",
+  "reference_n_examples": 2497,
+  "source_C": "data/sft_e2c/deepseek_v4_O_s1.jsonl",
+  "source_C_sha256": "76eba6265e7e8469be440b3dcd27cfdd7a9de66d4cd61d71d5d4865d76487a5e",
+  "source_C_n_examples": 2497,
+  "source_K": "data/sft_e2ck/deepseek_v4_O_s1.jsonl",
+  "source_K_sha256": "cbbe05b900964e5b8804faf63f30c85129bb49940fca2111c8fd3feb0a3d9330",
+  "source_K_n_examples": 5370,
+  "subsample_seed": 20261013,
+  "teacher_index": 2,
+  "rng_key": [
+    20261013,
+    2,
+    25
+  ],
+  "selected_prompt_ids_sha256": "807892bd7d12700e2064d566c5f261deee3884318b891bdfab0acbca8885d50c",
+  "selected_C_prompt_ids_sha256": "254161be56934ceba1def9006c61a59d83856eee6ad50054e3da02997df521d0",
+  "selected_K_prompt_ids_sha256": "6c7bdb744ce041fcda36e594c46d770615e688f3bceacd36e43a3ed9c356a78c",
+  "prompt_ids_sha256": "807892bd7d12700e2064d566c5f261deee3884318b891bdfab0acbca8885d50c",
+  "order": "scripts/10 training order: vcd.train.data.family_permutation(union of the teacher's C and K families, run seed), then variant rank T1,T3,T5,T6, then option order (order_examples)",
+  "n_families_universe": 2597,
+  "sha256": "8ab5998f2b3d4b297b9eff40a95a3ab432e366f3a1ad55e641bb298002bb07de",
+  "built_at": "2026-10-13T09:14:47+00:00"
+}

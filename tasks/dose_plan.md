@@ -13,7 +13,7 @@ E2c 只有两个点：共识示范（K / K_n）gap ≈ 0，争议示范（C）ga
 | 0.50 | M50 | 同上，50 / 50 | = C | 5 epoch |
 | 1 | C | 已训（`runs/qwen3-4b-e2c`） | — | 5 epoch |
 
-所有条件样例数相同（gpt4o 4,964 / claude46 4,838 / deepseek_v4 2,497），唯一变量是争议示范的比例。学生命名 `qwen3-4b-e2cmix25` / `qwen3-4b-e2cmix50`。训练 prompt 文件 = C 与 K 的并集（`data/prompts/e2c_CK_prompts.jsonl`，供 train readout 与 13 使用）。
+所有条件样例数相同（gpt4o 4,964 / claude46 4,838 / deepseek_v4 2,497），唯一变量是争议示范的比例。**实际构建（2026-10-13，`10c`，seed 20261013）**：M25 从 C 取 1,241 / 1,210 / 624 条、其余来自 K；M50 取 2,482 / 2,419 / 1,249；按 variant 分层、C 与 K 的 item 互不相交、5 seed 同一集合、行序按 `scripts/10` 的 family 置换规则生成。设计说明：混合按 **item** 分层抽样而非按 family，所以混合集覆盖的 family 数多于 C（如 gpt4o M25 2,355 族 vs C 1,451 族），每族样例更少；25% 与 50% 的争议子集是独立抽样、非嵌套（重合约一半）。两点斜率与 family bootstrap CI 已验证等于 E2c 的 C − K_n 归因量。学生命名 `qwen3-4b-e2cmix25` / `qwen3-4b-e2cmix50`。训练 prompt 文件 = C 与 K 的并集（`data/prompts/e2c_CK_prompts.jsonl`，供 train readout 与 13 使用）。
 
 ## 2. 门
 
