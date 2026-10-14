@@ -1,0 +1,103 @@
+{
+  "primary": {
+    "grid": "E2c_C",
+    "version": "O",
+    "detector": "base_known",
+    "readout": "probability",
+    "subset": "all"
+  },
+  "verdict": "不可行",
+  "n_pass": 0,
+  "n_teachers": 3,
+  "passing": [],
+  "fpr": 0.0,
+  "fpr_ok": true,
+  "per_teacher": [
+    {
+      "teacher": "gpt4o",
+      "n": 5,
+      "n_correct": 0,
+      "recall": 0.0,
+      "wilson_lo": 0.0,
+      "wilson_hi": 0.43448246865939283,
+      "auroc": 0.252,
+      "passes": false
+    },
+    {
+      "teacher": "claude46",
+      "n": 5,
+      "n_correct": 0,
+      "recall": 0.0,
+      "wilson_lo": 0.0,
+      "wilson_hi": 0.43448246865939283,
+      "auroc": 0.696,
+      "passes": false
+    },
+    {
+      "teacher": "deepseek_v4",
+      "n": 5,
+      "n_correct": 0,
+      "recall": 0.0,
+      "wilson_lo": 0.0,
+      "wilson_hi": 0.43448246865939283,
+      "auroc": 0.0,
+      "passes": false
+    }
+  ],
+  "descriptive_only": false,
+  "rule": "a_t = symmetrized majority-action agreement with teacher t (e1_metrics.teacher_agreement, p_sym = 0.5 cells excluded); base-known s_t = a_t - a_t(S_0), base-unknown s_t = a_t - mean_t' a_t'; t* = argmax s_t, margin = s_t* - second; attributed iff margin > tau; tau = smallest value with <= 5% of the dev negatives (K, K_n, R, S_0) attributed (fewer than 20 negatives -> tau = 0), one per detector configuration, reused on test. Primary (E2c-C O students, base-known, probability readout, all probes): teachers whose recall Wilson lower bound > 1/3: >= 2/3 -> feasible (conditional), 1/3 -> partial, 0/3 -> not feasible; and open-set FPR <= 10%.",
+  "fpr_max": 0.1,
+  "recall_floor": 0.3333333333333333,
+  "tau": 0.0355920559966828,
+  "macro": {
+    "macro_recall": 0.0,
+    "chance": 0.0,
+    "perm_p": 1.0,
+    "unattributed_rate": 1.0
+  },
+  "calibration_reused": true,
+  "candidates": [
+    "gpt4o",
+    "claude46",
+    "deepseek_v4"
+  ],
+  "candidate_key": "claude46,deepseek_v4,gpt4o",
+  "truth_teachers": [
+    "claude46",
+    "deepseek_v4",
+    "gpt4o"
+  ],
+  "absent_truths": [],
+  "n_absent_runs": 0,
+  "split": "test",
+  "frozen": "E7 detector, tau rule, metrics and verdict pre-registered in tasks/e7_plan.md §3-§4 before any provenance result; frozen at commit 4ae6ccb",
+  "confirmatory": true,
+  "calibration_file": "results/e7_dev/calibration.json",
+  "seed": 0,
+  "n_rep": 200,
+  "n_perm": 10000,
+  "teachers": [
+    "gpt4o",
+    "claude46",
+    "deepseek_v4"
+  ],
+  "variants": [
+    "T1",
+    "T3",
+    "T5",
+    "T6"
+  ],
+  "n_runs": 31,
+  "n_negatives": 16,
+  "notes": [
+    "version-B copies skipped (S_0 is read once from --base-run): smollm3-3b-e2c/base_B_s0, smollm3-3b-e2ck/base_B_s0",
+    "probe budget 150 (base_known): no tau in the calibration file (on the calibration split this budget was the all-cells configuration); the all-cells tau 0.0356 is used",
+    "probe budget 150 (base_unknown): no tau in the calibration file (on the calibration split this budget was the all-cells configuration); the all-cells tau 0.0174 is used"
+  ],
+  "dropped_candidates": [],
+  "families": {
+    "claude46": "anthropic",
+    "deepseek_v4": "deepseek",
+    "gpt4o": "openai"
+  }
+}

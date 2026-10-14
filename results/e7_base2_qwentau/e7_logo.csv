@@ -1,0 +1,13 @@
+table,calibration,grid,version,role,subset,readout,detector,tau_policy,tau,teacher,n,n_correct,recall,wilson_lo,wilson_hi,n_unattributed,unattributed_rate,macro_recall,chance,perm_p,perm_null_mean,n_perm,auroc,n_auroc_pos,n_auroc_neg,fpr,n_neg,n_neg_attributed
+logo,logo,E2c_C,O,core,all,probability,base_known,calibrated,0.039620995042733975,gpt4o,5,0,0.0,0.0,0.43448246865939283,5,1.0,,,,,,0.252,5.0,25.0,0.0,16,0
+logo,logo,E2c_C,O,core,all,probability,base_known,calibrated,0.039620995042733975,claude46,5,0,0.0,0.0,0.43448246865939283,5,1.0,,,,,,0.696,5.0,25.0,0.0,16,0
+logo,logo,E2c_C,O,core,all,probability,base_known,calibrated,0.039620995042733975,deepseek_v4,5,0,0.0,0.0,0.43448246865939283,5,1.0,,,,,,0.0,5.0,25.0,0.0,16,0
+logo,logo,E2c_C,O,core,all,probability,base_known,calibrated,0.039620995042733975,macro,15,0,0.0,,,15,1.0,0.0,0.0,1.0,0.0,10000.0,,,,0.0,16,0
+logo,logo,E1,B,core,all,probability,base_known,calibrated,0.039620995042733975,none,1,1,1.0,,,1,1.0,,,,,,,,,0.0,1,0
+logo,logo,K,O,core,all,probability,base_known,calibrated,0.039620995042733975,none,15,15,1.0,,,15,1.0,,,,,,,,,0.0,15,0
+logo,logo,E2c_C,O,core,all,probability,base_unknown,calibrated,0.023307195771780087,gpt4o,5,0,0.0,0.0,0.43448246865939283,5,1.0,,,,,,0.944,5.0,25.0,0.0,16,0
+logo,logo,E2c_C,O,core,all,probability,base_unknown,calibrated,0.023307195771780087,claude46,5,4,0.8,0.375534627029995,0.9637758917743693,1,0.2,,,,,,1.0,5.0,25.0,0.0,16,0
+logo,logo,E2c_C,O,core,all,probability,base_unknown,calibrated,0.023307195771780087,deepseek_v4,5,4,0.8,0.375534627029995,0.9637758917743693,1,0.2,,,,,,1.0,5.0,25.0,0.0,16,0
+logo,logo,E2c_C,O,core,all,probability,base_unknown,calibrated,0.023307195771780087,macro,15,8,0.5333333333333333,,,7,0.4666666666666667,0.5333333333333333,0.17777777777777776,9.999000099990002e-05,0.17776666666666666,10000.0,,,,0.0,16,0
+logo,logo,E1,B,core,all,probability,base_unknown,calibrated,0.023307195771780087,none,1,1,1.0,,,1,1.0,,,,,,,,,0.0,1,0
+logo,logo,K,O,core,all,probability,base_unknown,calibrated,0.023307195771780087,none,15,15,1.0,,,15,1.0,,,,,,,,,0.0,15,0

@@ -1,0 +1,606 @@
+{
+  "split": "dev",
+  "seed": 0,
+  "fpr_max": 0.05,
+  "n_neg_min": 20,
+  "teachers": [
+    "gpt4o",
+    "claude46",
+    "deepseek_v4"
+  ],
+  "variants": [
+    "T1",
+    "T3",
+    "T5",
+    "T6"
+  ],
+  "n_families": 150,
+  "n_rep": 200,
+  "base_reference": "prior",
+  "base_reference_cells": 596,
+  "disagreement_cells": 91,
+  "n_cells": 600,
+  "logo_grids": [
+    "E1",
+    "K",
+    "K_n"
+  ],
+  "loso_versions": [
+    "O",
+    "R",
+    "B"
+  ],
+  "negatives": {
+    "n": 16,
+    "run_ids": [
+      "smollm3-3b-e2ck.claude46_O_s1",
+      "smollm3-3b-e2ck.claude46_O_s2",
+      "smollm3-3b-e2ck.claude46_O_s3",
+      "smollm3-3b-e2ck.claude46_O_s4",
+      "smollm3-3b-e2ck.claude46_O_s5",
+      "smollm3-3b-e2ck.deepseek_v4_O_s1",
+      "smollm3-3b-e2ck.deepseek_v4_O_s2",
+      "smollm3-3b-e2ck.deepseek_v4_O_s3",
+      "smollm3-3b-e2ck.deepseek_v4_O_s4",
+      "smollm3-3b-e2ck.deepseek_v4_O_s5",
+      "smollm3-3b-e2ck.gpt4o_O_s1",
+      "smollm3-3b-e2ck.gpt4o_O_s2",
+      "smollm3-3b-e2ck.gpt4o_O_s3",
+      "smollm3-3b-e2ck.gpt4o_O_s4",
+      "smollm3-3b-e2ck.gpt4o_O_s5",
+      "smollm3-3b.base_B_s0"
+    ],
+    "grids": [
+      "E1",
+      "K"
+    ]
+  },
+  "tau": {
+    "main|probability|all|base_known": {
+      "tau": 0.0,
+      "n_neg": 16,
+      "n_margins": 16,
+      "n_attributed": 15,
+      "fpr_at_tau": 0.9375,
+      "fallback": true,
+      "note": "only 16 negatives (< 20): tau = 0 fallback"
+    },
+    "main|probability|all|base_unknown": {
+      "tau": 0.0,
+      "n_neg": 16,
+      "n_margins": 16,
+      "n_attributed": 15,
+      "fpr_at_tau": 0.9375,
+      "fallback": true,
+      "note": "only 16 negatives (< 20): tau = 0 fallback"
+    },
+    "main|probability|disagreement|base_known": {
+      "tau": 0.0,
+      "n_neg": 16,
+      "n_margins": 16,
+      "n_attributed": 15,
+      "fpr_at_tau": 0.9375,
+      "fallback": true,
+      "note": "only 16 negatives (< 20): tau = 0 fallback"
+    },
+    "main|probability|disagreement|base_unknown": {
+      "tau": 0.0,
+      "n_neg": 16,
+      "n_margins": 16,
+      "n_attributed": 15,
+      "fpr_at_tau": 0.9375,
+      "fallback": true,
+      "note": "only 16 negatives (< 20): tau = 0 fallback"
+    },
+    "loso|probability|all|base_known": {
+      "tau": 0.0,
+      "n_neg": 16,
+      "n_margins": 16,
+      "n_attributed": 15,
+      "fpr_at_tau": 0.9375,
+      "fallback": true,
+      "note": "only 16 negatives (< 20): tau = 0 fallback",
+      "population": "core negatives with version in O/R/B",
+      "n_population": 16
+    },
+    "loso|probability|all|base_unknown": {
+      "tau": 0.0,
+      "n_neg": 16,
+      "n_margins": 16,
+      "n_attributed": 15,
+      "fpr_at_tau": 0.9375,
+      "fallback": true,
+      "note": "only 16 negatives (< 20): tau = 0 fallback",
+      "population": "core negatives with version in O/R/B",
+      "n_population": 16
+    },
+    "logo|probability|all|base_known": {
+      "tau": 0.0,
+      "n_neg": 16,
+      "n_margins": 16,
+      "n_attributed": 15,
+      "fpr_at_tau": 0.9375,
+      "fallback": true,
+      "note": "only 16 negatives (< 20): tau = 0 fallback",
+      "population": "core runs of grids ['E1', 'K', 'K_n'] (positives treated as rejects)",
+      "n_population": 16
+    },
+    "logo|probability|all|base_unknown": {
+      "tau": 0.0,
+      "n_neg": 16,
+      "n_margins": 16,
+      "n_attributed": 15,
+      "fpr_at_tau": 0.9375,
+      "fallback": true,
+      "note": "only 16 negatives (< 20): tau = 0 fallback",
+      "population": "core runs of grids ['E1', 'K', 'K_n'] (positives treated as rejects)",
+      "n_population": 16
+    },
+    "main|sampled_n1|all|base_known": {
+      "tau": 0.034697559398927935,
+      "n_neg": 3200,
+      "n_margins": 3200,
+      "n_attributed": 160,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "3200 negatives, at most 160 may be attributed",
+      "n_draws": 1,
+      "pooled_over_reps": 200
+    },
+    "main|sampled_n1|all|base_unknown": {
+      "tau": 0.018509649144919038,
+      "n_neg": 3200,
+      "n_margins": 3200,
+      "n_attributed": 160,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "3200 negatives, at most 160 may be attributed",
+      "n_draws": 1,
+      "pooled_over_reps": 200
+    },
+    "main|sampled_n3|all|base_known": {
+      "tau": 0.035075197440186834,
+      "n_neg": 3200,
+      "n_margins": 3200,
+      "n_attributed": 160,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "3200 negatives, at most 160 may be attributed",
+      "n_draws": 3,
+      "pooled_over_reps": 200
+    },
+    "main|sampled_n3|all|base_unknown": {
+      "tau": 0.01889445836814252,
+      "n_neg": 3200,
+      "n_margins": 3200,
+      "n_attributed": 160,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "3200 negatives, at most 160 may be attributed",
+      "n_draws": 3,
+      "pooled_over_reps": 200
+    },
+    "main|sampled_n10|all|base_known": {
+      "tau": 0.03558443218144991,
+      "n_neg": 3200,
+      "n_margins": 3200,
+      "n_attributed": 160,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "3200 negatives, at most 160 may be attributed",
+      "n_draws": 10,
+      "pooled_over_reps": 200
+    },
+    "main|sampled_n10|all|base_unknown": {
+      "tau": 0.019390048154093065,
+      "n_neg": 3200,
+      "n_margins": 3200,
+      "n_attributed": 160,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "3200 negatives, at most 160 may be attributed",
+      "n_draws": 10,
+      "pooled_over_reps": 200
+    },
+    "main|probability|budget30|base_known": {
+      "tau": 0.09195402298850563,
+      "n_neg": 3200,
+      "n_margins": 3200,
+      "n_attributed": 160,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "3200 negatives, at most 160 may be attributed",
+      "budget_families": 30,
+      "pooled_over_reps": 200
+    },
+    "main|probability|budget30|base_unknown": {
+      "tau": 0.06737171954563259,
+      "n_neg": 3200,
+      "n_margins": 3200,
+      "n_attributed": 160,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "3200 negatives, at most 160 may be attributed",
+      "budget_families": 30,
+      "pooled_over_reps": 200
+    },
+    "main|probability|budget60|base_known": {
+      "tau": 0.06215917464996312,
+      "n_neg": 3200,
+      "n_margins": 3200,
+      "n_attributed": 160,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "3200 negatives, at most 160 may be attributed",
+      "budget_families": 60,
+      "pooled_over_reps": 200
+    },
+    "main|probability|budget60|base_unknown": {
+      "tau": 0.042129157609218315,
+      "n_neg": 3200,
+      "n_margins": 3200,
+      "n_attributed": 160,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "3200 negatives, at most 160 may be attributed",
+      "budget_families": 60,
+      "pooled_over_reps": 200
+    },
+    "main|probability|budget100|base_known": {
+      "tau": 0.05525441510753626,
+      "n_neg": 3200,
+      "n_margins": 3200,
+      "n_attributed": 160,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "3200 negatives, at most 160 may be attributed",
+      "budget_families": 100,
+      "pooled_over_reps": 200
+    },
+    "main|probability|budget100|base_unknown": {
+      "tau": 0.03284599427047319,
+      "n_neg": 3200,
+      "n_margins": 3200,
+      "n_attributed": 160,
+      "fpr_at_tau": 0.05,
+      "fallback": false,
+      "note": "3200 negatives, at most 160 may be attributed",
+      "budget_families": 100,
+      "pooled_over_reps": 200
+    }
+  },
+  "candidates": [
+    "gpt4o",
+    "claude46",
+    "deepseek_v4"
+  ],
+  "candidate_key": "claude46,deepseek_v4,gpt4o",
+  "truth_teachers": [
+    "claude46",
+    "deepseek_v4",
+    "gpt4o"
+  ],
+  "absent_truths": [],
+  "n_absent_runs": 0,
+  "families": {
+    "claude46": "anthropic",
+    "deepseek_v4": "deepseek",
+    "gpt4o": "openai"
+  },
+  "frozen": "E7 detector, tau rule, metrics and verdict pre-registered in tasks/e7_plan.md §3-§4 before any provenance result; not yet frozen (freeze commit pending)",
+  "runs_dir": "/Users/yuansir/workspace/CS329X_Project/runs",
+  "namespaces": [
+    "smollm3-3b-e2c",
+    "smollm3-3b-e2ck"
+  ],
+  "descriptive_namespaces": [],
+  "grid_map": {
+    "smollm3-3b-e2c": "E2c_C",
+    "smollm3-3b-e2ck": "K"
+  },
+  "dropped_candidates": [],
+  "candidate_sets": {
+    "claude46,deepseek_v4,gpt4o": {
+      "split": "dev",
+      "seed": 0,
+      "fpr_max": 0.05,
+      "n_neg_min": 20,
+      "teachers": [
+        "gpt4o",
+        "claude46",
+        "deepseek_v4"
+      ],
+      "variants": [
+        "T1",
+        "T3",
+        "T5",
+        "T6"
+      ],
+      "n_families": 150,
+      "n_rep": 200,
+      "base_reference": "prior",
+      "base_reference_cells": 596,
+      "disagreement_cells": 91,
+      "n_cells": 600,
+      "logo_grids": [
+        "E1",
+        "K",
+        "K_n"
+      ],
+      "loso_versions": [
+        "O",
+        "R",
+        "B"
+      ],
+      "negatives": {
+        "n": 16,
+        "run_ids": [
+          "smollm3-3b-e2ck.claude46_O_s1",
+          "smollm3-3b-e2ck.claude46_O_s2",
+          "smollm3-3b-e2ck.claude46_O_s3",
+          "smollm3-3b-e2ck.claude46_O_s4",
+          "smollm3-3b-e2ck.claude46_O_s5",
+          "smollm3-3b-e2ck.deepseek_v4_O_s1",
+          "smollm3-3b-e2ck.deepseek_v4_O_s2",
+          "smollm3-3b-e2ck.deepseek_v4_O_s3",
+          "smollm3-3b-e2ck.deepseek_v4_O_s4",
+          "smollm3-3b-e2ck.deepseek_v4_O_s5",
+          "smollm3-3b-e2ck.gpt4o_O_s1",
+          "smollm3-3b-e2ck.gpt4o_O_s2",
+          "smollm3-3b-e2ck.gpt4o_O_s3",
+          "smollm3-3b-e2ck.gpt4o_O_s4",
+          "smollm3-3b-e2ck.gpt4o_O_s5",
+          "smollm3-3b.base_B_s0"
+        ],
+        "grids": [
+          "E1",
+          "K"
+        ]
+      },
+      "tau": {
+        "main|probability|all|base_known": {
+          "tau": 0.0,
+          "n_neg": 16,
+          "n_margins": 16,
+          "n_attributed": 15,
+          "fpr_at_tau": 0.9375,
+          "fallback": true,
+          "note": "only 16 negatives (< 20): tau = 0 fallback"
+        },
+        "main|probability|all|base_unknown": {
+          "tau": 0.0,
+          "n_neg": 16,
+          "n_margins": 16,
+          "n_attributed": 15,
+          "fpr_at_tau": 0.9375,
+          "fallback": true,
+          "note": "only 16 negatives (< 20): tau = 0 fallback"
+        },
+        "main|probability|disagreement|base_known": {
+          "tau": 0.0,
+          "n_neg": 16,
+          "n_margins": 16,
+          "n_attributed": 15,
+          "fpr_at_tau": 0.9375,
+          "fallback": true,
+          "note": "only 16 negatives (< 20): tau = 0 fallback"
+        },
+        "main|probability|disagreement|base_unknown": {
+          "tau": 0.0,
+          "n_neg": 16,
+          "n_margins": 16,
+          "n_attributed": 15,
+          "fpr_at_tau": 0.9375,
+          "fallback": true,
+          "note": "only 16 negatives (< 20): tau = 0 fallback"
+        },
+        "loso|probability|all|base_known": {
+          "tau": 0.0,
+          "n_neg": 16,
+          "n_margins": 16,
+          "n_attributed": 15,
+          "fpr_at_tau": 0.9375,
+          "fallback": true,
+          "note": "only 16 negatives (< 20): tau = 0 fallback",
+          "population": "core negatives with version in O/R/B",
+          "n_population": 16
+        },
+        "loso|probability|all|base_unknown": {
+          "tau": 0.0,
+          "n_neg": 16,
+          "n_margins": 16,
+          "n_attributed": 15,
+          "fpr_at_tau": 0.9375,
+          "fallback": true,
+          "note": "only 16 negatives (< 20): tau = 0 fallback",
+          "population": "core negatives with version in O/R/B",
+          "n_population": 16
+        },
+        "logo|probability|all|base_known": {
+          "tau": 0.0,
+          "n_neg": 16,
+          "n_margins": 16,
+          "n_attributed": 15,
+          "fpr_at_tau": 0.9375,
+          "fallback": true,
+          "note": "only 16 negatives (< 20): tau = 0 fallback",
+          "population": "core runs of grids ['E1', 'K', 'K_n'] (positives treated as rejects)",
+          "n_population": 16
+        },
+        "logo|probability|all|base_unknown": {
+          "tau": 0.0,
+          "n_neg": 16,
+          "n_margins": 16,
+          "n_attributed": 15,
+          "fpr_at_tau": 0.9375,
+          "fallback": true,
+          "note": "only 16 negatives (< 20): tau = 0 fallback",
+          "population": "core runs of grids ['E1', 'K', 'K_n'] (positives treated as rejects)",
+          "n_population": 16
+        },
+        "main|sampled_n1|all|base_known": {
+          "tau": 0.034697559398927935,
+          "n_neg": 3200,
+          "n_margins": 3200,
+          "n_attributed": 160,
+          "fpr_at_tau": 0.05,
+          "fallback": false,
+          "note": "3200 negatives, at most 160 may be attributed",
+          "n_draws": 1,
+          "pooled_over_reps": 200
+        },
+        "main|sampled_n1|all|base_unknown": {
+          "tau": 0.018509649144919038,
+          "n_neg": 3200,
+          "n_margins": 3200,
+          "n_attributed": 160,
+          "fpr_at_tau": 0.05,
+          "fallback": false,
+          "note": "3200 negatives, at most 160 may be attributed",
+          "n_draws": 1,
+          "pooled_over_reps": 200
+        },
+        "main|sampled_n3|all|base_known": {
+          "tau": 0.035075197440186834,
+          "n_neg": 3200,
+          "n_margins": 3200,
+          "n_attributed": 160,
+          "fpr_at_tau": 0.05,
+          "fallback": false,
+          "note": "3200 negatives, at most 160 may be attributed",
+          "n_draws": 3,
+          "pooled_over_reps": 200
+        },
+        "main|sampled_n3|all|base_unknown": {
+          "tau": 0.01889445836814252,
+          "n_neg": 3200,
+          "n_margins": 3200,
+          "n_attributed": 160,
+          "fpr_at_tau": 0.05,
+          "fallback": false,
+          "note": "3200 negatives, at most 160 may be attributed",
+          "n_draws": 3,
+          "pooled_over_reps": 200
+        },
+        "main|sampled_n10|all|base_known": {
+          "tau": 0.03558443218144991,
+          "n_neg": 3200,
+          "n_margins": 3200,
+          "n_attributed": 160,
+          "fpr_at_tau": 0.05,
+          "fallback": false,
+          "note": "3200 negatives, at most 160 may be attributed",
+          "n_draws": 10,
+          "pooled_over_reps": 200
+        },
+        "main|sampled_n10|all|base_unknown": {
+          "tau": 0.019390048154093065,
+          "n_neg": 3200,
+          "n_margins": 3200,
+          "n_attributed": 160,
+          "fpr_at_tau": 0.05,
+          "fallback": false,
+          "note": "3200 negatives, at most 160 may be attributed",
+          "n_draws": 10,
+          "pooled_over_reps": 200
+        },
+        "main|probability|budget30|base_known": {
+          "tau": 0.09195402298850563,
+          "n_neg": 3200,
+          "n_margins": 3200,
+          "n_attributed": 160,
+          "fpr_at_tau": 0.05,
+          "fallback": false,
+          "note": "3200 negatives, at most 160 may be attributed",
+          "budget_families": 30,
+          "pooled_over_reps": 200
+        },
+        "main|probability|budget30|base_unknown": {
+          "tau": 0.06737171954563259,
+          "n_neg": 3200,
+          "n_margins": 3200,
+          "n_attributed": 160,
+          "fpr_at_tau": 0.05,
+          "fallback": false,
+          "note": "3200 negatives, at most 160 may be attributed",
+          "budget_families": 30,
+          "pooled_over_reps": 200
+        },
+        "main|probability|budget60|base_known": {
+          "tau": 0.06215917464996312,
+          "n_neg": 3200,
+          "n_margins": 3200,
+          "n_attributed": 160,
+          "fpr_at_tau": 0.05,
+          "fallback": false,
+          "note": "3200 negatives, at most 160 may be attributed",
+          "budget_families": 60,
+          "pooled_over_reps": 200
+        },
+        "main|probability|budget60|base_unknown": {
+          "tau": 0.042129157609218315,
+          "n_neg": 3200,
+          "n_margins": 3200,
+          "n_attributed": 160,
+          "fpr_at_tau": 0.05,
+          "fallback": false,
+          "note": "3200 negatives, at most 160 may be attributed",
+          "budget_families": 60,
+          "pooled_over_reps": 200
+        },
+        "main|probability|budget100|base_known": {
+          "tau": 0.05525441510753626,
+          "n_neg": 3200,
+          "n_margins": 3200,
+          "n_attributed": 160,
+          "fpr_at_tau": 0.05,
+          "fallback": false,
+          "note": "3200 negatives, at most 160 may be attributed",
+          "budget_families": 100,
+          "pooled_over_reps": 200
+        },
+        "main|probability|budget100|base_unknown": {
+          "tau": 0.03284599427047319,
+          "n_neg": 3200,
+          "n_margins": 3200,
+          "n_attributed": 160,
+          "fpr_at_tau": 0.05,
+          "fallback": false,
+          "note": "3200 negatives, at most 160 may be attributed",
+          "budget_families": 100,
+          "pooled_over_reps": 200
+        }
+      },
+      "candidates": [
+        "gpt4o",
+        "claude46",
+        "deepseek_v4"
+      ],
+      "candidate_key": "claude46,deepseek_v4,gpt4o",
+      "truth_teachers": [
+        "claude46",
+        "deepseek_v4",
+        "gpt4o"
+      ],
+      "absent_truths": [],
+      "n_absent_runs": 0,
+      "families": {
+        "claude46": "anthropic",
+        "deepseek_v4": "deepseek",
+        "gpt4o": "openai"
+      },
+      "frozen": "E7 detector, tau rule, metrics and verdict pre-registered in tasks/e7_plan.md §3-§4 before any provenance result; not yet frozen (freeze commit pending)",
+      "runs_dir": "/Users/yuansir/workspace/CS329X_Project/runs",
+      "namespaces": [
+        "smollm3-3b-e2c",
+        "smollm3-3b-e2ck"
+      ],
+      "descriptive_namespaces": [],
+      "grid_map": {
+        "smollm3-3b-e2c": "E2c_C",
+        "smollm3-3b-e2ck": "K"
+      },
+      "dropped_candidates": []
+    }
+  }
+}

@@ -1,0 +1,1 @@
+table,calibration,grid,version,role,subset,readout,detector,tau_policy,tau,teacher,n,n_correct,recall,wilson_lo,wilson_hi,n_unattributed,unattributed_rate,macro_recall,chance,perm_p,perm_null_mean,n_perm,auroc,n_auroc_pos,n_auroc_neg,fpr,n_neg,n_neg_attributed
