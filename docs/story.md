@@ -1,6 +1,6 @@
 # Research story：高层脉络与 takeaways（2026-10-07）
 
-> 只写讲研究故事需要的结论和转折。数字、判定规则、过程记录在：`docs/E0_results.md`（teacher 与改写器）、`docs/E1_results.md`（E1 / E2 / E3 确认性结果）、`results/e2c/e2c_summary.md` 与 `tasks/e2c_plan.md`（E2c 预注册、修订、结果）、`tasks/hpc_log.md`（HPC 过程）。本文件引用的数字都以这些文件为准。
+> 只写讲研究故事需要的结论和转折；论文的章节、图表与措辞边界在 [docs/paper_narrative.md](paper_narrative.md)。数字、判定规则、过程记录在：`docs/E0_results.md`（teacher 与改写器）、`docs/E1_results.md`（E1 / E2 / E3 确认性结果）、`results/e2c/e2c_summary.md` 与 `tasks/e2c_plan.md`（E2c 预注册、修订、结果）、`tasks/hpc_log.md`（HPC 过程）。本文件引用的数字都以这些文件为准。
 
 ## 1. 问题
 
