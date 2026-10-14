@@ -65,3 +65,16 @@ primary：C 上 ≥ 2/3 teacher gap > seed-pair q95 且 family bootstrap CI > 0�
 
 注意：集群的 `.venv-vllm`（transformers 4.51）不能加载 `smollm3` 架构，E0.7 式的 vLLM 对照（scripts/14）对本基座不可用；协议 readout 是 fp32 transformers，不受影响。SmolLM3 的 tokenizer 是 Llama-3 式 128k 词表（不是 SmolLM2 的 49k），所以备选 Llama-3.2-3B 的字母 id 几乎相同，下载后用 26 复核即可。
 
+## 8. 结果（2026-10-13，test 一次，冻结 4ae6ccb；`results/base2/`，过程见 hpc_log）
+
+| 项 | 结果 |
+|---|---|
+| 门 | gate run 峰值 55.3 GiB；E1a 30/30（C 最低 0.964，K 最低 0.998）；E1b 6/6（最低 0.936）；vLLM 对照跳过（§7） |
+| primary（§4 = e2c §6） | **PASS 2/3**：claude46 gap 0.031 [0.008, 0.050]（q95 0.027）、deepseek_v4 0.027 [0.007, 0.044]（q95 0.015）、gpt4o 0.007 [−0.014, 0.024] |
+| 归因 C − K | **2/3**：gpt4o 0.008 [−0.009, 0.027]、claude46 0.028 [0.005, 0.054]、deepseek_v4 0.034 [0.012, 0.063] |
+| 代价 | 翻转率 C 0.186（gpt4o 0.181 / claude46 0.086 / deepseek_v4 0.292）vs K 0.062；suggestibility 0.304 vs 0.071 |
+| S_0 | 0.9 质量门下 dev / test 100% malformed（mass_AB ≈ 0.60），过门一致率为空；未加门的先验 profile 仍最像 deepseek_v4（ρ 0.250 [0.185, 0.314] vs gpt4o 0.174、claude46 0.111；margin 0.076 [−0.0004, 0.152]）→ **先验混杂未被排除**，按 §4 "反之如实写" |
+| 与 Qwen 对照 | Qwen test gap 0.003 / 0.028 / 0.035（claude46 未过 q95）；SmolLM3 上 claude46 过门但余量小；K 在两个基座上均 ≈ 0 |
+| E7 检测器（描述，`results/e7_base2*`） | 本基座负例只有 16 个（K 15 + S_0），预注册的 τ 规则回退到 0，不可用（`results/e7_base2`）；把 Qwen dev 的 τ 0.0174 直接迁移（`results/e7_base2_qwentau`）：claude46 5/5、deepseek_v4 5/5、gpt4o 0/5，误报 0/16；AUROC 0.944 / 1.000 / 1.000 |
+| 独立复核 | 不导入 vcd 重算规则逐位相同；40 个 bootstrap 种子下旗标与判定 40/40 不变；test 在冻结推送之后、每 run 一次 |
+

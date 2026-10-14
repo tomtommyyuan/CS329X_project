@@ -158,3 +158,7 @@ run 级：词汇 6/6，行为 4/6（两者都对 4、只有词汇对 2 = GPT-4o 
 
 披露：claude46 的两个生成学生与 E3c 同输入 run 不是位级复现（GPU 非确定性，字母差 101 / 115 行），行为归属用它们自己的 readout；生成学生没有 train / dev readout（E1a 未测，checkpoint 已删）；0.17% 的生成行夹有中文（基座泄漏）。
 
+### 7.5 第二基座上的行为检测器（2026-10-13，描述；`results/e7_base2_dev`、`results/e7_base2`、`results/e7_base2_qwentau`）
+
+SmolLM3-3B 的学生只有 16 个负例（K 15 + S_0），§3 的 τ 规则按预注册回退为 0，于是全部判定、FPR 0.94，不可用（`results/e7_base2`，照实保留）。把 Qwen dev 标定的 τ = 0.0174 直接迁移（`--calibration results/e7_dev/calibration.json`）：E2c-C 学生 claude46 5/5、deepseek_v4 5/5、gpt4o 0/5，负例误报 0/16，AUROC 0.944 / 1.000 / 1.000。阈值跨基座迁移成立，是描述性结果（τ 不是在本基座标定的）。
+
