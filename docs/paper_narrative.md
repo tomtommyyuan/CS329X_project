@@ -1,6 +1,6 @@
 # 论文叙事与结构（2026-10-14）
 
-> 怎么讲这个故事。数字以 `docs/story.md` 与各 results 目录为准；实验清单与披露项见 `docs/supplemental_experiments.md`。本文件只定叙事、结构、图表与措辞边界。
+> 怎么讲这个故事。数字以 `docs/story.md` 与各 results 目录为准，画图的精确文件与列见 `docs/figures_data_map.md`；实验清单与披露项见 `docs/supplemental_experiments.md`。本文件只定叙事、结构、图表与措辞边界。
 
 ## 1. 一句话主张与题目
 
@@ -75,7 +75,7 @@
 | 表 2 | E1 / E2：agreement 矩阵与判定 | results/e1 |
 | **图 3** | gap 与翻转率随争议比例（0 / 0.25 / 0.5 / 1），3 teacher，Qwen 实线、SmolLM3 两端点 | results/dose、results/e2c、results/e2c_robust/Kn、results/base2 |
 | 表 3 | E2c 判定、归因、K_n、Cnf、base2 | results/e2c*、results/base2 |
-| 图 4 | 按格子结构的跟随率（唱独角 / 两家对一家 / 全同），3 teacher × C / K / E1 | `scripts/23_cell_decomposition.py`（待补） |
+| 图 4 | 按格子结构的跟随率（唱独角 / 两家对一家 / 全同），3 teacher × C / K / E1 / E3c | `results/e2c/decomposition/test/`（`scripts/23_cell_decomposition.py`） |
 | 表 4 | E3 vs E3c 的 13 + 1 行判定并排 | results/e3、results/e3c |
 | 图 5 | 溯源：召回与误报随候选集（3 vs 7）与探针数；采样 readout | results/e7、results/e7_p2、e7_probe_curve.csv |
 | 表 5 | 缺席实验 + 词汇 vs 行为（6 个生成学生） | results/e7_p2_drop_*、results/e7_lexical_students |

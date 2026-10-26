@@ -50,4 +50,4 @@
 
 只在 HPC 或只在本地、不在 git 里的：学生 **checkpoint**（已全部删除，不可再生成文本）；SLURM 日志（`logs/`，gitignore）；HPC agent 的草稿脚本与中间表（`/hai/scratch/tomyyc/vcd_diag/`，其结论都抄进了 `tasks/hpc_log.md`）；SFT jsonl（gitignore，可由已提交的输入确定性重建）。
 
-**缺的只有一项代码**：E2c 的格子结构分解（teacher "唱独角"的 cell 上学生的跟随率、按问法拆分）是在对话里临时算的，尚未落成脚本；写论文前补成 `scripts/23_cell_decomposition.py` 并把表写入 `results/e2c/decomposition/`。
+格子结构分解已落成 `scripts/23_cell_decomposition.py`，表在 `results/e2c/decomposition/{test,dev}/`（2026-10-25）。每张图的精确数据入口见 `docs/figures_data_map.md`。
